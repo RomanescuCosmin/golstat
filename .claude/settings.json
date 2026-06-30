@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gradle:*)",
+      "Bash(./gradlew:*)",
+      "Bash(git:*)",
+      "Bash(docker:*)",
+      "Bash(docker compose:*)",
+      "Bash(psql:*)",
+      "Bash(npm:*)"
+    ],
+    "deny": [
+      "Read(./**/build/**)",
+      "Edit(./**/build/**)",
+      "Read(./**/.gradle/**)",
+      "Read(./frontend/node_modules/**)",
+      "Read(./**/*.jar)",
+      "Read(./**/*.class)",
+      "Read(./**/*.jks)",
+      "Read(./**/*.p12)",
+      "Read(./**/*.pfx)",
+      "Read(./**/*.pem)",
+      "Read(./**/*.key)",
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./.git/**)"
+    ]
+  },
+  "includeCoAuthoredBy": true,
+  "cleanupPeriodDays": 30
+}
