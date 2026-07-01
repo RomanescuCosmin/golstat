@@ -79,6 +79,8 @@ nu inainte. Tinem build-ul curat.
 ## Code Conventions
 
 - **Limba**: termeni de domeniu si comentariile existente in romana
+- **Comentarii**: cod cat mai putin comentat. Comentam DOAR ce chiar necesita explicatie
+  (o decizie ne-evidenta, un workaround, o formula). Fara comentarii care repeta codul.
 - **stats-engine**: Java pur, deterministic, fara dependinte de framework; fiecare model are teste unitare cu exemple numerice cunoscute
 - **DTO/record**: prefera `record` pentru modele imutabile
 - **Fara REST in alte module decat `api`**
