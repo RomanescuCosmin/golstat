@@ -1,0 +1,11 @@
+rootProject.name = 'golstat'
+
+include 'common'
+include 'stats-engine'
+include 'data-collector'
+include 'api'
+
+project(':common').projectDir = file('backend/common')
+project(':stats-engine').projectDir = file('backend/stats-engine')
+project(':data-collector').projectDir = file('backend/data-collector')
+project(':api').projectDir = file('backend/api')

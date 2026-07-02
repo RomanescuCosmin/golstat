@@ -1,6 +1,0 @@
-rootProject.name = 'golstat'
-
-include 'common'
-include 'stats-engine'
-include 'ingestion'
-include 'api'

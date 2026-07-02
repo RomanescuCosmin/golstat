@@ -16,13 +16,14 @@ meciuri, separata pe acasa / deplasare.
 ## Repository Layout
 
 ```
-golstat/
+golstat/                   → radacina Gradle (wrapper + settings + build.gradle)
+  settings.gradle          → declara modulele (mapate in backend/)
+  build.gradle             → config comuna (toolchain, junit, repositories)
+  gradlew / gradlew.bat    → Gradle wrapper (build din radacina)
   backend/                 → Gradle multi-modul (Java 21)
-    settings.gradle        → declara modulele
-    build.gradle           → config comuna (toolchain, junit, repositories)
     common/                → modele/DTO partajate (gol)
     stats-engine/          → algoritmii de predictie, Java pur, fara framework (gol)
-    ingestion/             → colectare date (API-Football) + publish Kafka (gol)
+    data-collector/        → colectare date (API-Football) + publish Kafka (gol)
     api/                   → REST + WebSocket; consuma stats-engine (gol)
   frontend/                → React (de scafoldat separat)
   infra/
@@ -38,16 +39,13 @@ golstat/
 # Infra locala (Kafka, Postgres, Redis, Schema Registry)
 docker compose up -d
 
-# Build backend (din folderul backend/)
-cd backend
-gradle build          # sau ./gradlew build dupa ce wrapper-ul e generat
-
-# Generare Gradle wrapper (o singura data, daca lipseste)
-gradle wrapper
+# Build backend — din RADACINA proiectului (golstat/), nu din backend/
+./gradlew build          # Windows: gradlew.bat build
 ```
 
-> Wrapper-ul (`gradlew`, `gradle/wrapper/gradle-wrapper.jar`) NU e inclus inca.
-> Genereaza-l cu `gradle wrapper` sau lasa IDE-ul (IntelliJ) sa-l creeze la import.
+> Radacina Gradle e `golstat/`: wrapper-ul, `settings.gradle` si `build.gradle` stau aici,
+> iar modulele sunt mapate in `backend/` prin `settings.gradle`. Deschide direct `golstat/`
+> in IntelliJ — importa tot proiectul multi-modul dintr-o data.
 
 ---
 
@@ -57,7 +55,7 @@ gradle wrapper
 |-------|-----|------------------------|
 | `common` | Record-uri / DTO partajate intre module | Jackson |
 | `stats-engine` | Modele matematice (Poisson, Dixon-Coles, Negative Binomial, forma, shrinkage). **Java pur, fara Spring, usor de testat.** | doar JUnit |
-| `ingestion` | Client API-Football, cache Redis, scheduler, producers Kafka | Spring Boot, Kafka, Redis |
+| `data-collector` | Client API-Football, cache Redis, scheduler, producers Kafka | Spring Boot, Kafka, Redis |
 | `api` | REST + WebSocket, JPA, expune predictiile | Spring Boot Web, JPA, Postgres |
 
 Adaugam dependintele si plugin-ul Spring Boot pe fiecare modul ATUNCI cand il construim,
