@@ -313,7 +313,7 @@ CREATE INDEX idx_fixture_status_short ON fixture(status_short);
 -- Evenimente dintr-un meci (endpoint /fixtures/events): goluri, cartonase,
 -- schimbari, VAR. Sursa exacta pentru "cine a marcat" si "minut cartonas".
 -- player_id/assist_id sunt indexate dar fara FK dur (evenimentele pot sosi
--- inaintea profilului complet al jucatorului; ingestion face upsert minimal).
+-- inaintea profilului complet al jucatorului; data-collector face upsert minimal).
 CREATE TABLE fixture_event (
     id            BIGSERIAL PRIMARY KEY,      -- surogat (API nu da id de eveniment)
     fixture_id    BIGINT NOT NULL REFERENCES fixture(id),

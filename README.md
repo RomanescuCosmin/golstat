@@ -17,7 +17,7 @@ separata pe acasa / deplasare.
 ## Structura
 
 ```
-backend/      Gradle multi-modul: common, stats-engine, ingestion, api
+backend/      Gradle multi-modul: common, stats-engine, data-collector, api
 frontend/     React (placeholder)
 infra/sql/    migrari SQL manuale (gol)
 docker-compose.yml
@@ -31,10 +31,11 @@ docker compose up -d
 
 ## Build backend
 
+Wrapper-ul Gradle e in radacina proiectului; se buildeste tot backend-ul (toate modulele)
+direct din `golstat/`, fara sa mai deschizi doar `backend/`.
+
 ```bash
-cd backend
-gradle wrapper      # o singura data, daca lipseste wrapper-ul
-gradle build
+./gradlew build          # Windows: gradlew.bat build
 ```
 
 ## Pasi urmatori
@@ -43,7 +44,7 @@ Construim incremental, fiecare bucata curata si testata:
 
 1. `stats-engine` — modelele matematice (Poisson, Dixon-Coles, Negative Binomial, forma + shrinkage)
 2. Schema DB in `infra/sql`
-3. `ingestion` — client API-Football + Kafka
+3. `data-collector` — client API-Football + Kafka
 4. `api` — REST + WebSocket
 5. `frontend` — React
 6. Model marcatori (la final)
