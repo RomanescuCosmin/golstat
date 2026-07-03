@@ -1,6 +1,8 @@
 spring:
   profiles:
-    active: stub          # stub-first: foloseste StubDataProvider pana avem ApiFootballProvider
+    # stub → StubDataProvider (fara cheie, fara cota). Orice alt profil → ApiFootballProvider
+    # (necesita API_FOOTBALL_KEY). Comuta cu SPRING_PROFILES_ACTIVE / --spring.profiles.active.
+    active: stub
   application:
     name: golstat-data-collector
   kafka:
@@ -22,11 +24,18 @@ server:
 golstat:
   api-football:
     base-url: https://v3.football.api-sports.io
-    api-key: ${API_FOOTBALL_KEY:}   # din env; gol in stub-first
+    api-key: ${API_FOOTBALL_KEY:}       # din env sau application-local.yml (gitignored); gol pe stub
+    daily-request-limit: 100            # cota planului free
+    cache-ttl: 6h                       # cat tinem un raspuns in Redis inainte sa mai lovim API-ul
   collection:
-    league-id: 1
+    # Pe profilul `stub` valorile nu conteaza (StubDataProvider ignora liga/sezonul real).
+    # Pe profilul `local` (API real) astea sunt tinta. 39 = Premier League, sezon 2024 (2024-25).
+    # NOTA: planul Free acopera DOAR sezoanele 2022-2024; 2025 nu e accesibil (confirmat de API).
+    # Fereastra e INGUSTA intentionat: cu 100 req/zi si "evenimente per meci", un sezon intreg
+    # depaseste cota; garda opreste la 100 si reia a doua zi din cache. Largeste-o cand vrei mai mult.
+    league-id: 39
     season: 2024
-    from: 2024-08-01          # fereastra acopera stub-ul (meciuri aug-sep 2024)
-    to: 2024-09-30
+    from: 2024-08-16          # prima etapa PL 2024-25 (~10 meciuri → incape lejer in cota)
+    to: 2024-08-26
     interval-ms: 3600000       # o data pe ora
     initial-delay-ms: 5000
