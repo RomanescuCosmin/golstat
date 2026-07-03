@@ -12,6 +12,7 @@ import ro.golstat.api.entity.Team;
 import ro.golstat.api.entity.League;
 import ro.golstat.api.entity.Season;
 import ro.golstat.api.entity.Venue;
+import ro.golstat.api.repository.CountryRepository;
 import ro.golstat.api.repository.FixtureEventRepository;
 import ro.golstat.api.repository.FixtureRepository;
 import ro.golstat.api.repository.LeagueRepository;
@@ -46,6 +47,7 @@ class IngestServiceTest {
     @Mock LeagueRepository leagues;
     @Mock SeasonRepository seasons;
     @Mock VenueRepository venues;
+    @Mock CountryRepository countries;
     @InjectMocks IngestService ingest;
 
     private static FixtureDto fixture(long id, long home, long away) {

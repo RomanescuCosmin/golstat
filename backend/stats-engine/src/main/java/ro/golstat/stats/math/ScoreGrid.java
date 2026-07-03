@@ -84,6 +84,37 @@ public final class ScoreGrid {
         return s;
     }
 
+    /** 1X2 — gazda castiga: P(X &gt; Y). ({@code X} = golurile gazdei, {@code Y} ale oaspetilor.) */
+    public double homeWin() {
+        double s = 0.0;
+        for (int x = 0; x < p.length; x++) {
+            for (int y = 0; y < x; y++) {
+                s += p[x][y];
+            }
+        }
+        return s;
+    }
+
+    /** 1X2 — egal: P(X == Y). */
+    public double draw() {
+        double s = 0.0;
+        for (int i = 0; i < p.length; i++) {
+            s += p[i][i];
+        }
+        return s;
+    }
+
+    /** 1X2 — oaspetii castiga: P(X &lt; Y). */
+    public double awayWin() {
+        double s = 0.0;
+        for (int x = 0; x < p.length; x++) {
+            for (int y = x + 1; y < p.length; y++) {
+                s += p[x][y];
+            }
+        }
+        return s;
+    }
+
     private static double tau(int x, int y, double lambdaFor, double lambdaAgainst, double rho) {
         if (x == 0 && y == 0) {
             return 1 - lambdaFor * lambdaAgainst * rho;

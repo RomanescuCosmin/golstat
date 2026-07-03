@@ -54,6 +54,15 @@ public class ApiFootballProvider implements DataProvider {
     }
 
     @Override
+    public List<FixtureDto> liveFixtures() {
+        // `live=all` → toate meciurile live din lume intr-un singur request; ttl=0 = fara cache.
+        return client.get(GolstatConstants.ApiFootball.FIXTURES, Map.of("live", "all"),
+                        FixtureItem.class, java.time.Duration.ZERO).stream()
+                .map(ApiFootballMapper::toFixture)
+                .toList();
+    }
+
+    @Override
     public List<StandingDto> standings(long leagueId, int season) {
         Map<String, Object> params = Map.of("league", leagueId, "season", season);
         return client.get(GolstatConstants.ApiFootball.STANDINGS, params, StandingsLeagueItem.class, props.cacheTtl()).stream()

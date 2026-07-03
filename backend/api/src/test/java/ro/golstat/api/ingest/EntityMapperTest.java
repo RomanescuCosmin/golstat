@@ -52,6 +52,13 @@ class EntityMapperTest {
     }
 
     @Test
+    void toTeam_nullNational_defaultsToFalse() {
+        // API-Football lasa uneori `national` null; coloana is_national e NOT NULL
+        Team t = EntityMapper.toTeam(new TeamDto(7L, "Echipa", null, null, null, null, null, null));
+        assertEquals(false, t.getIsNational());
+    }
+
+    @Test
     void toStanding_mapsKeyAndSplitFields() {
         StandingDto d = new StandingDto(1L, 2024, 9L, 3, "A", 15, 5, "WWL", "same", "desc",
                 10, 5, 2, 3, 18, 11, 6, 4, 1, 1, 12, 6, 4, 1, 1, 2, 6, 5);

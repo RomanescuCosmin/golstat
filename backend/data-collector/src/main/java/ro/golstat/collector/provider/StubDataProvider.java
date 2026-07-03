@@ -53,6 +53,11 @@ public class StubDataProvider implements DataProvider {
     }
 
     @Override
+    public List<FixtureDto> liveFixtures() {
+        return List.of();   // stub-ul nu simuleaza meciuri live
+    }
+
+    @Override
     public List<StandingDto> standings(long leagueId, int season) {
         if (leagueId != LEAGUE_ID || season != SEASON) {
             return List.of();

@@ -66,7 +66,7 @@ final class EntityMapper {
         t.setCode(d.code());
         t.setCountryName(d.countryName());
         t.setFounded(d.founded());
-        t.setIsNational(d.isNational());
+        t.setIsNational(d.isNational() != null ? d.isNational() : false);   // is_national e NOT NULL in schema
         t.setLogo(d.logo());
         t.setVenueId(d.venueId());
         return t;

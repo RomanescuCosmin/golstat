@@ -42,3 +42,8 @@ golstat:
     zile-inainte: 10           # meciuri viitoare (NS)
     interval-ms: 3600000       # o data pe ora
     initial-delay-ms: 5000
+  live:
+    enabled: false             # bucla LIVE doar pe API real (activata in application-local.yml)
+    poll-ms: 15000             # ritmul de poll cand exista meciuri in desfasurare
+    window-before-minutes: 180 # cat timp dupa kickoff mai consideram meciul "live"
+    window-after-minutes: 15   # cat inainte de kickoff pornim polul

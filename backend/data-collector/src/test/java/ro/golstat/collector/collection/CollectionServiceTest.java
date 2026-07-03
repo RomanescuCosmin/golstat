@@ -1,6 +1,7 @@
 package ro.golstat.collector.collection;
 
 import org.junit.jupiter.api.Test;
+import ro.golstat.collector.live.LiveSchedule;
 import ro.golstat.collector.provider.DataProvider;
 import ro.golstat.collector.provider.StubDataProvider;
 import ro.golstat.collector.publish.EventPublisher;
@@ -66,7 +67,7 @@ class CollectionServiceTest {
 
     private RecordingPublisher collectStub() {
         RecordingPublisher pub = new RecordingPublisher();
-        new CollectionService(new StubDataProvider(), pub)
+        new CollectionService(new StubDataProvider(), pub, new LiveSchedule())
                 .collectGoalsData(1, 2024, LocalDate.of(2024, 8, 1), LocalDate.of(2024, 9, 30));
         return pub;
     }
@@ -116,7 +117,7 @@ class CollectionServiceTest {
     @Test
     void emptyWindow_publishesTeamsAndStandingsButNoFixtures() {
         RecordingPublisher pub = new RecordingPublisher();
-        new CollectionService(new StubDataProvider(), pub)
+        new CollectionService(new StubDataProvider(), pub, new LiveSchedule())
                 .collectGoalsData(1, 2024, LocalDate.of(2025, 1, 1), LocalDate.of(2025, 12, 31));
         assertEquals(4, pub.countOn(GolstatConstants.KafkaTopics.TEAMS));
         assertEquals(4, pub.countOn(GolstatConstants.KafkaTopics.STANDINGS));
@@ -128,7 +129,7 @@ class CollectionServiceTest {
     void eventsRequestedOnlyForTerminalFixtures() {
         StatusProvider provider = new StatusProvider();
         RecordingPublisher pub = new RecordingPublisher();
-        new CollectionService(provider, pub)
+        new CollectionService(provider, pub, new LiveSchedule())
                 .collectGoalsData(1, 2026, LocalDate.of(2026, 6, 1), LocalDate.of(2026, 7, 31));
 
         assertEquals(2, pub.countOn(GolstatConstants.KafkaTopics.FIXTURES), "ambele meciuri publicate");
@@ -152,6 +153,11 @@ class CollectionServiceTest {
             eventsAskedFor.add(fixtureId);
             return List.of(new FixtureEventDto(fixtureId, 1L, null, null, 10, null,
                     GolstatConstants.EventType.GOAL, "Normal Goal", null));
+        }
+
+        @Override
+        public List<FixtureDto> liveFixtures() {
+            return List.of();
         }
 
         @Override

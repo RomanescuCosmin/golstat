@@ -27,6 +27,12 @@ public interface DataProvider {
     /** Evenimentele unui meci (goluri, cartonase, schimbari...). */
     List<FixtureEventDto> fixtureEvents(long fixtureId);
 
+    /**
+     * Meciurile in DESFASURARE acum, din TOATE ligile (un singur apel la sursa). Filtrarea pe ligile
+     * urmarite ramane in sarcina apelantului. Se schimba la fiecare poll → implementarea nu cache-uieste.
+     */
+    List<FixtureDto> liveFixtures();
+
     /** Clasamentul unei ligi/sezon. */
     List<StandingDto> standings(long leagueId, int season);
 

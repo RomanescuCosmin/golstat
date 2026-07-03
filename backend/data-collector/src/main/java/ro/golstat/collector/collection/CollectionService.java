@@ -3,6 +3,7 @@ package ro.golstat.collector.collection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import ro.golstat.collector.live.LiveSchedule;
 import ro.golstat.collector.provider.DataProvider;
 import ro.golstat.collector.publish.EventPublisher;
 import ro.golstat.common.GolstatConstants;
@@ -15,7 +16,9 @@ import ro.golstat.common.dto.TeamDto;
 import ro.golstat.common.dto.VenueDto;
 
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -44,10 +47,12 @@ public class CollectionService {
 
     private final DataProvider provider;
     private final EventPublisher publisher;
+    private final LiveSchedule liveSchedule;
 
-    public CollectionService(DataProvider provider, EventPublisher publisher) {
+    public CollectionService(DataProvider provider, EventPublisher publisher, LiveSchedule liveSchedule) {
         this.provider = provider;
         this.publisher = publisher;
+        this.liveSchedule = liveSchedule;
     }
 
     public void collectGoalsData(long leagueId, int season, LocalDate from, LocalDate to) {
@@ -81,6 +86,13 @@ public class CollectionService {
                 publisher.publish(GolstatConstants.KafkaTopics.FIXTURE_EVENTS, String.valueOf(fixture.id()), events);
             }
         }
+
+        // orarul pentru bucla LIVE: kickoff-urile meciurilor din fereastra (gating-ul poll-ului)
+        List<OffsetDateTime> kickoffs = fixtures.stream()
+                .map(FixtureDto::kickoff)
+                .filter(Objects::nonNull)
+                .toList();
+        liveSchedule.replaceForLeague(leagueId, kickoffs);
 
         log.info("Colectat liga {} sezon {}: {} fixtures in fereastra {}..{}",
                 leagueId, season, fixtures.size(), from, to);

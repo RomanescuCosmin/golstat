@@ -27,7 +27,7 @@ class CollectionPlannerTest {
         Long quotaOnLeague;
 
         RecordingCollectionService() {
-            super(null, null);
+            super(null, null, null);
         }
 
         @Override

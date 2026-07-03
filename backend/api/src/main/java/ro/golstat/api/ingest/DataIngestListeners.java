@@ -5,6 +5,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
+import ro.golstat.api.web.LiveBroadcaster;
 import ro.golstat.common.GolstatConstants;
 import ro.golstat.common.dto.FixtureDto;
 import ro.golstat.common.dto.FixtureEventDto;
@@ -26,10 +27,12 @@ public class DataIngestListeners {
 
     private final IngestService ingest;
     private final ObjectMapper mapper;
+    private final LiveBroadcaster liveBroadcaster;
 
-    public DataIngestListeners(IngestService ingest, ObjectMapper mapper) {
+    public DataIngestListeners(IngestService ingest, ObjectMapper mapper, LiveBroadcaster liveBroadcaster) {
         this.ingest = ingest;
         this.mapper = mapper;
+        this.liveBroadcaster = liveBroadcaster;
     }
 
     @KafkaListener(topics = GolstatConstants.KafkaTopics.VENUES)
@@ -54,7 +57,9 @@ public class DataIngestListeners {
 
     @KafkaListener(topics = GolstatConstants.KafkaTopics.FIXTURES)
     void onFixture(String json) {
-        ingest.ingestFixture(read(json, FixtureDto.class));
+        FixtureDto fixture = read(json, FixtureDto.class);
+        ingest.ingestFixture(fixture);
+        liveBroadcaster.broadcast(fixture);   // push LIVE daca meciul e in desfasurare
     }
 
     @KafkaListener(topics = GolstatConstants.KafkaTopics.STANDINGS)

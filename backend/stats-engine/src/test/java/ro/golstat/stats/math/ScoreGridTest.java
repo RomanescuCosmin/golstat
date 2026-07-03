@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ScoreGridTest {
 
@@ -66,6 +67,19 @@ class ScoreGridTest {
         assertEquals(0.254832647, 1.0 - g.probabilityOverTotal(1.5), EPS); // Under 1.5
         assertEquals(0.481570424, g.probabilityOverTotal(2.5), EPS);       // Over 2.5
         assertEquals(0.541762227, g.btts(), EPS);
+    }
+
+    @Test
+    void oneXtwo_partitionsMatrix() {
+        ScoreGrid g = ScoreGrid.dixonColes(1.6, 1.0, -0.1, M);
+        assertEquals(g.total(), g.homeWin() + g.draw() + g.awayWin(), EPS);
+        assertTrue(g.homeWin() > g.awayWin(), "gazda cu λ mai mare castiga mai des");
+    }
+
+    @Test
+    void oneXtwo_symmetricWhenLambdasEqual() {
+        ScoreGrid g = ScoreGrid.dixonColes(1.3, 1.3, -0.1, M);
+        assertEquals(g.homeWin(), g.awayWin(), EPS);
     }
 
     @Test

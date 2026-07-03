@@ -2,10 +2,12 @@ package ro.golstat.api.ingest;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import ro.golstat.api.entity.Country;
 import ro.golstat.api.entity.League;
 import ro.golstat.api.entity.Season;
 import ro.golstat.api.entity.Team;
 import ro.golstat.api.entity.Venue;
+import ro.golstat.api.repository.CountryRepository;
 import ro.golstat.api.repository.FixtureEventRepository;
 import ro.golstat.api.repository.FixtureRepository;
 import ro.golstat.api.repository.LeagueRepository;
@@ -41,10 +43,12 @@ public class IngestService {
     private final LeagueRepository leagues;
     private final SeasonRepository seasons;
     private final VenueRepository venues;
+    private final CountryRepository countries;
 
     public IngestService(TeamRepository teams, FixtureRepository fixtures,
                          FixtureEventRepository events, StandingRepository standings,
-                         LeagueRepository leagues, SeasonRepository seasons, VenueRepository venues) {
+                         LeagueRepository leagues, SeasonRepository seasons, VenueRepository venues,
+                         CountryRepository countries) {
         this.teams = teams;
         this.fixtures = fixtures;
         this.events = events;
@@ -52,12 +56,14 @@ public class IngestService {
         this.leagues = leagues;
         this.seasons = seasons;
         this.venues = venues;
+        this.countries = countries;
     }
 
     // --- catalog ---
 
     @Transactional
     public void ingestLeague(LeagueDto dto) {
+        ensureCountry(dto.countryName());
         leagues.save(EntityMapper.toLeague(dto));
     }
 
@@ -69,11 +75,14 @@ public class IngestService {
 
     @Transactional
     public void ingestVenue(VenueDto dto) {
+        ensureCountry(dto.countryName());
         venues.save(EntityMapper.toVenue(dto));
     }
 
     @Transactional
     public void ingestTeam(TeamDto dto) {
+        ensureCountry(dto.countryName());
+        ensureVenue(dto.venueId());   // echipa are FK spre stadion
         teams.save(EntityMapper.toTeam(dto));
     }
 
@@ -102,8 +111,10 @@ public class IngestService {
             return;
         }
         events.deleteByFixtureId(batch.get(0).fixtureId());
+        // acelasi teamId apare de mai multe ori intr-un meci (ex. 2 goluri) → ensureTeam O SINGURA data,
+        // altfel doua INSERT-uri placeholder cu acelasi id in aceeasi tranzactie = duplicate key.
+        batch.stream().map(FixtureEventDto::teamId).filter(java.util.Objects::nonNull).distinct().forEach(this::ensureTeam);
         for (FixtureEventDto dto : batch) {
-            ensureTeam(dto.teamId());
             events.save(EntityMapper.toFixtureEvent(dto));
         }
     }
@@ -116,8 +127,19 @@ public class IngestService {
         }
         Team placeholder = new Team();
         placeholder.setId(teamId);
-        placeholder.setName("?");   // NOT NULL in schema
+        placeholder.setName("?");        // NOT NULL in schema
+        placeholder.setIsNational(false); // NOT NULL in schema
         teams.save(placeholder);
+    }
+
+    /** league/team/venue au FK spre country(name); cream un rand minimal daca lipseste (imbogatit ulterior). */
+    private void ensureCountry(String name) {
+        if (name == null || countries.existsById(name)) {
+            return;
+        }
+        Country placeholder = new Country();
+        placeholder.setName(name);
+        countries.save(placeholder);
     }
 
     private void ensureVenue(Long venueId) {
