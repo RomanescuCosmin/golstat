@@ -1,0 +1,64 @@
+package ro.golstat.api.ingest;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.stereotype.Component;
+import ro.golstat.common.GolstatConstants;
+import ro.golstat.common.dto.FixtureDto;
+import ro.golstat.common.dto.FixtureEventDto;
+import ro.golstat.common.dto.StandingDto;
+import ro.golstat.common.dto.TeamDto;
+
+import java.util.List;
+
+/**
+ * Consuma topicurile Kafka (JSON ca String) si deleaga persistarea la {@link IngestService}.
+ * Deserializam manual cu ObjectMapper ca sa evitam ambiguitatile de tip ale JsonDeserializer
+ * pe topicuri cu tipuri diferite.
+ */
+@Component
+public class DataIngestListeners {
+
+    private final IngestService ingest;
+    private final ObjectMapper mapper;
+
+    public DataIngestListeners(IngestService ingest, ObjectMapper mapper) {
+        this.ingest = ingest;
+        this.mapper = mapper;
+    }
+
+    @KafkaListener(topics = GolstatConstants.KafkaTopics.TEAMS)
+    void onTeam(String json) {
+        ingest.ingestTeam(read(json, TeamDto.class));
+    }
+
+    @KafkaListener(topics = GolstatConstants.KafkaTopics.FIXTURES)
+    void onFixture(String json) {
+        ingest.ingestFixture(read(json, FixtureDto.class));
+    }
+
+    @KafkaListener(topics = GolstatConstants.KafkaTopics.STANDINGS)
+    void onStanding(String json) {
+        ingest.ingestStanding(read(json, StandingDto.class));
+    }
+
+    @KafkaListener(topics = GolstatConstants.KafkaTopics.FIXTURE_EVENTS)
+    void onEvents(String json) {
+        try {
+            ingest.ingestEvents(mapper.readValue(json, new TypeReference<List<FixtureEventDto>>() {
+            }));
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("JSON invalid pe " + GolstatConstants.KafkaTopics.FIXTURE_EVENTS, e);
+        }
+    }
+
+    private <T> T read(String json, Class<T> type) {
+        try {
+            return mapper.readValue(json, type);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("JSON invalid pentru " + type.getSimpleName(), e);
+        }
+    }
+}

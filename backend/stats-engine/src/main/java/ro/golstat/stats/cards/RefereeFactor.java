@@ -8,7 +8,7 @@ import ro.golstat.stats.math.Shrinkage;
  * meciuri arbitrate (esantion mic → aproape de 1), apoi impartita la media ligii si limitata
  * (clamp) in {@code [0.7, 1.3]}. Arbitru necunoscut ⇒ {@link #NEUTRAL} (1.0), fara efect.
  */
-public final class RefereeFactor {
+public final class  RefereeFactor {
 
     public static final double NEUTRAL = 1.0;
 

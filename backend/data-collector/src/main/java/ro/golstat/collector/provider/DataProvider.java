@@ -1,0 +1,32 @@
+package ro.golstat.collector.provider;
+
+import ro.golstat.common.dto.FixtureDto;
+import ro.golstat.common.dto.FixtureEventDto;
+import ro.golstat.common.dto.StandingDto;
+import ro.golstat.common.dto.TeamDto;
+
+import java.time.LocalDate;
+import java.util.List;
+
+/**
+ * Abstractizarea sursei de date. Intoarce DTO-uri din {@code common} (nu tipuri specifice
+ * furnizorului), ca schimbarea de furnizor sa insemne o singura implementare noua in spatele
+ * acestei interfete. Parametrii sunt de DOMENIU (liga, sezon, interval, meci) — fara concepte
+ * API-Football (ex. {@code last=N}).
+ *
+ * <p>Deocamdata doar endpoint-urile necesare pietei de goluri; se extinde cand adaugam piete.
+ */
+public interface DataProvider {
+
+    /** Fixtures dintr-o liga/sezon, in intervalul {@code [from, to]} (inclusiv). */
+    List<FixtureDto> fixtures(long leagueId, int season, LocalDate from, LocalDate to);
+
+    /** Evenimentele unui meci (goluri, cartonase, schimbari...). */
+    List<FixtureEventDto> fixtureEvents(long fixtureId);
+
+    /** Clasamentul unei ligi/sezon. */
+    List<StandingDto> standings(long leagueId, int season);
+
+    /** Echipele dintr-o liga/sezon. */
+    List<TeamDto> teams(long leagueId, int season);
+}

@@ -1,0 +1,32 @@
+spring:
+  profiles:
+    active: stub          # stub-first: foloseste StubDataProvider pana avem ApiFootballProvider
+  application:
+    name: golstat-data-collector
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        # nu legam consumatorii de numele clasei producatorului; tipul tinta se da la consumer
+        spring.json.add.type.headers: false
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+server:
+  port: 8082
+
+golstat:
+  api-football:
+    base-url: https://v3.football.api-sports.io
+    api-key: ${API_FOOTBALL_KEY:}   # din env; gol in stub-first
+  collection:
+    league-id: 1
+    season: 2024
+    from: 2024-08-01          # fereastra acopera stub-ul (meciuri aug-sep 2024)
+    to: 2024-09-30
+    interval-ms: 3600000       # o data pe ora
+    initial-delay-ms: 5000

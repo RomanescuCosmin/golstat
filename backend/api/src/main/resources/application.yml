@@ -7,12 +7,19 @@ spring:
     password: root
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: update      # doar adauga schema noua; NU sterge date la pornire
     open-in-view: false
     properties:
       hibernate:
         jdbc:
           time_zone: UTC
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: golstat-api
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
 
 golstat:
   database:
