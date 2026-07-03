@@ -17,7 +17,8 @@ class QuotaGuardTest {
     private final Clock clock = Clock.fixed(NOON, ZoneOffset.UTC);
 
     private static ApiFootballProperties props(int limit) {
-        return new ApiFootballProperties("http://api.test", "k", limit, Duration.ofHours(6));
+        return new ApiFootballProperties("http://api.test", "k", limit,
+                Duration.ofHours(6), Duration.ofHours(1), Duration.ofHours(24));
     }
 
     @Test

@@ -6,6 +6,9 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import ro.golstat.collector.provider.apifootball.ApiFootballQuotaExceededException;
 
+import java.time.Clock;
+import java.time.LocalDate;
+
 /**
  * Declanseaza colectarea periodic. Deocamdata minimal: o fereastra fixa din config. Ulterior
  * devine planificatorul care intinde colectarea pe zi cu prioritati si respecta cota (Pasii 3-4).
@@ -20,10 +23,12 @@ public class CollectionPlanner {
 
     private final CollectionService collection;
     private final CollectionProperties props;
+    private final Clock clock;
 
-    public CollectionPlanner(CollectionService collection, CollectionProperties props) {
+    public CollectionPlanner(CollectionService collection, CollectionProperties props, Clock clock) {
         this.collection = collection;
         this.props = props;
+        this.clock = clock;
     }
 
     @Scheduled(
@@ -31,9 +36,13 @@ public class CollectionPlanner {
             initialDelayString = "${golstat.collection.initial-delay-ms:5000}"
     )
     public void collect() {
+        LocalDate today = LocalDate.now(clock);
+        LocalDate from = today.minusDays(props.zileInUrma());
+        LocalDate to = today.plusDays(props.zileInainte());
+
         for (LeagueTarget target : props.leagues()) {
             try {
-                collection.collectGoalsData(target.leagueId(), target.season(), props.from(), props.to());
+                collection.collectGoalsData(target.leagueId(), target.season(), from, to);
             } catch (ApiFootballQuotaExceededException e) {
                 // Cota e globala pe zi: daca s-a atins la o liga, nu mai are rost sa incercam restul.
                 log.warn("Colectare oprita (cota atinsa): {}", e.getMessage());

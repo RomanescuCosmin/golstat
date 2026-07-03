@@ -54,17 +54,30 @@ public class ApiFootballClient {
     }
 
     public <T> List<T> get(String path, Map<String, Object> params, Class<T> itemType) {
+        return get(path, params, itemType, cacheTtl);
+    }
+
+    /**
+     * {@code ttl == 0} → ocoleste cache-ul complet (nici citire, nici scriere): fiecare apel loveste
+     * API-ul. Folosit pentru LIVE, unde datele se schimba la fiecare poll (GS-15).
+     */
+    public <T> List<T> get(String path, Map<String, Object> params, Class<T> itemType, Duration ttl) {
+        boolean useCache = !ttl.isZero();
         String cacheKey = cacheKey(path, params);
-        Optional<String> cached = store.get(cacheKey);
-        if (cached.isPresent()) {
-            return deserialize(cached.get(), path, itemType);
+        if (useCache) {
+            Optional<String> cached = store.get(cacheKey);
+            if (cached.isPresent()) {
+                return deserialize(cached.get(), path, itemType);
+            }
         }
         if (!quota.tryAcquire()) {
             throw new ApiFootballQuotaExceededException(path);
         }
         String json = fetch(path, params);
         List<T> items = deserialize(json, path, itemType);   // valideaza errors INAINTE de cache
-        store.set(cacheKey, json, cacheTtl);
+        if (useCache) {
+            store.set(cacheKey, json, ttl);
+        }
         return items;
     }
 

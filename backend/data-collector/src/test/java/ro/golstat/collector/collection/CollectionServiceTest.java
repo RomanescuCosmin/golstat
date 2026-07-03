@@ -1,12 +1,21 @@
 package ro.golstat.collector.collection;
 
 import org.junit.jupiter.api.Test;
+import ro.golstat.collector.provider.DataProvider;
 import ro.golstat.collector.provider.StubDataProvider;
 import ro.golstat.collector.publish.EventPublisher;
 import ro.golstat.common.GolstatConstants;
 import ro.golstat.common.dto.FixtureDto;
+import ro.golstat.common.dto.FixtureEventDto;
+import ro.golstat.common.dto.LeagueDto;
+import ro.golstat.common.dto.SeasonDto;
+import ro.golstat.common.dto.StandingDto;
+import ro.golstat.common.dto.TeamDto;
+import ro.golstat.common.dto.VenueDto;
 
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -113,5 +122,68 @@ class CollectionServiceTest {
         assertEquals(4, pub.countOn(GolstatConstants.KafkaTopics.STANDINGS));
         assertEquals(0, pub.countOn(GolstatConstants.KafkaTopics.FIXTURES));
         assertEquals(0, pub.countOn(GolstatConstants.KafkaTopics.FIXTURE_EVENTS));
+    }
+
+    @Test
+    void eventsRequestedOnlyForTerminalFixtures() {
+        StatusProvider provider = new StatusProvider();
+        RecordingPublisher pub = new RecordingPublisher();
+        new CollectionService(provider, pub)
+                .collectGoalsData(1, 2026, LocalDate.of(2026, 6, 1), LocalDate.of(2026, 7, 31));
+
+        assertEquals(2, pub.countOn(GolstatConstants.KafkaTopics.FIXTURES), "ambele meciuri publicate");
+        assertEquals(1, pub.countOn(GolstatConstants.KafkaTopics.FIXTURE_EVENTS), "doar meciul FT are evenimente");
+        assertEquals(List.of(200L), provider.eventsAskedFor, "NS nu declanseaza cerere de evenimente");
+        assertEquals("200", pub.first(GolstatConstants.KafkaTopics.FIXTURE_EVENTS).key());
+    }
+
+    /** Furnizor cu un meci terminat (200, FT) si unul viitor (201, NS); retine pentru cine s-au cerut evenimente. */
+    private static final class StatusProvider implements DataProvider {
+        final List<Long> eventsAskedFor = new ArrayList<>();
+
+        @Override
+        public List<FixtureDto> fixtures(long leagueId, int season, LocalDate from, LocalDate to) {
+            return List.of(fixture(200, GolstatConstants.FixtureStatus.FINISHED),
+                    fixture(201, GolstatConstants.FixtureStatus.NOT_STARTED));
+        }
+
+        @Override
+        public List<FixtureEventDto> fixtureEvents(long fixtureId) {
+            eventsAskedFor.add(fixtureId);
+            return List.of(new FixtureEventDto(fixtureId, 1L, null, null, 10, null,
+                    GolstatConstants.EventType.GOAL, "Normal Goal", null));
+        }
+
+        @Override
+        public List<StandingDto> standings(long leagueId, int season) {
+            return List.of();
+        }
+
+        @Override
+        public List<TeamDto> teams(long leagueId, int season) {
+            return List.of();
+        }
+
+        @Override
+        public List<LeagueDto> leagues() {
+            return List.of();
+        }
+
+        @Override
+        public List<SeasonDto> seasons(long leagueId) {
+            return List.of();
+        }
+
+        @Override
+        public List<VenueDto> venues() {
+            return List.of();
+        }
+
+        private static FixtureDto fixture(long id, String statusShort) {
+            return new FixtureDto(
+                    id, null, "UTC", OffsetDateTime.of(2026, 6, 15, 18, 0, 0, 0, ZoneOffset.UTC),
+                    1L, 2026, "Regular Season - 1", 1L, "long", statusShort, 90,
+                    1L, 2L, 1, 0, 1, 0, 1, 0, null, null, null, null);
+        }
     }
 }

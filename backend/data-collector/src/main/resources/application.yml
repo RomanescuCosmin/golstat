@@ -26,15 +26,19 @@ golstat:
     base-url: https://v3.football.api-sports.io
     api-key: ${API_FOOTBALL_KEY:}       # din env sau application-local.yml (gitignored); gol pe stub
     daily-request-limit: 7500           # cota planului PRO
-    cache-ttl: 6h                       # cat tinem un raspuns in Redis inainte sa mai lovim API-ul
+    cache-ttl: 6h                       # default (catalog/clasament)
+    ttl-upcoming: 1h                    # fixtures (contin meciuri viitoare/live)
+    ttl-historic: 24h                   # evenimente de meci terminat (imuabile)
   collection:
-    # Ligile de aici tin demo-ul STUB (StubDataProvider serveste liga 1, sezon 2024).
-    # Tintele REALE (CM 2026 + campionatele europene) stau in application-local.yml, profil `local`.
-    # Fereastra e inca fixa; devine rulanta (zile-in-urma / zile-inainte) la GS-11.
+    # Ligile de aici sunt pentru profilul STUB. Tintele REALE (CM 2026 + campionatele europene)
+    # stau in application-local.yml, profil `local`.
+    # NOTA: fereastra e rulanta fata de AZI (zile-in-urma / zile-inainte), deci fixtures-urile stub
+    # (fixe pe 2024) cad in afara ei — lantul de colectare e acoperit de testele unitare, care dau
+    # ferestre explicite. La rulare reala (profil local) fereastra prinde meciurile recente + viitoare.
     leagues:
       - league-id: 1
         season: 2024
-    from: 2024-08-01
-    to: 2024-09-30
+    zile-in-urma: 90           # rezultate recente care hranesc forma
+    zile-inainte: 10           # meciuri viitoare (NS)
     interval-ms: 3600000       # o data pe ora
     initial-delay-ms: 5000

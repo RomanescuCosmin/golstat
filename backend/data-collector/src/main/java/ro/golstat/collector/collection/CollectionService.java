@@ -16,6 +16,7 @@ import ro.golstat.common.dto.VenueDto;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Colecteaza datele pentru piata de goluri de la {@link DataProvider} si le publica in Kafka.
@@ -33,6 +34,13 @@ import java.util.List;
 public class CollectionService {
 
     private static final Logger log = LoggerFactory.getLogger(CollectionService.class);
+
+    /** Doar meciurile terminate au evenimente stabile; unul NS/live n-are → nu-i cerem (economie de cota). */
+    private static final Set<String> TERMINAL = Set.of(
+            GolstatConstants.FixtureStatus.FINISHED,
+            GolstatConstants.FixtureStatus.FINISHED_AET,
+            GolstatConstants.FixtureStatus.FINISHED_PEN
+    );
 
     private final DataProvider provider;
     private final EventPublisher publisher;
@@ -65,6 +73,9 @@ public class CollectionService {
         for (FixtureDto fixture : fixtures) {
             publisher.publish(GolstatConstants.KafkaTopics.FIXTURES, String.valueOf(fixture.id()), fixture);
 
+            if (!TERMINAL.contains(fixture.statusShort())) {
+                continue;   // meci viitor/live → fara evenimente
+            }
             List<FixtureEventDto> events = provider.fixtureEvents(fixture.id());
             if (!events.isEmpty()) {
                 publisher.publish(GolstatConstants.KafkaTopics.FIXTURE_EVENTS, String.valueOf(fixture.id()), events);

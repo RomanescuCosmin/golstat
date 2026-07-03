@@ -26,9 +26,11 @@ import java.util.Map;
 public class ApiFootballProvider implements DataProvider {
 
     private final ApiFootballClient client;
+    private final ApiFootballProperties props;
 
-    public ApiFootballProvider(ApiFootballClient client) {
+    public ApiFootballProvider(ApiFootballClient client, ApiFootballProperties props) {
         this.client = client;
+        this.props = props;
     }
 
     @Override
@@ -36,14 +38,17 @@ public class ApiFootballProvider implements DataProvider {
         Map<String, Object> params = Map.of(
                 "league", leagueId, "season", season,
                 "from", from.toString(), "to", to.toString());
-        return client.get(GolstatConstants.ApiFootball.FIXTURES, params, FixtureItem.class).stream()
+        // fereastra contine meciuri viitoare/live → TTL scurt
+        return client.get(GolstatConstants.ApiFootball.FIXTURES, params, FixtureItem.class, props.ttlUpcoming()).stream()
                 .map(ApiFootballMapper::toFixture)
                 .toList();
     }
 
     @Override
     public List<FixtureEventDto> fixtureEvents(long fixtureId) {
-        return client.get(GolstatConstants.ApiFootball.FIXTURES_EVENTS, Map.of("fixture", fixtureId), EventItem.class).stream()
+        // evenimentele unui meci terminat sunt imuabile → TTL lung
+        return client.get(GolstatConstants.ApiFootball.FIXTURES_EVENTS, Map.of("fixture", fixtureId),
+                        EventItem.class, props.ttlHistoric()).stream()
                 .map(e -> ApiFootballMapper.toEvent(e, fixtureId))
                 .toList();
     }
@@ -51,7 +56,7 @@ public class ApiFootballProvider implements DataProvider {
     @Override
     public List<StandingDto> standings(long leagueId, int season) {
         Map<String, Object> params = Map.of("league", leagueId, "season", season);
-        return client.get(GolstatConstants.ApiFootball.STANDINGS, params, StandingsLeagueItem.class).stream()
+        return client.get(GolstatConstants.ApiFootball.STANDINGS, params, StandingsLeagueItem.class, props.cacheTtl()).stream()
                 .flatMap(item -> ApiFootballMapper.toStandings(item).stream())
                 .toList();
     }
@@ -59,21 +64,21 @@ public class ApiFootballProvider implements DataProvider {
     @Override
     public List<TeamDto> teams(long leagueId, int season) {
         Map<String, Object> params = Map.of("league", leagueId, "season", season);
-        return client.get(GolstatConstants.ApiFootball.TEAMS, params, TeamItem.class).stream()
+        return client.get(GolstatConstants.ApiFootball.TEAMS, params, TeamItem.class, props.ttlHistoric()).stream()
                 .map(ApiFootballMapper::toTeam)
                 .toList();
     }
 
     @Override
     public List<LeagueDto> leagues() {
-        return client.get(GolstatConstants.ApiFootball.LEAGUES, Map.of(), LeagueItem.class).stream()
+        return client.get(GolstatConstants.ApiFootball.LEAGUES, Map.of(), LeagueItem.class, props.ttlHistoric()).stream()
                 .map(ApiFootballMapper::toLeague)
                 .toList();
     }
 
     @Override
     public List<SeasonDto> seasons(long leagueId) {
-        return client.get(GolstatConstants.ApiFootball.LEAGUES, Map.of("id", leagueId), LeagueItem.class).stream()
+        return client.get(GolstatConstants.ApiFootball.LEAGUES, Map.of("id", leagueId), LeagueItem.class, props.ttlHistoric()).stream()
                 .flatMap(item -> ApiFootballMapper.toSeasons(item, leagueId).stream())
                 .toList();
     }

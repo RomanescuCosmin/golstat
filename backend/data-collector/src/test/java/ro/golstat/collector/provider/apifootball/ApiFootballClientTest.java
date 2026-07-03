@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
@@ -25,7 +26,8 @@ class ApiFootballClientTest {
     private static final Clock CLOCK = Clock.fixed(Instant.parse("2026-07-03T10:00:00Z"), ZoneOffset.UTC);
 
     private static ApiFootballProperties props(int limit) {
-        return new ApiFootballProperties("http://api.test", "k", limit, Duration.ofHours(6));
+        return new ApiFootballProperties("http://api.test", "k", limit,
+                Duration.ofHours(6), Duration.ofHours(1), Duration.ofHours(24));
     }
 
     @Test
@@ -78,5 +80,41 @@ class ApiFootballClientTest {
 
         boolean anythingCached = store.values.keySet().stream().anyMatch(k -> k.startsWith("golstat:af:cache:"));
         assertTrue(!anythingCached, "raspunsul de eroare nu trebuie cache-uit");
+    }
+
+    @Test
+    void ttlZero_bypassesCache_hitsHttpEveryCall() {
+        InMemoryCounterStore store = new InMemoryCounterStore();
+        QuotaGuard quota = new QuotaGuard(store, props(100), CLOCK);
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        server.expect(ExpectedCount.twice(), requestTo("http://api.test/fixtures?live=all"))
+                .andRespond(withSuccess(FIXTURES_JSON, MediaType.APPLICATION_JSON));
+
+        ApiFootballClient client = new ApiFootballClient(props(100), builder, store, quota);
+        client.get("/fixtures", Map.of("live", "all"), FixtureItem.class, Duration.ZERO);
+        client.get("/fixtures", Map.of("live", "all"), FixtureItem.class, Duration.ZERO);
+
+        server.verify();   // doua cereri HTTP: ttl=0 nu citeste/nu scrie cache
+        boolean anythingCached = store.values.keySet().stream().anyMatch(k -> k.startsWith("golstat:af:cache:"));
+        assertFalse(anythingCached, "ttl=0 nu scrie in cache");
+        assertEquals(2, quota.used());
+    }
+
+    @Test
+    void customTtl_isWrittenToStore() {
+        InMemoryCounterStore store = new InMemoryCounterStore();
+        QuotaGuard quota = new QuotaGuard(store, props(100), CLOCK);
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        server.expect(ExpectedCount.once(), requestTo("http://api.test/fixtures?league=39"))
+                .andRespond(withSuccess(FIXTURES_JSON, MediaType.APPLICATION_JSON));
+
+        ApiFootballClient client = new ApiFootballClient(props(100), builder, store, quota);
+        client.get("/fixtures", Map.of("league", 39), FixtureItem.class, Duration.ofHours(24));
+
+        String cacheKey = store.values.keySet().stream()
+                .filter(k -> k.startsWith("golstat:af:cache:")).findFirst().orElseThrow();
+        assertEquals(Duration.ofHours(24), store.ttls.get(cacheKey));
     }
 }
