@@ -71,4 +71,12 @@ class StubDataProviderTest {
         assertEquals(4, provider.teams(1, 2024).size());
         assertTrue(provider.teams(999, 2024).isEmpty());
     }
+
+    @Test
+    void catalog_leaguesSeasonsVenues() {
+        assertEquals(1, provider.leagues().size());
+        assertEquals(1, provider.seasons(1).size());
+        assertTrue(provider.seasons(999).isEmpty());
+        assertEquals(1, provider.venues().size());
+    }
 }

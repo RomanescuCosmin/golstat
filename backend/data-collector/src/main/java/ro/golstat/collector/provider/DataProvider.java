@@ -2,8 +2,11 @@ package ro.golstat.collector.provider;
 
 import ro.golstat.common.dto.FixtureDto;
 import ro.golstat.common.dto.FixtureEventDto;
+import ro.golstat.common.dto.LeagueDto;
+import ro.golstat.common.dto.SeasonDto;
 import ro.golstat.common.dto.StandingDto;
 import ro.golstat.common.dto.TeamDto;
+import ro.golstat.common.dto.VenueDto;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -29,4 +32,15 @@ public interface DataProvider {
 
     /** Echipele dintr-o liga/sezon. */
     List<TeamDto> teams(long leagueId, int season);
+
+    // --- catalog (colectat rar; prerequisit FK pentru fixtures/standings) ---
+
+    /** Competitiile (ligi/cupe) urmarite. */
+    List<LeagueDto> leagues();
+
+    /** Sezoanele unei competitii. */
+    List<SeasonDto> seasons(long leagueId);
+
+    /** Stadioanele. */
+    List<VenueDto> venues();
 }

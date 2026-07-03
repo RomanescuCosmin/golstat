@@ -9,12 +9,19 @@ import ro.golstat.api.entity.Fixture;
 import ro.golstat.api.entity.FixtureEvent;
 import ro.golstat.api.entity.Standing;
 import ro.golstat.api.entity.Team;
+import ro.golstat.api.entity.League;
+import ro.golstat.api.entity.Season;
+import ro.golstat.api.entity.Venue;
 import ro.golstat.api.repository.FixtureEventRepository;
 import ro.golstat.api.repository.FixtureRepository;
+import ro.golstat.api.repository.LeagueRepository;
+import ro.golstat.api.repository.SeasonRepository;
 import ro.golstat.api.repository.StandingRepository;
 import ro.golstat.api.repository.TeamRepository;
+import ro.golstat.api.repository.VenueRepository;
 import ro.golstat.common.dto.FixtureDto;
 import ro.golstat.common.dto.FixtureEventDto;
+import ro.golstat.common.dto.SeasonDto;
 import ro.golstat.common.dto.StandingDto;
 import ro.golstat.common.dto.TeamDto;
 
@@ -36,6 +43,9 @@ class IngestServiceTest {
     @Mock FixtureRepository fixtures;
     @Mock FixtureEventRepository events;
     @Mock StandingRepository standings;
+    @Mock LeagueRepository leagues;
+    @Mock SeasonRepository seasons;
+    @Mock VenueRepository venues;
     @InjectMocks IngestService ingest;
 
     private static FixtureDto fixture(long id, long home, long away) {
@@ -98,5 +108,23 @@ class IngestServiceTest {
     void ingestTeam_saves() {
         ingest.ingestTeam(new TeamDto(5L, "Echipa Cinci", null, null, null, false, null, null));
         verify(teams).save(any(Team.class));
+    }
+
+    @Test
+    void ingestSeason_ensuresLeagueThenSaves() {
+        ingest.ingestSeason(new SeasonDto(1L, 2024, null, null, true, null, null, null, null, null));
+        verify(leagues).save(any(League.class));   // liga placeholder (nu exista)
+        verify(seasons).save(any(Season.class));
+    }
+
+    @Test
+    void ingestFixture_ensuresVenueAndSeason() {
+        FixtureDto withVenue = new FixtureDto(100L, "Ref", "UTC", OffsetDateTime.parse("2024-08-10T18:00:00Z"),
+                1L, 2024, "Etapa", 7L, "Match Finished", "FT", 90,
+                1L, 2L, 1, 0, 0, 0, 1, 0, null, null, null, null);
+        ingest.ingestFixture(withVenue);
+        verify(venues).save(any(Venue.class));     // stadion 7 placeholder
+        verify(seasons).save(any(Season.class));   // sezon 1/2024 placeholder
+        verify(fixtures).save(any(Fixture.class));
     }
 }

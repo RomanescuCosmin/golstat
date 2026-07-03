@@ -63,8 +63,11 @@ class CollectionServiceTest {
     }
 
     @Test
-    void publishesTeamsStandingsFixturesAndEvents() {
+    void publishesCatalogTeamsStandingsFixturesAndEvents() {
         RecordingPublisher pub = collectStub();
+        assertEquals(1, pub.countOn(GolstatConstants.KafkaTopics.VENUES));
+        assertEquals(1, pub.countOn(GolstatConstants.KafkaTopics.LEAGUES));
+        assertEquals(1, pub.countOn(GolstatConstants.KafkaTopics.SEASONS));
         assertEquals(4, pub.countOn(GolstatConstants.KafkaTopics.TEAMS));
         assertEquals(4, pub.countOn(GolstatConstants.KafkaTopics.STANDINGS));
         assertEquals(6, pub.countOn(GolstatConstants.KafkaTopics.FIXTURES));
@@ -72,12 +75,13 @@ class CollectionServiceTest {
     }
 
     @Test
-    void teamsPublishedBeforeFixtures() {
-        // FK: fixtures referentiaza team(id) → echipele trebuie publicate inaintea meciurilor
+    void catalogPublishedBeforeFixtures() {
+        // FK: fixtures referentiaza venue/league/season/team → catalogul precede meciurile
         List<RecordingPublisher.Message> sent = collectStub().sent;
-        int lastTeam = lastIndexOn(sent, GolstatConstants.KafkaTopics.TEAMS);
         int firstFixture = firstIndexOn(sent, GolstatConstants.KafkaTopics.FIXTURES);
-        assertTrue(lastTeam < firstFixture, "echipele trebuie sa preceada meciurile");
+        assertTrue(lastIndexOn(sent, GolstatConstants.KafkaTopics.TEAMS) < firstFixture, "echipele preced meciurile");
+        assertTrue(lastIndexOn(sent, GolstatConstants.KafkaTopics.SEASONS) < firstFixture, "sezoanele preced meciurile");
+        assertTrue(lastIndexOn(sent, GolstatConstants.KafkaTopics.VENUES) < firstFixture, "stadioanele preced meciurile");
     }
 
     @Test

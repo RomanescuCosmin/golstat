@@ -6,8 +6,11 @@ import ro.golstat.collector.publish.EventPublisher;
 import ro.golstat.common.GolstatConstants;
 import ro.golstat.common.dto.FixtureDto;
 import ro.golstat.common.dto.FixtureEventDto;
+import ro.golstat.common.dto.LeagueDto;
+import ro.golstat.common.dto.SeasonDto;
 import ro.golstat.common.dto.StandingDto;
 import ro.golstat.common.dto.TeamDto;
+import ro.golstat.common.dto.VenueDto;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -36,7 +39,16 @@ public class CollectionService {
     }
 
     public void collectGoalsData(long leagueId, int season, LocalDate from, LocalDate to) {
-        // Echipele intai: fixtures/standings au FK spre team(id).
+        // Catalog intai: fixtures/standings au FK spre venue/league/season/team.
+        for (VenueDto venue : provider.venues()) {
+            publisher.publish(GolstatConstants.KafkaTopics.VENUES, String.valueOf(venue.id()), venue);
+        }
+        for (LeagueDto league : provider.leagues()) {
+            publisher.publish(GolstatConstants.KafkaTopics.LEAGUES, String.valueOf(league.id()), league);
+        }
+        for (SeasonDto season2 : provider.seasons(leagueId)) {
+            publisher.publish(GolstatConstants.KafkaTopics.SEASONS, seasonKey(season2), season2);
+        }
         for (TeamDto team : provider.teams(leagueId, season)) {
             publisher.publish(GolstatConstants.KafkaTopics.TEAMS, String.valueOf(team.id()), team);
         }
@@ -57,5 +69,9 @@ public class CollectionService {
 
     private static String standingKey(StandingDto standing) {
         return standing.leagueId() + ":" + standing.seasonYear() + ":" + standing.teamId();
+    }
+
+    private static String seasonKey(SeasonDto season) {
+        return season.leagueId() + ":" + season.year();
     }
 }

@@ -33,4 +33,19 @@ public class KafkaTopicsConfig {
     NewTopic teamsTopic() {
         return TopicBuilder.name(GolstatConstants.KafkaTopics.TEAMS).partitions(1).replicas(1).compact().build();
     }
+
+    @Bean
+    NewTopic venuesTopic() {
+        return TopicBuilder.name(GolstatConstants.KafkaTopics.VENUES).partitions(1).replicas(1).compact().build();
+    }
+
+    @Bean
+    NewTopic leaguesTopic() {
+        return TopicBuilder.name(GolstatConstants.KafkaTopics.LEAGUES).partitions(1).replicas(1).compact().build();
+    }
+
+    @Bean
+    NewTopic seasonsTopic() {
+        return TopicBuilder.name(GolstatConstants.KafkaTopics.SEASONS).partitions(1).replicas(1).compact().build();
+    }
 }

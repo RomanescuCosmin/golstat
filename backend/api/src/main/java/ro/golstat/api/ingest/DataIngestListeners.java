@@ -8,8 +8,11 @@ import org.springframework.stereotype.Component;
 import ro.golstat.common.GolstatConstants;
 import ro.golstat.common.dto.FixtureDto;
 import ro.golstat.common.dto.FixtureEventDto;
+import ro.golstat.common.dto.LeagueDto;
+import ro.golstat.common.dto.SeasonDto;
 import ro.golstat.common.dto.StandingDto;
 import ro.golstat.common.dto.TeamDto;
+import ro.golstat.common.dto.VenueDto;
 
 import java.util.List;
 
@@ -27,6 +30,21 @@ public class DataIngestListeners {
     public DataIngestListeners(IngestService ingest, ObjectMapper mapper) {
         this.ingest = ingest;
         this.mapper = mapper;
+    }
+
+    @KafkaListener(topics = GolstatConstants.KafkaTopics.VENUES)
+    void onVenue(String json) {
+        ingest.ingestVenue(read(json, VenueDto.class));
+    }
+
+    @KafkaListener(topics = GolstatConstants.KafkaTopics.LEAGUES)
+    void onLeague(String json) {
+        ingest.ingestLeague(read(json, LeagueDto.class));
+    }
+
+    @KafkaListener(topics = GolstatConstants.KafkaTopics.SEASONS)
+    void onSeason(String json) {
+        ingest.ingestSeason(read(json, SeasonDto.class));
     }
 
     @KafkaListener(topics = GolstatConstants.KafkaTopics.TEAMS)

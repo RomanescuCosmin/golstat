@@ -2,17 +2,61 @@ package ro.golstat.api.ingest;
 
 import ro.golstat.api.entity.Fixture;
 import ro.golstat.api.entity.FixtureEvent;
+import ro.golstat.api.entity.League;
+import ro.golstat.api.entity.Season;
 import ro.golstat.api.entity.Standing;
 import ro.golstat.api.entity.Team;
+import ro.golstat.api.entity.Venue;
 import ro.golstat.common.dto.FixtureDto;
 import ro.golstat.common.dto.FixtureEventDto;
+import ro.golstat.common.dto.LeagueDto;
+import ro.golstat.common.dto.SeasonDto;
 import ro.golstat.common.dto.StandingDto;
 import ro.golstat.common.dto.TeamDto;
+import ro.golstat.common.dto.VenueDto;
 
 /** Mapare DTO (din Kafka) → entitate JPA. Pura, fara efecte secundare. */
 final class EntityMapper {
 
     private EntityMapper() {
+    }
+
+    static League toLeague(LeagueDto d) {
+        League l = new League();
+        l.setId(d.id());
+        l.setName(d.name());
+        l.setType(d.type());
+        l.setLogo(d.logo());
+        l.setCountryName(d.countryName());
+        return l;
+    }
+
+    static Season toSeason(SeasonDto d) {
+        Season s = new Season();
+        s.setLeagueId(d.leagueId());
+        s.setYear(d.year());
+        s.setStartDate(d.startDate());
+        s.setEndDate(d.endDate());
+        s.setIsCurrent(d.isCurrent());
+        s.setHasEvents(d.hasEvents());
+        s.setHasLineups(d.hasLineups());
+        s.setHasStatisticsFixtures(d.hasStatisticsFixtures());
+        s.setHasStatisticsPlayers(d.hasStatisticsPlayers());
+        s.setHasStandings(d.hasStandings());
+        return s;
+    }
+
+    static Venue toVenue(VenueDto d) {
+        Venue v = new Venue();
+        v.setId(d.id());
+        v.setName(d.name());
+        v.setAddress(d.address());
+        v.setCity(d.city());
+        v.setCountryName(d.countryName());
+        v.setCapacity(d.capacity());
+        v.setSurface(d.surface());
+        v.setImage(d.image());
+        return v;
     }
 
     static Team toTeam(TeamDto d) {

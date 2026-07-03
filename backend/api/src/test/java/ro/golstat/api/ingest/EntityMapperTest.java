@@ -3,13 +3,18 @@ package ro.golstat.api.ingest;
 import org.junit.jupiter.api.Test;
 import ro.golstat.api.entity.Fixture;
 import ro.golstat.api.entity.FixtureEvent;
+import ro.golstat.api.entity.Season;
 import ro.golstat.api.entity.Standing;
 import ro.golstat.api.entity.Team;
+import ro.golstat.api.entity.Venue;
 import ro.golstat.common.dto.FixtureDto;
 import ro.golstat.common.dto.FixtureEventDto;
+import ro.golstat.common.dto.SeasonDto;
 import ro.golstat.common.dto.StandingDto;
 import ro.golstat.common.dto.TeamDto;
+import ro.golstat.common.dto.VenueDto;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -58,6 +63,26 @@ class EntityMapperTest {
         assertEquals(15, s.getPoints());
         assertEquals(12, s.getGoalsForHome());
         assertEquals(5, s.getGoalsAgainstAway());
+    }
+
+    @Test
+    void toSeason_mapsCompositeKeyAndFlags() {
+        Season s = EntityMapper.toSeason(new SeasonDto(1L, 2024,
+                LocalDate.of(2024, 8, 1), LocalDate.of(2025, 5, 31), true, true, false, true, false, true));
+        assertEquals(1L, s.getLeagueId());
+        assertEquals(2024, s.getYear());
+        assertEquals(true, s.getIsCurrent());
+        assertEquals(true, s.getHasStandings());
+        assertEquals(LocalDate.of(2024, 8, 1), s.getStartDate());
+    }
+
+    @Test
+    void toVenue_mapsFields() {
+        Venue v = EntityMapper.toVenue(new VenueDto(7L, "Stadion", "Adresa", "Oras", "Romania", 30000, "grass", "img"));
+        assertEquals(7L, v.getId());
+        assertEquals("Stadion", v.getName());
+        assertEquals("Oras", v.getCity());
+        assertEquals(30000, v.getCapacity());
     }
 
     @Test

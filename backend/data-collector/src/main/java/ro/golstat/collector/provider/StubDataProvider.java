@@ -5,8 +5,11 @@ import org.springframework.stereotype.Component;
 import ro.golstat.common.GolstatConstants;
 import ro.golstat.common.dto.FixtureDto;
 import ro.golstat.common.dto.FixtureEventDto;
+import ro.golstat.common.dto.LeagueDto;
+import ro.golstat.common.dto.SeasonDto;
 import ro.golstat.common.dto.StandingDto;
 import ro.golstat.common.dto.TeamDto;
+import ro.golstat.common.dto.VenueDto;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -26,6 +29,7 @@ public class StubDataProvider implements DataProvider {
 
     private static final long LEAGUE_ID = 1L;
     private static final int SEASON = 2024;
+    private static final long VENUE_ID = 1L;
 
     private final List<FixtureDto> fixtures = buildFixtures();
     private final List<StandingDto> standings = buildStandings();
@@ -62,6 +66,26 @@ public class StubDataProvider implements DataProvider {
             return List.of();
         }
         return teams;
+    }
+
+    @Override
+    public List<LeagueDto> leagues() {
+        return List.of(new LeagueDto(LEAGUE_ID, "Liga Stub", "League", null, null));
+    }
+
+    @Override
+    public List<SeasonDto> seasons(long leagueId) {
+        if (leagueId != LEAGUE_ID) {
+            return List.of();
+        }
+        return List.of(new SeasonDto(LEAGUE_ID, SEASON,
+                LocalDate.of(2024, 8, 1), LocalDate.of(2025, 5, 31),
+                true, true, true, true, true, true));
+    }
+
+    @Override
+    public List<VenueDto> venues() {
+        return List.of(new VenueDto(VENUE_ID, "Stadion Stub", null, "Orasul Stub", null, 20000, "grass", null));
     }
 
     private static boolean withinRange(LocalDate date, LocalDate from, LocalDate to) {
