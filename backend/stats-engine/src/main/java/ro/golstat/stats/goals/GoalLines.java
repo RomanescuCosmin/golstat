@@ -1,5 +1,6 @@
 package ro.golstat.stats.goals;
 
+import ro.golstat.stats.market.OverUnder;
 import ro.golstat.stats.model.MatchSample;
 
 import java.util.ArrayList;
@@ -25,20 +26,20 @@ public final class GoalLines {
     public static GoalLineStats of(List<MatchSample> window, double... lines) {
         int n = window.size();
         if (n == 0) {
-            List<GoalLineStats.OverUnder> empty = new ArrayList<>();
+            List<OverUnder> empty = new ArrayList<>();
             for (double line : lines) {
-                empty.add(new GoalLineStats.OverUnder(line, 0.0, 0.0));
+                empty.add(new OverUnder(line, 0.0, 0.0));
             }
             return new GoalLineStats(0, List.copyOf(empty), 0.0);
         }
 
-        List<GoalLineStats.OverUnder> result = new ArrayList<>();
+        List<OverUnder> result = new ArrayList<>();
         for (double line : lines) {
             long over = window.stream()
                     .filter(m -> m.goalsFor() + m.goalsAgainst() > line)
                     .count();
             double overRate = (double) over / n;
-            result.add(new GoalLineStats.OverUnder(line, overRate, 1.0 - overRate));
+            result.add(new OverUnder(line, overRate, 1.0 - overRate));
         }
 
         long btts = window.stream()

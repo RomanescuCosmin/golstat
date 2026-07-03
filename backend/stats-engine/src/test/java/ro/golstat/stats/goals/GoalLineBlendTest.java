@@ -1,6 +1,7 @@
 package ro.golstat.stats.goals;
 
 import org.junit.jupiter.api.Test;
+import ro.golstat.stats.market.OverUnder;
 import ro.golstat.stats.math.Poisson;
 import ro.golstat.stats.model.MatchSample;
 
@@ -89,7 +90,7 @@ class GoalLineBlendTest {
     @Test
     void overPlusUnder_equalsOne() {
         GoalLineStats stats = GoalLineBlend.of(sampleWindow(), 2.6);
-        for (GoalLineStats.OverUnder ou : stats.lines()) {
+        for (OverUnder ou : stats.lines()) {
             assertEquals(1.0, ou.overRate() + ou.underRate(), EPS, "linia " + ou.line());
         }
     }
