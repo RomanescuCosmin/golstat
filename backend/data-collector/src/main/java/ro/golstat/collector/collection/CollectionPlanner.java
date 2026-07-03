@@ -31,10 +31,14 @@ public class CollectionPlanner {
             initialDelayString = "${golstat.collection.initial-delay-ms:5000}"
     )
     public void collect() {
-        try {
-            collection.collectGoalsData(props.leagueId(), props.season(), props.from(), props.to());
-        } catch (ApiFootballQuotaExceededException e) {
-            log.warn("Colectare oprita: {}", e.getMessage());
+        for (LeagueTarget target : props.leagues()) {
+            try {
+                collection.collectGoalsData(target.leagueId(), target.season(), props.from(), props.to());
+            } catch (ApiFootballQuotaExceededException e) {
+                // Cota e globala pe zi: daca s-a atins la o liga, nu mai are rost sa incercam restul.
+                log.warn("Colectare oprita (cota atinsa): {}", e.getMessage());
+                return;
+            }
         }
     }
 }
