@@ -1,6 +1,6 @@
 package ro.golstat.stats.form;
 
-import ro.golstat.stats.model.MatchSample;
+import ro.golstat.stats.model.TeamMatch;
 
 import java.util.List;
 
@@ -18,7 +18,7 @@ public final class ScheduleFilter {
     private ScheduleFilter() {
     }
 
-    public static List<MatchSample> bottomHalfOpponents(List<MatchSample> matches, int leagueSize) {
+    public static <T extends TeamMatch> List<T> bottomHalfOpponents(List<T> matches, int leagueSize) {
         int threshold = leagueSize / 2;
         return matches.stream()
                 .filter(m -> m.opponentRank() != null && m.opponentRank() > threshold)

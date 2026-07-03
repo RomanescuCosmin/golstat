@@ -1,5 +1,7 @@
 package ro.golstat.stats.goals;
 
+import ro.golstat.stats.market.OverUnder;
+
 import java.util.List;
 
 /**
@@ -19,13 +21,5 @@ public record GoalLineStats(int sampleSize, List<OverUnder> lines, double bttsRa
                 .filter(l -> l.line() == line)
                 .findFirst()
                 .orElse(null);
-    }
-
-    /**
-     * O linie de goluri (ex. 2.5): probabilitatea ca totalul din meci sa fie
-     * peste (over) sau sub (under) linie. {@code overRate + underRate == 1}
-     * (liniile x.5 nu au egalitate exact pe linie).
-     */
-    public record OverUnder(double line, double overRate, double underRate) {
     }
 }

@@ -1,6 +1,7 @@
 package ro.golstat.stats.goals;
 
 import org.junit.jupiter.api.Test;
+import ro.golstat.stats.market.OverUnder;
 import ro.golstat.stats.model.MatchSample;
 
 import java.time.LocalDate;
@@ -56,7 +57,7 @@ class GoalLinesTest {
     @Test
     void overPlusUnder_equalsOne() {
         GoalLineStats stats = GoalLines.of(sampleWindow());
-        for (GoalLineStats.OverUnder ou : stats.lines()) {
+        for (OverUnder ou : stats.lines()) {
             assertEquals(1.0, ou.overRate() + ou.underRate(), EPS, "linia " + ou.line());
         }
     }
