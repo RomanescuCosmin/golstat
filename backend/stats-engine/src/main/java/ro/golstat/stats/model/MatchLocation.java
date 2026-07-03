@@ -1,6 +1,6 @@
 package ro.golstat.stats.model;
 
-public enum Venue {
+public enum MatchLocation {
     HOME,
     AWAY
 }

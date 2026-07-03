@@ -28,8 +28,8 @@ CREATE TABLE country (
 );
 
 -- Stadioane (endpoint /venues).
-CREATE TABLE venue (
-    id           BIGINT PRIMARY KEY,         -- id venue din API
+CREATE TABLE matchLocation (
+    id           BIGINT PRIMARY KEY,         -- id matchLocation din API
     name         TEXT NOT NULL,
     address      TEXT,
     city         TEXT,
@@ -79,7 +79,7 @@ CREATE TABLE team (
     founded     INTEGER,
     is_national BOOLEAN NOT NULL DEFAULT false,
     logo        TEXT,
-    venue_id    BIGINT REFERENCES venue(id),  -- stadionul de casa
+    venue_id    BIGINT REFERENCES matchLocation(id),  -- stadionul de casa
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -277,7 +277,7 @@ CREATE TABLE fixture (
     league_id       BIGINT NOT NULL,
     season_year     INTEGER NOT NULL,
     round           TEXT,                     -- ex. "Regular Season - 12"
-    venue_id        BIGINT REFERENCES venue(id),
+    venue_id        BIGINT REFERENCES matchLocation(id),
 
     -- status (fixture.status)
     status_long     TEXT,                     -- ex. "Match Finished"

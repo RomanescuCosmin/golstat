@@ -14,17 +14,17 @@ public final class GoalForm {
             return new GoalStats(0, 0, 0, 0, 0);
         }
 
-        long scored = window.stream().filter(m -> m.goalsFor() > 0).count();
-        long conceded = window.stream().filter(m -> m.goalsAgainst() > 0).count();
-        int sumFor = window.stream().mapToInt(MatchSample::goalsFor).sum();
-        int sumAgainst = window.stream().mapToInt(MatchSample::goalsAgainst).sum();
+        long matchesScored = window.stream().filter(m -> m.goalsFor() > 0).count();
+        long matchesConceded = window.stream().filter(m -> m.goalsAgainst() > 0).count();
+        int totalGoalsFor = window.stream().mapToInt(MatchSample::goalsFor).sum();
+        int totalGoalsAgainst = window.stream().mapToInt(MatchSample::goalsAgainst).sum();
 
         return new GoalStats(
                 n,
-                (double) scored / n,
-                (double) conceded / n,
-                (double) sumFor / n,
-                (double) sumAgainst / n
+                (double) matchesScored / n,
+                (double) matchesConceded / n,
+                (double) totalGoalsFor / n,
+                (double) totalGoalsAgainst / n
         );
     }
 }

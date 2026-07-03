@@ -1,7 +1,7 @@
 package ro.golstat.stats.form;
 
+import ro.golstat.stats.model.MatchLocation;
 import ro.golstat.stats.model.MatchSample;
-import ro.golstat.stats.model.Venue;
 
 import java.util.Comparator;
 import java.util.List;
@@ -19,9 +19,9 @@ public final class MatchWindow {
     }
 
 
-    public static List<MatchSample> lastN(List<MatchSample> matches, int n, Venue venue) {
+    public static List<MatchSample> lastN(List<MatchSample> matches, int n, MatchLocation matchLocation) {
         List<MatchSample> filtered = matches.stream()
-                .filter(m -> m.home() == (venue == Venue.HOME))
+                .filter(m -> m.home() == (matchLocation == MatchLocation.HOME))
                 .toList();
         return lastN(filtered, n);
     }

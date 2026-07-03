@@ -2,7 +2,7 @@ package ro.golstat.stats.form;
 
 import org.junit.jupiter.api.Test;
 import ro.golstat.stats.model.MatchSample;
-import ro.golstat.stats.model.Venue;
+import ro.golstat.stats.model.MatchLocation;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -52,7 +52,7 @@ class MatchWindowTest {
                 match(LocalDate.of(2024, 5, 20), true)
         );
 
-        List<MatchSample> result = MatchWindow.lastN(matches, 2, Venue.HOME);
+        List<MatchSample> result = MatchWindow.lastN(matches, 2, MatchLocation.HOME);
 
         assertEquals(2, result.size());
         assertEquals(LocalDate.of(2024, 5, 20), result.get(0).date());
