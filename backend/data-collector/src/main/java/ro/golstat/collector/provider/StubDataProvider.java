@@ -5,6 +5,9 @@ import org.springframework.stereotype.Component;
 import ro.golstat.common.GolstatConstants;
 import ro.golstat.common.dto.FixtureDto;
 import ro.golstat.common.dto.FixtureEventDto;
+import ro.golstat.common.dto.FixtureLineupDto;
+import ro.golstat.common.dto.FixtureTeamStatsDto;
+import ro.golstat.common.dto.InjuryDto;
 import ro.golstat.common.dto.LeagueDto;
 import ro.golstat.common.dto.SeasonDto;
 import ro.golstat.common.dto.StandingDto;
@@ -50,6 +53,21 @@ public class StubDataProvider implements DataProvider {
                 .findFirst()
                 .map(StubDataProvider::goalEvents)
                 .orElse(List.of());
+    }
+
+    @Override
+    public List<FixtureTeamStatsDto> fixtureStatistics(long fixtureId) {
+        return List.of();
+    }
+
+    @Override
+    public List<FixtureLineupDto> fixtureLineups(long fixtureId) {
+        return List.of();
+    }
+
+    @Override
+    public List<InjuryDto> injuries(long leagueId, int season) {
+        return List.of();
     }
 
     @Override

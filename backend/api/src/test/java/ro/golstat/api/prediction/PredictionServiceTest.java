@@ -6,7 +6,9 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import ro.golstat.api.entity.Fixture;
+import ro.golstat.api.entity.Team;
 import ro.golstat.api.repository.FixtureRepository;
+import ro.golstat.api.repository.TeamRepository;
 import ro.golstat.api.stats.LeagueAverageService;
 import ro.golstat.api.stats.LeagueAverages;
 import ro.golstat.api.stats.MatchHistoryService;
@@ -34,12 +36,21 @@ class PredictionServiceTest {
     private static final OffsetDateTime KICKOFF = OffsetDateTime.parse("2025-08-16T14:00:00Z");
 
     @Mock FixtureRepository fixtures;
+    @Mock TeamRepository teams;
     @Mock MatchHistoryService history;
     @Mock LeagueAverageService leagueAverages;
     @InjectMocks PredictionService service;
 
     private static MatchSample sample(int day, boolean home, int gf, int ga) {
         return new MatchSample(LocalDate.of(2025, 5, day), home, gf, ga, 0, 0, null);
+    }
+
+    private static Team team(long id, String nume, String logo) {
+        Team t = new Team();
+        t.setId(id);
+        t.setName(nume);
+        t.setLogo(logo);
+        return t;
     }
 
     private static Fixture nsFixture() {
@@ -88,6 +99,8 @@ class PredictionServiceTest {
     @Test
     void predict_nsFixture_wiresHistoryAveragesAndModel() {
         when(fixtures.findById(100L)).thenReturn(Optional.of(nsFixture()));
+        when(teams.findAllById(List.of(10L, 20L))).thenReturn(List.of(
+                team(10L, "FC Gazde", "http://logo/10.png"), team(20L, "FC Oaspeti", "http://logo/20.png")));
         when(history.lastMatches(eq(10L), any(), anyInt())).thenReturn(List.of(
                 sample(1, true, 2, 1), sample(2, true, 3, 1), sample(3, true, 2, 0)));
         when(history.lastMatches(eq(20L), any(), anyInt())).thenReturn(List.of(
@@ -99,12 +112,27 @@ class PredictionServiceTest {
         assertTrue(result.isPresent());
         PredictieMeciDto dto = result.get();
         assertEquals(100L, dto.fixtureId());
-        assertEquals(10L, dto.idGazde());
-        assertEquals(20L, dto.idOaspeti());
+        assertEquals(new PredictieMeciDto.EchipaDto(10L, "FC Gazde", "http://logo/10.png"), dto.echipaGazde());
+        assertEquals(new PredictieMeciDto.EchipaDto(20L, "FC Oaspeti", "http://logo/20.png"), dto.echipaOaspeti());
         assertTrue(dto.lambdaGazde() > 0 && dto.lambdaOaspeti() > 0);
         assertTrue(dto.lambdaGazde() > dto.lambdaOaspeti(), "gazda ataca mai bine");
         double suma1x2 = dto.gazde().procent() + dto.egal().procent() + dto.oaspeti().procent();
         assertEquals(100.0, suma1x2, 0.5);
+    }
+
+    @Test
+    void predict_missingTeamInDb_returnsTeamWithIdOnly() {
+        when(fixtures.findById(100L)).thenReturn(Optional.of(nsFixture()));
+        // doar gazdele exista in DB
+        when(teams.findAllById(List.of(10L, 20L)))
+                .thenReturn(List.of(team(10L, "FC Gazde", "http://logo/10.png")));
+        when(history.lastMatches(anyLong(), any(), anyInt())).thenReturn(List.of());
+        when(leagueAverages.averages(39L, 2025)).thenReturn(new LeagueAverages(1.6, 1.2));
+
+        PredictieMeciDto dto = service.predict(100L).orElseThrow();
+
+        assertEquals(new PredictieMeciDto.EchipaDto(10L, "FC Gazde", "http://logo/10.png"), dto.echipaGazde());
+        assertEquals(new PredictieMeciDto.EchipaDto(20L, null, null), dto.echipaOaspeti());
     }
 
     @Test

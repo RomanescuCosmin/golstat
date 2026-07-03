@@ -2,6 +2,9 @@ package ro.golstat.collector.provider;
 
 import ro.golstat.common.dto.FixtureDto;
 import ro.golstat.common.dto.FixtureEventDto;
+import ro.golstat.common.dto.FixtureLineupDto;
+import ro.golstat.common.dto.FixtureTeamStatsDto;
+import ro.golstat.common.dto.InjuryDto;
 import ro.golstat.common.dto.LeagueDto;
 import ro.golstat.common.dto.SeasonDto;
 import ro.golstat.common.dto.StandingDto;
@@ -26,6 +29,15 @@ public interface DataProvider {
 
     /** Evenimentele unui meci (goluri, cartonase, schimbari...). */
     List<FixtureEventDto> fixtureEvents(long fixtureId);
+
+    /** Statisticile de meci per echipa (posesie, suturi, cornere, faulturi, cartonase...). */
+    List<FixtureTeamStatsDto> fixtureStatistics(long fixtureId);
+
+    /** Formatiile unui meci (startXI + rezerve + antrenor per echipa); apar aproape de kickoff. */
+    List<FixtureLineupDto> fixtureLineups(long fixtureId);
+
+    /** Jucatorii indisponibili (accidentati/suspendati/incerti) dintr-o liga/sezon. */
+    List<InjuryDto> injuries(long leagueId, int season);
 
     /**
      * Meciurile in DESFASURARE acum, din TOATE ligile (un singur apel la sursa). Filtrarea pe ligile

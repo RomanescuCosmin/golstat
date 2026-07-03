@@ -6,11 +6,16 @@ import com.fasterxml.jackson.databind.json.JsonMapper;
 import org.junit.jupiter.api.Test;
 import ro.golstat.common.dto.FixtureDto;
 import ro.golstat.common.dto.FixtureEventDto;
+import ro.golstat.common.dto.FixtureLineupDto;
+import ro.golstat.common.dto.FixtureLineupPlayerDto;
+import ro.golstat.common.dto.FixtureTeamStatsDto;
+import ro.golstat.common.dto.InjuryDto;
 import ro.golstat.common.dto.LeagueDto;
 import ro.golstat.common.dto.SeasonDto;
 import ro.golstat.common.dto.StandingDto;
 import ro.golstat.common.dto.TeamDto;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -108,6 +113,159 @@ class ApiFootballMapperTest {
         assertEquals("Goal", events.get(0).type());
         assertEquals(4, events.get(1).timeExtra());
         assertNull(events.get(1).assistId());
+    }
+
+    @Test
+    void statistics_mapTypeValuePairs_perTeam() throws Exception {
+        String body = """
+                {"response":[
+                  {"team":{"id":33,"name":"Manchester United"},"statistics":[
+                    {"type":"Shots on Goal","value":6},
+                    {"type":"Shots off Goal","value":5},
+                    {"type":"Total Shots","value":15},
+                    {"type":"Blocked Shots","value":4},
+                    {"type":"Shots insidebox","value":10},
+                    {"type":"Shots outsidebox","value":5},
+                    {"type":"Fouls","value":11},
+                    {"type":"Corner Kicks","value":7},
+                    {"type":"Offsides","value":2},
+                    {"type":"Ball Possession","value":"62%"},
+                    {"type":"Yellow Cards","value":1},
+                    {"type":"Red Cards","value":null},
+                    {"type":"Goalkeeper Saves","value":3},
+                    {"type":"Total passes","value":598},
+                    {"type":"Passes accurate","value":532},
+                    {"type":"Passes %","value":"89%"},
+                    {"type":"expected_goals","value":"1.8"}
+                  ]},
+                  {"team":{"id":34,"name":"Newcastle"},"statistics":[
+                    {"type":"Shots on Goal","value":2},
+                    {"type":"Corner Kicks","value":3},
+                    {"type":"Ball Possession","value":"38%"},
+                    {"type":"Tip Necunoscut","value":"n/a"}
+                  ]}
+                ]}""";
+        List<StatisticsItem> items = parse(body, StatisticsItem.class);
+        List<FixtureTeamStatsDto> stats = items.stream()
+                .map(i -> ApiFootballMapper.toFixtureTeamStats(i, 215L))
+                .toList();
+
+        assertEquals(2, stats.size());
+        FixtureTeamStatsDto home = stats.get(0);
+        assertEquals(215L, home.fixtureId());
+        assertEquals(33L, home.teamId());
+        assertEquals(6, home.shotsOnGoal());
+        assertEquals(5, home.shotsOffGoal());
+        assertEquals(15, home.shotsTotal());
+        assertEquals(4, home.shotsBlocked());
+        assertEquals(10, home.shotsInsidebox());
+        assertEquals(5, home.shotsOutsidebox());
+        assertEquals(11, home.fouls());
+        assertEquals(7, home.cornerKicks());
+        assertEquals(2, home.offsides());
+        assertEquals(new BigDecimal("62"), home.ballPossession());
+        assertEquals(1, home.yellowCards());
+        assertNull(home.redCards());
+        assertEquals(3, home.goalkeeperSaves());
+        assertEquals(598, home.passesTotal());
+        assertEquals(532, home.passesAccurate());
+        assertEquals(new BigDecimal("89"), home.passesPercentage());
+        assertEquals(new BigDecimal("1.8"), home.expectedGoals());
+
+        FixtureTeamStatsDto away = stats.get(1);
+        assertEquals(34L, away.teamId());
+        assertEquals(2, away.shotsOnGoal());
+        assertEquals(3, away.cornerKicks());
+        assertEquals(new BigDecimal("38"), away.ballPossession());
+        assertNull(away.fouls());   // tip absent → null, tip necunoscut → ignorat
+    }
+
+    @Test
+    void lineups_mapStartXiAndSubstitutes_withFixtureIdFromRequest() throws Exception {
+        String body = """
+                {"response":[{
+                  "team":{"id":50,"name":"Manchester City","logo":"logo.png"},
+                  "formation":"4-3-3",
+                  "startXI":[
+                    {"player":{"id":617,"name":"Ederson","number":31,"pos":"G","grid":"1:1"}},
+                    {"player":{"id":627,"name":"K. Walker","number":2,"pos":"D","grid":"2:4"}}
+                  ],
+                  "substitutes":[
+                    {"player":{"id":50828,"name":"Z. Steffen","number":13,"pos":"G","grid":null}}
+                  ],
+                  "coach":{"id":4,"name":"Guardiola"}
+                }]}""";
+        FixtureLineupDto lineup = ApiFootballMapper.toFixtureLineup(parse(body, LineupItem.class).get(0), 215L);
+
+        assertEquals(215L, lineup.fixtureId());
+        assertEquals(50L, lineup.teamId());
+        assertEquals("4-3-3", lineup.formation());
+        assertEquals(4L, lineup.coachId());
+        assertEquals(3, lineup.players().size());
+        FixtureLineupPlayerDto portar = lineup.players().get(0);
+        assertEquals(215L, portar.fixtureId());
+        assertEquals(50L, portar.teamId());
+        assertEquals(617L, portar.playerId());
+        assertEquals("Ederson", portar.playerName());
+        assertEquals(31, portar.number());
+        assertEquals("G", portar.position());
+        assertEquals("1:1", portar.grid());
+        assertEquals(false, portar.isSubstitute());
+        FixtureLineupPlayerDto rezerva = lineup.players().get(2);
+        assertEquals(50828L, rezerva.playerId());
+        assertEquals(true, rezerva.isSubstitute());
+        assertNull(rezerva.grid());
+    }
+
+    @Test
+    void lineups_missingCoachAndSubstitutes_tolerated() throws Exception {
+        String body = """
+                {"response":[{
+                  "team":{"id":51},
+                  "formation":null,
+                  "startXI":[{"player":{"id":700,"name":"Jucator","number":9,"pos":"F","grid":"4:1"}}],
+                  "substitutes":null,
+                  "coach":null
+                }]}""";
+        FixtureLineupDto lineup = ApiFootballMapper.toFixtureLineup(parse(body, LineupItem.class).get(0), 900L);
+
+        assertNull(lineup.formation());
+        assertNull(lineup.coachId());
+        assertEquals(1, lineup.players().size());
+    }
+
+    @Test
+    void injuries_mapPlayerTeamFixtureLeague_andReportedDate() throws Exception {
+        String body = """
+                {"response":[
+                  {"player":{"id":865,"name":"D. Costa","type":"Missing Fixture","reason":"Broken ankle"},
+                   "team":{"id":157,"name":"Bayern Munich"},
+                   "fixture":{"id":686314,"timezone":"UTC","date":"2026-07-07T21:00:00+02:00"},
+                   "league":{"id":78,"season":2026}},
+                  {"player":{"id":900,"name":"J. Incert","type":"Questionable","reason":"Knock"},
+                   "team":{"id":157},
+                   "fixture":null,
+                   "league":{"id":78,"season":2026}}
+                ]}""";
+        List<InjuryDto> injuries = parse(body, InjuryItem.class).stream()
+                .map(ApiFootballMapper::toInjury)
+                .toList();
+
+        assertEquals(2, injuries.size());
+        InjuryDto prima = injuries.get(0);
+        assertEquals(865L, prima.playerId());
+        assertEquals("D. Costa", prima.playerName());
+        assertEquals(157L, prima.teamId());
+        assertEquals(686314L, prima.fixtureId());
+        assertEquals(78L, prima.leagueId());
+        assertEquals(2026, prima.seasonYear());
+        assertEquals("Missing Fixture", prima.type());
+        assertEquals("Broken ankle", prima.reason());
+        assertEquals(LocalDate.of(2026, 7, 7), prima.reportedAt());
+        InjuryDto aDoua = injuries.get(1);
+        assertEquals("Questionable", aDoua.type());
+        assertNull(aDoua.fixtureId());
+        assertNull(aDoua.reportedAt());
     }
 
     @Test

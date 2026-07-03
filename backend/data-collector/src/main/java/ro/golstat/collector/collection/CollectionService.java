@@ -9,6 +9,9 @@ import ro.golstat.collector.publish.EventPublisher;
 import ro.golstat.common.GolstatConstants;
 import ro.golstat.common.dto.FixtureDto;
 import ro.golstat.common.dto.FixtureEventDto;
+import ro.golstat.common.dto.FixtureLineupDto;
+import ro.golstat.common.dto.FixtureTeamStatsDto;
+import ro.golstat.common.dto.InjuryDto;
 import ro.golstat.common.dto.LeagueDto;
 import ro.golstat.common.dto.SeasonDto;
 import ro.golstat.common.dto.StandingDto;
@@ -31,6 +34,9 @@ import java.util.Set;
  *   <li>events → {@code fixtureId}, publicate ca LOT (o lista per meci): evenimentele n-au id
  *       natural stabil, iar un lot per meci face topicul compactabil si idempotent
  *       (re-colectarea unui meci inlocuieste tot setul de evenimente).</li>
+ *   <li>fixture-team-stats → {@code fixtureId}, tot ca LOT (ambele echipe intr-un mesaj).</li>
+ *   <li>fixture-lineups → {@code fixtureId}, LOT (ambele formatii intr-un mesaj).</li>
+ *   <li>injuries → {@code leagueId:season}, LOT (toata lista ligii; re-colectarea inlocuieste setul).</li>
  * </ul>
  */
 @Service
@@ -38,7 +44,7 @@ public class CollectionService {
 
     private static final Logger log = LoggerFactory.getLogger(CollectionService.class);
 
-    /** Doar meciurile terminate au evenimente stabile; unul NS/live n-are → nu-i cerem (economie de cota). */
+    /** Doar meciurile terminate au evenimente/statistici stabile; unul NS/live n-are → nu-i cerem (economie de cota). */
     private static final Set<String> TERMINAL = Set.of(
             GolstatConstants.FixtureStatus.FINISHED,
             GolstatConstants.FixtureStatus.FINISHED_AET,
@@ -78,13 +84,30 @@ public class CollectionService {
         for (FixtureDto fixture : fixtures) {
             publisher.publish(GolstatConstants.KafkaTopics.FIXTURES, String.valueOf(fixture.id()), fixture);
 
-            if (!TERMINAL.contains(fixture.statusShort())) {
+            boolean terminal = TERMINAL.contains(fixture.statusShort());
+            // lineup-urile apar si INAINTE de meci (aproape de kickoff), deci le cerem si pentru NS
+            if (terminal || GolstatConstants.FixtureStatus.NOT_STARTED.equals(fixture.statusShort())) {
+                List<FixtureLineupDto> lineups = provider.fixtureLineups(fixture.id());
+                if (!lineups.isEmpty()) {
+                    publisher.publish(GolstatConstants.KafkaTopics.FIXTURE_LINEUPS, String.valueOf(fixture.id()), lineups);
+                }
+            }
+            if (!terminal) {
                 continue;   // meci viitor/live → fara evenimente
             }
             List<FixtureEventDto> events = provider.fixtureEvents(fixture.id());
             if (!events.isEmpty()) {
                 publisher.publish(GolstatConstants.KafkaTopics.FIXTURE_EVENTS, String.valueOf(fixture.id()), events);
             }
+            List<FixtureTeamStatsDto> teamStats = provider.fixtureStatistics(fixture.id());
+            if (!teamStats.isEmpty()) {
+                publisher.publish(GolstatConstants.KafkaTopics.FIXTURE_TEAM_STATS, String.valueOf(fixture.id()), teamStats);
+            }
+        }
+
+        List<InjuryDto> injuries = provider.injuries(leagueId, season);
+        if (!injuries.isEmpty()) {
+            publisher.publish(GolstatConstants.KafkaTopics.INJURIES, leagueId + ":" + season, injuries);
         }
 
         // orarul pentru bucla LIVE: kickoff-urile meciurilor din fereastra (gating-ul poll-ului)

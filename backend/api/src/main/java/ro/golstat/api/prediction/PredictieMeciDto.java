@@ -10,8 +10,8 @@ import java.util.List;
  */
 public record PredictieMeciDto(
         long fixtureId,
-        Long idGazde,
-        Long idOaspeti,
+        EchipaDto echipaGazde,
+        EchipaDto echipaOaspeti,
         OffsetDateTime kickoff,
         double lambdaGazde,
         double lambdaOaspeti,
@@ -23,6 +23,10 @@ public record PredictieMeciDto(
         int esantionGazde,
         int esantionOaspeti
 ) {
+    /** O echipa pentru afisare; nume/logo pot lipsi daca echipa nu e in DB. */
+    public record EchipaDto(long id, String nume, String logo) {
+    }
+
     /** O piata: procentul (0..100) si cota statistica derivata. */
     public record ProcentCota(double procent, double cota) {
     }

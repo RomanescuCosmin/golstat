@@ -1,6 +1,8 @@
 package ro.golstat.api.prediction;
 
 import ro.golstat.api.entity.Fixture;
+import ro.golstat.api.entity.Team;
+import ro.golstat.api.prediction.PredictieMeciDto.EchipaDto;
 import ro.golstat.api.prediction.PredictieMeciDto.LinieGolDto;
 import ro.golstat.api.prediction.PredictieMeciDto.ProcentCota;
 import ro.golstat.stats.match.MatchPrediction;
@@ -14,17 +16,21 @@ public final class PredictieMeciMapper {
     private PredictieMeciMapper() {
     }
 
-    public static PredictieMeciDto toDto(Fixture f, MatchPrediction p) {
+    public static PredictieMeciDto toDto(Fixture f, MatchPrediction p, Team gazde, Team oaspeti) {
         List<LinieGolDto> linii = p.linii().stream()
                 .map(ou -> new LinieGolDto(ou.line(), procentCota(ou.overRate()), procentCota(ou.underRate())))
                 .toList();
 
         return new PredictieMeciDto(
-                f.getId(), f.getHomeTeamId(), f.getAwayTeamId(), f.getKickoff(),
+                f.getId(), echipa(f.getHomeTeamId(), gazde), echipa(f.getAwayTeamId(), oaspeti), f.getKickoff(),
                 round2(p.lambdaGazde()), round2(p.lambdaOaspeti()),
                 procentCota(p.sansaGazde()), procentCota(p.sansaEgal()), procentCota(p.sansaOaspeti()),
                 linii, procentCota(p.btts()),
                 p.esantionGazde(), p.esantionOaspeti());
+    }
+
+    private static EchipaDto echipa(long id, Team team) {
+        return team == null ? new EchipaDto(id, null, null) : new EchipaDto(id, team.getName(), team.getLogo());
     }
 
     private static ProcentCota procentCota(double rate) {

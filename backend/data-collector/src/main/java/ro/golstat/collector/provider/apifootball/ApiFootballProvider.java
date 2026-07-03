@@ -6,6 +6,9 @@ import ro.golstat.collector.provider.DataProvider;
 import ro.golstat.common.GolstatConstants;
 import ro.golstat.common.dto.FixtureDto;
 import ro.golstat.common.dto.FixtureEventDto;
+import ro.golstat.common.dto.FixtureLineupDto;
+import ro.golstat.common.dto.FixtureTeamStatsDto;
+import ro.golstat.common.dto.InjuryDto;
 import ro.golstat.common.dto.LeagueDto;
 import ro.golstat.common.dto.SeasonDto;
 import ro.golstat.common.dto.StandingDto;
@@ -50,6 +53,33 @@ public class ApiFootballProvider implements DataProvider {
         return client.get(GolstatConstants.ApiFootball.FIXTURES_EVENTS, Map.of("fixture", fixtureId),
                         EventItem.class, props.ttlHistoric()).stream()
                 .map(e -> ApiFootballMapper.toEvent(e, fixtureId))
+                .toList();
+    }
+
+    @Override
+    public List<FixtureTeamStatsDto> fixtureStatistics(long fixtureId) {
+        // statisticile unui meci terminat sunt imuabile → TTL lung
+        return client.get(GolstatConstants.ApiFootball.FIXTURES_STATISTICS, Map.of("fixture", fixtureId),
+                        StatisticsItem.class, props.ttlHistoric()).stream()
+                .map(s -> ApiFootballMapper.toFixtureTeamStats(s, fixtureId))
+                .toList();
+    }
+
+    @Override
+    public List<FixtureLineupDto> fixtureLineups(long fixtureId) {
+        // formatia anuntata a unui meci nu se mai schimba → TTL lung
+        return client.get(GolstatConstants.ApiFootball.FIXTURES_LINEUPS, Map.of("fixture", fixtureId),
+                        LineupItem.class, props.ttlHistoric()).stream()
+                .map(l -> ApiFootballMapper.toFixtureLineup(l, fixtureId))
+                .toList();
+    }
+
+    @Override
+    public List<InjuryDto> injuries(long leagueId, int season) {
+        // lista de indisponibili se schimba de la o zi la alta → TTL scurt
+        Map<String, Object> params = Map.of("league", leagueId, "season", season);
+        return client.get(GolstatConstants.ApiFootball.INJURIES, params, InjuryItem.class, props.ttlUpcoming()).stream()
+                .map(ApiFootballMapper::toInjury)
                 .toList();
     }
 

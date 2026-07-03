@@ -5,27 +5,44 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import ro.golstat.api.entity.Coach;
 import ro.golstat.api.entity.Fixture;
 import ro.golstat.api.entity.FixtureEvent;
+import ro.golstat.api.entity.FixtureLineup;
+import ro.golstat.api.entity.FixtureLineupPlayer;
+import ro.golstat.api.entity.FixtureTeamStats;
+import ro.golstat.api.entity.Injury;
+import ro.golstat.api.entity.Player;
 import ro.golstat.api.entity.Standing;
 import ro.golstat.api.entity.Team;
 import ro.golstat.api.entity.League;
 import ro.golstat.api.entity.Season;
 import ro.golstat.api.entity.Venue;
+import ro.golstat.api.repository.CoachRepository;
 import ro.golstat.api.repository.CountryRepository;
 import ro.golstat.api.repository.FixtureEventRepository;
+import ro.golstat.api.repository.FixtureLineupPlayerRepository;
+import ro.golstat.api.repository.FixtureLineupRepository;
 import ro.golstat.api.repository.FixtureRepository;
+import ro.golstat.api.repository.FixtureTeamStatsRepository;
+import ro.golstat.api.repository.InjuryRepository;
 import ro.golstat.api.repository.LeagueRepository;
+import ro.golstat.api.repository.PlayerRepository;
 import ro.golstat.api.repository.SeasonRepository;
 import ro.golstat.api.repository.StandingRepository;
 import ro.golstat.api.repository.TeamRepository;
 import ro.golstat.api.repository.VenueRepository;
 import ro.golstat.common.dto.FixtureDto;
 import ro.golstat.common.dto.FixtureEventDto;
+import ro.golstat.common.dto.FixtureLineupDto;
+import ro.golstat.common.dto.FixtureLineupPlayerDto;
+import ro.golstat.common.dto.FixtureTeamStatsDto;
+import ro.golstat.common.dto.InjuryDto;
 import ro.golstat.common.dto.SeasonDto;
 import ro.golstat.common.dto.StandingDto;
 import ro.golstat.common.dto.TeamDto;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
 
@@ -43,11 +60,17 @@ class IngestServiceTest {
     @Mock TeamRepository teams;
     @Mock FixtureRepository fixtures;
     @Mock FixtureEventRepository events;
+    @Mock FixtureTeamStatsRepository teamStats;
     @Mock StandingRepository standings;
     @Mock LeagueRepository leagues;
     @Mock SeasonRepository seasons;
     @Mock VenueRepository venues;
     @Mock CountryRepository countries;
+    @Mock FixtureLineupRepository lineups;
+    @Mock FixtureLineupPlayerRepository lineupPlayers;
+    @Mock InjuryRepository injuries;
+    @Mock PlayerRepository players;
+    @Mock CoachRepository coaches;
     @InjectMocks IngestService ingest;
 
     private static FixtureDto fixture(long id, long home, long away) {
@@ -99,6 +122,28 @@ class IngestServiceTest {
     }
 
     @Test
+    void ingestFixtureTeamStats_ensuresTeamsThenUpserts() {
+        when(teams.existsById(anyLong())).thenReturn(false);
+        ingest.ingestFixtureTeamStats(List.of(stats(100, 1), stats(100, 2)));
+        verify(teams).existsById(1L);
+        verify(teams).existsById(2L);
+        verify(teams, times(2)).save(any(Team.class));
+        verify(teamStats, times(2)).save(any(FixtureTeamStats.class));
+    }
+
+    @Test
+    void ingestFixtureTeamStats_empty_doesNothing() {
+        ingest.ingestFixtureTeamStats(List.of());
+        verifyNoInteractions(teamStats);
+        verifyNoInteractions(teams);
+    }
+
+    private static FixtureTeamStatsDto stats(long fixtureId, long teamId) {
+        return new FixtureTeamStatsDto(fixtureId, teamId, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null, null);
+    }
+
+    @Test
     void ingestStanding_ensuresTeamThenSaves() {
         when(teams.existsById(3L)).thenReturn(false);
         ingest.ingestStanding(standing(1, 2024, 3));
@@ -117,6 +162,103 @@ class IngestServiceTest {
         ingest.ingestSeason(new SeasonDto(1L, 2024, null, null, true, null, null, null, null, null));
         verify(leagues).save(any(League.class));   // liga placeholder (nu exista)
         verify(seasons).save(any(Season.class));
+    }
+
+    private static FixtureLineupDto lineup(long fixtureId, long teamId, Long coachId, FixtureLineupPlayerDto... players) {
+        return new FixtureLineupDto(fixtureId, teamId, "4-4-2", coachId, List.of(players));
+    }
+
+    private static FixtureLineupPlayerDto lineupPlayer(long fixtureId, long teamId, long playerId, boolean substitute) {
+        return new FixtureLineupPlayerDto(fixtureId, teamId, playerId, "Jucator " + playerId, 9, "F", "4:1", substitute);
+    }
+
+    private static InjuryDto injury(long playerId, Long teamId, Long fixtureId, String type) {
+        return new InjuryDto(playerId, "Jucator " + playerId, teamId, fixtureId, 1L, 2026,
+                type, "Knee Injury", LocalDate.of(2026, 6, 10));
+    }
+
+    @Test
+    void ingestFixtureLineups_replacesByFixture_playersAfterLineups() {
+        when(teams.existsById(anyLong())).thenReturn(true);
+        when(fixtures.existsById(100L)).thenReturn(true);
+        when(coaches.existsById(5L)).thenReturn(true);
+
+        ingest.ingestFixtureLineups(List.of(
+                lineup(100, 1, 5L, lineupPlayer(100, 1, 10, false), lineupPlayer(100, 1, 11, true)),
+                lineup(100, 2, 5L, lineupPlayer(100, 2, 20, false))));
+
+        verify(lineupPlayers).deleteByFixtureId(100L);
+        verify(lineups).deleteByFixtureId(100L);
+        verify(lineups, times(2)).save(any(FixtureLineup.class));
+        verify(lineupPlayers, times(3)).save(any(FixtureLineupPlayer.class));
+    }
+
+    @Test
+    void ingestFixtureLineups_missingParents_insertsPlaceholders() {
+        when(teams.existsById(anyLong())).thenReturn(false);
+        when(fixtures.existsById(100L)).thenReturn(false);
+        when(coaches.existsById(5L)).thenReturn(false);
+        when(seasons.existsById(any())).thenReturn(false);
+        when(leagues.existsById(0L)).thenReturn(false);
+
+        ingest.ingestFixtureLineups(List.of(lineup(100, 1, 5L), lineup(100, 2, 5L)));
+
+        verify(teams, times(2)).save(any(Team.class));      // ambele echipe placeholder
+        verify(fixtures).save(any(Fixture.class));          // meci placeholder (sezon santinela)
+        verify(coaches).save(any(Coach.class));             // antrenorul 5 o singura data
+        verify(lineups, times(2)).save(any(FixtureLineup.class));
+    }
+
+    @Test
+    void ingestFixtureLineups_empty_doesNothing() {
+        ingest.ingestFixtureLineups(List.of());
+        verifyNoInteractions(lineups);
+        verifyNoInteractions(lineupPlayers);
+    }
+
+    @Test
+    void ingestInjuries_replacesByLeagueSeason_andEnsuresPlayer() {
+        when(players.existsById(anyLong())).thenReturn(false);
+        when(teams.existsById(anyLong())).thenReturn(true);
+        when(fixtures.existsById(anyLong())).thenReturn(true);
+
+        ingest.ingestInjuries(List.of(injury(900, 1L, 100L, "Missing Fixture"),
+                injury(901, 2L, 100L, "Questionable")));
+
+        verify(injuries).deleteByLeagueIdAndSeasonYear(1L, 2026);
+        verify(players, times(2)).save(any(Player.class));   // placeholder cu nume, pentru afisare
+        verify(injuries, times(2)).save(any(Injury.class));
+    }
+
+    @Test
+    void ingestInjuries_duplicatePlayerFixtureType_savedOnce() {
+        when(players.existsById(anyLong())).thenReturn(true);
+        when(teams.existsById(anyLong())).thenReturn(true);
+        when(fixtures.existsById(anyLong())).thenReturn(true);
+
+        // UNIQUE (player_id, fixture_id, type) in schema → dublura din lot se ignora
+        ingest.ingestInjuries(List.of(injury(900, 1L, 100L, "Missing Fixture"),
+                injury(900, 1L, 100L, "Missing Fixture")));
+
+        verify(injuries, times(1)).save(any(Injury.class));
+    }
+
+    @Test
+    void ingestInjuries_missingFixtureWithoutTeam_dropsFixtureFk() {
+        when(players.existsById(anyLong())).thenReturn(true);
+        when(fixtures.existsById(777L)).thenReturn(false);
+
+        ingest.ingestInjuries(List.of(injury(900, null, 777L, "Missing Fixture")));
+
+        // fara echipa nu se poate crea meci placeholder → FK-ul de meci se lasa null
+        verify(fixtures, never()).save(any());
+        verify(injuries).save(org.mockito.ArgumentMatchers.argThat(i -> i.getFixtureId() == null));
+    }
+
+    @Test
+    void ingestInjuries_empty_doesNothing() {
+        ingest.ingestInjuries(List.of());
+        verifyNoInteractions(injuries);
     }
 
     @Test

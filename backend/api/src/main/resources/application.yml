@@ -27,3 +27,5 @@ spring:
 golstat:
   database:
     name: golstat
+  cors:
+    allowed-origins: http://localhost:5173

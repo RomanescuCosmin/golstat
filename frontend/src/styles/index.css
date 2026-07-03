@@ -1,0 +1,46 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Design tokens golstat — canale RGB, ca sa mearga /<alpha-value> in Tailwind. */
+:root {
+  --gs-bg: 245 246 248; /* #F5F6F8 */
+  --gs-card: 255 255 255; /* #FFFFFF */
+  --gs-ink: 26 34 51; /* #1A2233 */
+  --gs-ink2: 107 114 128; /* #6B7280 */
+  --gs-line: 232 236 241; /* #E8ECF1 */
+  --gs-primary: 33 81 229; /* #2151E5 */
+  --gs-accent: 226 59 59; /* #E23B3B */
+  --gs-win: 34 165 91; /* #22A55B */
+  --gs-draw: 154 164 178; /* #9AA4B2 */
+}
+
+.dark {
+  --gs-bg: 15 20 32; /* #0F1420 */
+  --gs-card: 24 31 46; /* #181F2E */
+  --gs-ink: 230 234 242; /* #E6EAF2 */
+  --gs-ink2: 138 147 166; /* #8A93A6 */
+  --gs-line: 35 44 61; /* #232C3D */
+  --gs-primary: 74 111 214; /* #4A6FD6 */
+  --gs-accent: 224 85 85; /* #E05555 */
+  --gs-win: 58 168 112; /* #3AA870 */
+  --gs-draw: 110 120 137; /* #6E7889 */
+}
+
+@layer base {
+  html {
+    font-family:
+      'Segoe UI',
+      -apple-system,
+      BlinkMacSystemFont,
+      'Inter',
+      Roboto,
+      'Helvetica Neue',
+      Arial,
+      sans-serif;
+  }
+
+  body {
+    @apply bg-bg text-ink antialiased;
+  }
+}

@@ -3,17 +3,26 @@ package ro.golstat.api.ingest;
 import org.junit.jupiter.api.Test;
 import ro.golstat.api.entity.Fixture;
 import ro.golstat.api.entity.FixtureEvent;
+import ro.golstat.api.entity.FixtureLineup;
+import ro.golstat.api.entity.FixtureLineupPlayer;
+import ro.golstat.api.entity.FixtureTeamStats;
+import ro.golstat.api.entity.Injury;
 import ro.golstat.api.entity.Season;
 import ro.golstat.api.entity.Standing;
 import ro.golstat.api.entity.Team;
 import ro.golstat.api.entity.Venue;
 import ro.golstat.common.dto.FixtureDto;
 import ro.golstat.common.dto.FixtureEventDto;
+import ro.golstat.common.dto.FixtureLineupDto;
+import ro.golstat.common.dto.FixtureLineupPlayerDto;
+import ro.golstat.common.dto.FixtureTeamStatsDto;
+import ro.golstat.common.dto.InjuryDto;
 import ro.golstat.common.dto.SeasonDto;
 import ro.golstat.common.dto.StandingDto;
 import ro.golstat.common.dto.TeamDto;
 import ro.golstat.common.dto.VenueDto;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 
@@ -90,6 +99,75 @@ class EntityMapperTest {
         assertEquals("Stadion", v.getName());
         assertEquals("Oras", v.getCity());
         assertEquals(30000, v.getCapacity());
+    }
+
+    @Test
+    void toFixtureTeamStats_mapsCompositeKeyAndFields() {
+        FixtureTeamStatsDto d = new FixtureTeamStatsDto(215L, 33L, 6, 5, 15, 4, 10, 5,
+                11, 7, 2, new BigDecimal("62"), 1, null, 3, 598, 532,
+                new BigDecimal("89"), new BigDecimal("1.8"));
+
+        FixtureTeamStats s = EntityMapper.toFixtureTeamStats(d);
+
+        assertEquals(215L, s.getFixtureId());
+        assertEquals(33L, s.getTeamId());
+        assertEquals(6, s.getShotsOnGoal());
+        assertEquals(15, s.getShotsTotal());
+        assertEquals(11, s.getFouls());
+        assertEquals(7, s.getCornerKicks());
+        assertEquals(new BigDecimal("62"), s.getBallPossession());
+        assertEquals(1, s.getYellowCards());
+        assertNull(s.getRedCards());
+        assertEquals(598, s.getPassesTotal());
+        assertEquals(new BigDecimal("89"), s.getPassesPercentage());
+        assertEquals(new BigDecimal("1.8"), s.getExpectedGoals());
+    }
+
+    @Test
+    void toFixtureLineup_mapsCompositeKeyAndFields() {
+        FixtureLineup l = EntityMapper.toFixtureLineup(
+                new FixtureLineupDto(215L, 50L, "4-3-3", 4L, java.util.List.of()));
+        assertEquals(215L, l.getFixtureId());
+        assertEquals(50L, l.getTeamId());
+        assertEquals("4-3-3", l.getFormation());
+        assertEquals(4L, l.getCoachId());
+    }
+
+    @Test
+    void toFixtureLineupPlayer_mapsFields() {
+        FixtureLineupPlayer p = EntityMapper.toFixtureLineupPlayer(
+                new FixtureLineupPlayerDto(215L, 50L, 617L, "Ederson", 31, "G", "1:1", false));
+        assertEquals(215L, p.getFixtureId());
+        assertEquals(50L, p.getTeamId());
+        assertEquals(617L, p.getPlayerId());
+        assertEquals("Ederson", p.getPlayerName());
+        assertEquals(31, p.getNumber());
+        assertEquals("G", p.getPosition());
+        assertEquals("1:1", p.getGrid());
+        assertEquals(false, p.getIsSubstitute());
+    }
+
+    @Test
+    void toFixtureLineupPlayer_nullSubstitute_defaultsToFalse() {
+        // is_substitute e NOT NULL in schema
+        FixtureLineupPlayer p = EntityMapper.toFixtureLineupPlayer(
+                new FixtureLineupPlayerDto(215L, 50L, 617L, "Ederson", null, null, null, null));
+        assertEquals(false, p.getIsSubstitute());
+    }
+
+    @Test
+    void toInjury_doesNotSetSurrogateId() {
+        Injury i = EntityMapper.toInjury(new InjuryDto(865L, "D. Costa", 157L, 686314L, 78L, 2026,
+                "Missing Fixture", "Broken ankle", LocalDate.of(2026, 7, 7)));
+        assertNull(i.getId());
+        assertEquals(865L, i.getPlayerId());
+        assertEquals(157L, i.getTeamId());
+        assertEquals(686314L, i.getFixtureId());
+        assertEquals(78L, i.getLeagueId());
+        assertEquals(2026, i.getSeasonYear());
+        assertEquals("Missing Fixture", i.getType());
+        assertEquals("Broken ankle", i.getReason());
+        assertEquals(LocalDate.of(2026, 7, 7), i.getReportedAt());
     }
 
     @Test

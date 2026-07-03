@@ -2,7 +2,9 @@ package ro.golstat.api.prediction;
 
 import org.springframework.stereotype.Service;
 import ro.golstat.api.entity.Fixture;
+import ro.golstat.api.entity.Team;
 import ro.golstat.api.repository.FixtureRepository;
+import ro.golstat.api.repository.TeamRepository;
 import ro.golstat.api.stats.LeagueAverageService;
 import ro.golstat.api.stats.LeagueAverages;
 import ro.golstat.api.stats.MatchHistoryService;
@@ -18,7 +20,11 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Produce predictia unui meci VIITOR (status {@code NS}): construieste forma pe locatie a celor
@@ -40,12 +46,14 @@ public class PredictionService {
     static final int MIN_LOCATION = 3;
 
     private final FixtureRepository fixtures;
+    private final TeamRepository teams;
     private final MatchHistoryService history;
     private final LeagueAverageService leagueAverages;
 
-    public PredictionService(FixtureRepository fixtures, MatchHistoryService history,
+    public PredictionService(FixtureRepository fixtures, TeamRepository teams, MatchHistoryService history,
                              LeagueAverageService leagueAverages) {
         this.fixtures = fixtures;
+        this.teams = teams;
         this.history = history;
         this.leagueAverages = leagueAverages;
     }
@@ -54,24 +62,37 @@ public class PredictionService {
     public Optional<PredictieMeciDto> predict(long fixtureId) {
         return fixtures.findById(fixtureId)
                 .filter(f -> GolstatConstants.FixtureStatus.NOT_STARTED.equals(f.getStatusShort()))
-                .map(this::predictFixture);
+                .map(f -> predictFixture(f, teamsById(List.of(f))));
     }
 
     /** Predictiile meciurilor viitoare ({@code NS}) ale unei ligi intr-o zi. */
     public List<PredictieMeciDto> upcoming(long leagueId, LocalDate date) {
         OffsetDateTime from = date.atStartOfDay().atOffset(ZoneOffset.UTC);
-        return fixtures.findUpcoming(leagueId, GolstatConstants.FixtureStatus.NOT_STARTED, from, from.plusDays(1))
-                .stream()
-                .map(this::predictFixture)
+        List<Fixture> found =
+                fixtures.findUpcoming(leagueId, GolstatConstants.FixtureStatus.NOT_STARTED, from, from.plusDays(1));
+        Map<Long, Team> echipe = teamsById(found);
+        return found.stream()
+                .map(f -> predictFixture(f, echipe))
                 .toList();
     }
 
-    private PredictieMeciDto predictFixture(Fixture f) {
+    /** Un singur query pentru toate echipele meciurilor date (evita N+1). */
+    private Map<Long, Team> teamsById(List<Fixture> found) {
+        List<Long> ids = found.stream()
+                .flatMap(f -> Stream.of(f.getHomeTeamId(), f.getAwayTeamId()))
+                .distinct()
+                .toList();
+        return teams.findAllById(ids).stream()
+                .collect(Collectors.toMap(Team::getId, Function.identity()));
+    }
+
+    private PredictieMeciDto predictFixture(Fixture f, Map<Long, Team> echipe) {
         List<MatchSample> homeHistory = history.lastMatches(f.getHomeTeamId(), f.getKickoff(), HISTORY_FETCH);
         List<MatchSample> awayHistory = history.lastMatches(f.getAwayTeamId(), f.getKickoff(), HISTORY_FETCH);
         LeagueAverages avg = leagueAverages.averages(f.getLeagueId(), f.getSeasonYear());
         MatchContext ctx = buildContext(homeHistory, awayHistory, avg);
-        return PredictieMeciMapper.toDto(f, MatchGoalModel.predict(ctx));
+        return PredictieMeciMapper.toDto(f, MatchGoalModel.predict(ctx),
+                echipe.get(f.getHomeTeamId()), echipe.get(f.getAwayTeamId()));
     }
 
     static MatchContext buildContext(List<MatchSample> homeHistory, List<MatchSample> awayHistory, LeagueAverages avg) {

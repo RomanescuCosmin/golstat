@@ -4,6 +4,7 @@ import java.time.LocalDate;
 
 public record InjuryDto(
         Long playerId,
+        String playerName,
         Long teamId,
         Long fixtureId,
         Long leagueId,

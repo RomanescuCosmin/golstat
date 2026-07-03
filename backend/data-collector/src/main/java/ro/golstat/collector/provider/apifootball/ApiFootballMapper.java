@@ -2,15 +2,22 @@ package ro.golstat.collector.provider.apifootball;
 
 import ro.golstat.common.dto.FixtureDto;
 import ro.golstat.common.dto.FixtureEventDto;
+import ro.golstat.common.dto.FixtureLineupDto;
+import ro.golstat.common.dto.FixtureLineupPlayerDto;
+import ro.golstat.common.dto.FixtureTeamStatsDto;
+import ro.golstat.common.dto.InjuryDto;
 import ro.golstat.common.dto.LeagueDto;
 import ro.golstat.common.dto.SeasonDto;
 import ro.golstat.common.dto.StandingDto;
 import ro.golstat.common.dto.TeamDto;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Traduce raspunsul API-Football in DTO-urile de domeniu din {@code common}. Pur si null-tolerant:
@@ -80,6 +87,86 @@ public final class ApiFootballMapper {
                 e.type(),
                 e.detail(),
                 e.comments()
+        );
+    }
+
+    public static FixtureTeamStatsDto toFixtureTeamStats(StatisticsItem item, long fixtureId) {
+        Map<String, Object> v = new HashMap<>();
+        if (item.statistics() != null) {
+            for (StatisticsItem.Stat stat : item.statistics()) {
+                if (stat != null && stat.type() != null) {
+                    v.put(stat.type(), stat.value());
+                }
+            }
+        }
+        StatisticsItem.Team team = item.team();
+        return new FixtureTeamStatsDto(
+                fixtureId,
+                team != null ? team.id() : null,
+                toInt(v.get("Shots on Goal")),
+                toInt(v.get("Shots off Goal")),
+                toInt(v.get("Total Shots")),
+                toInt(v.get("Blocked Shots")),
+                toInt(v.get("Shots insidebox")),
+                toInt(v.get("Shots outsidebox")),
+                toInt(v.get("Fouls")),
+                toInt(v.get("Corner Kicks")),
+                toInt(v.get("Offsides")),
+                toDecimal(v.get("Ball Possession")),
+                toInt(v.get("Yellow Cards")),
+                toInt(v.get("Red Cards")),
+                toInt(v.get("Goalkeeper Saves")),
+                toInt(v.get("Total passes")),
+                toInt(v.get("Passes accurate")),
+                toDecimal(v.get("Passes %")),
+                toDecimal(v.get("expected_goals"))
+        );
+    }
+
+    public static FixtureLineupDto toFixtureLineup(LineupItem item, long fixtureId) {
+        Long teamId = item.team() != null ? item.team().id() : null;
+        List<FixtureLineupPlayerDto> players = new ArrayList<>();
+        addLineupPlayers(players, item.startXI(), fixtureId, teamId, false);
+        addLineupPlayers(players, item.substitutes(), fixtureId, teamId, true);
+        return new FixtureLineupDto(
+                fixtureId,
+                teamId,
+                item.formation(),
+                item.coach() != null ? item.coach().id() : null,
+                players
+        );
+    }
+
+    private static void addLineupPlayers(List<FixtureLineupPlayerDto> out, List<LineupItem.Slot> slots,
+                                         long fixtureId, Long teamId, boolean substitute) {
+        if (slots == null) {
+            return;
+        }
+        for (LineupItem.Slot slot : slots) {
+            LineupItem.Player p = slot != null ? slot.player() : null;
+            if (p == null) {
+                continue;
+            }
+            out.add(new FixtureLineupPlayerDto(fixtureId, teamId, p.id(), p.name(),
+                    p.number(), p.pos(), p.grid(), substitute));
+        }
+    }
+
+    public static InjuryDto toInjury(InjuryItem item) {
+        InjuryItem.Player player = item.player();
+        InjuryItem.Fixture fixture = item.fixture();
+        InjuryItem.League league = item.league();
+        OffsetDateTime kickoff = fixture != null ? parseOffset(fixture.date()) : null;
+        return new InjuryDto(
+                player != null ? player.id() : null,
+                player != null ? player.name() : null,
+                item.team() != null ? item.team().id() : null,
+                fixture != null ? fixture.id() : null,
+                league != null ? league.id() : null,
+                league != null ? league.season() : null,
+                player != null ? player.type() : null,
+                player != null ? player.reason() : null,
+                kickoff != null ? kickoff.toLocalDate() : null
         );
     }
 
@@ -183,6 +270,30 @@ public final class ApiFootballMapper {
 
     private static Integer goalsAgainst(StandingsLeagueItem.Stat s) {
         return s != null && s.goals() != null ? s.goals().against() : null;
+    }
+
+    private static Integer toInt(Object value) {
+        BigDecimal d = toDecimal(value);
+        return d != null ? d.intValue() : null;
+    }
+
+    /** `value` din /fixtures/statistics e eterogen: numar, "62%", "1.8" sau null. */
+    private static BigDecimal toDecimal(Object value) {
+        if (value instanceof Number n) {
+            return new BigDecimal(n.toString());
+        }
+        if (value instanceof String s) {
+            String cleaned = s.replace("%", "").trim();
+            if (cleaned.isEmpty()) {
+                return null;
+            }
+            try {
+                return new BigDecimal(cleaned);
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
+        return null;
     }
 
     private static OffsetDateTime parseOffset(String value) {

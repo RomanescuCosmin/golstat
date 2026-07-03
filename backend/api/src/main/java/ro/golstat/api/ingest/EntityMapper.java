@@ -2,6 +2,10 @@ package ro.golstat.api.ingest;
 
 import ro.golstat.api.entity.Fixture;
 import ro.golstat.api.entity.FixtureEvent;
+import ro.golstat.api.entity.FixtureLineup;
+import ro.golstat.api.entity.FixtureLineupPlayer;
+import ro.golstat.api.entity.FixtureTeamStats;
+import ro.golstat.api.entity.Injury;
 import ro.golstat.api.entity.League;
 import ro.golstat.api.entity.Season;
 import ro.golstat.api.entity.Standing;
@@ -9,6 +13,10 @@ import ro.golstat.api.entity.Team;
 import ro.golstat.api.entity.Venue;
 import ro.golstat.common.dto.FixtureDto;
 import ro.golstat.common.dto.FixtureEventDto;
+import ro.golstat.common.dto.FixtureLineupDto;
+import ro.golstat.common.dto.FixtureLineupPlayerDto;
+import ro.golstat.common.dto.FixtureTeamStatsDto;
+import ro.golstat.common.dto.InjuryDto;
 import ro.golstat.common.dto.LeagueDto;
 import ro.golstat.common.dto.SeasonDto;
 import ro.golstat.common.dto.StandingDto;
@@ -146,5 +154,65 @@ final class EntityMapper {
         e.setDetail(d.detail());
         e.setComments(d.comments());
         return e;
+    }
+
+    static FixtureLineup toFixtureLineup(FixtureLineupDto d) {
+        FixtureLineup l = new FixtureLineup();
+        l.setFixtureId(d.fixtureId());
+        l.setTeamId(d.teamId());
+        l.setFormation(d.formation());
+        l.setCoachId(d.coachId());
+        return l;
+    }
+
+    static FixtureLineupPlayer toFixtureLineupPlayer(FixtureLineupPlayerDto d) {
+        FixtureLineupPlayer p = new FixtureLineupPlayer();
+        p.setFixtureId(d.fixtureId());
+        p.setTeamId(d.teamId());
+        p.setPlayerId(d.playerId());
+        p.setPlayerName(d.playerName());
+        p.setNumber(d.number());
+        p.setPosition(d.position());
+        p.setGrid(d.grid());
+        p.setIsSubstitute(d.isSubstitute() != null ? d.isSubstitute() : false);   // NOT NULL in schema
+        return p;
+    }
+
+    /** id-ul e surogat (IDENTITY) — nu se seteaza; se genereaza la insert. */
+    static Injury toInjury(InjuryDto d) {
+        Injury i = new Injury();
+        i.setPlayerId(d.playerId());
+        i.setTeamId(d.teamId());
+        i.setFixtureId(d.fixtureId());
+        i.setLeagueId(d.leagueId());
+        i.setSeasonYear(d.seasonYear());
+        i.setType(d.type());
+        i.setReason(d.reason());
+        i.setReportedAt(d.reportedAt());
+        return i;
+    }
+
+    static FixtureTeamStats toFixtureTeamStats(FixtureTeamStatsDto d) {
+        FixtureTeamStats s = new FixtureTeamStats();
+        s.setFixtureId(d.fixtureId());
+        s.setTeamId(d.teamId());
+        s.setShotsOnGoal(d.shotsOnGoal());
+        s.setShotsOffGoal(d.shotsOffGoal());
+        s.setShotsTotal(d.shotsTotal());
+        s.setShotsBlocked(d.shotsBlocked());
+        s.setShotsInsidebox(d.shotsInsidebox());
+        s.setShotsOutsidebox(d.shotsOutsidebox());
+        s.setFouls(d.fouls());
+        s.setCornerKicks(d.cornerKicks());
+        s.setOffsides(d.offsides());
+        s.setBallPossession(d.ballPossession());
+        s.setYellowCards(d.yellowCards());
+        s.setRedCards(d.redCards());
+        s.setGoalkeeperSaves(d.goalkeeperSaves());
+        s.setPassesTotal(d.passesTotal());
+        s.setPassesAccurate(d.passesAccurate());
+        s.setPassesPercentage(d.passesPercentage());
+        s.setExpectedGoals(d.expectedGoals());
+        return s;
     }
 }

@@ -46,6 +46,24 @@ public interface FixtureRepository extends JpaRepository<Fixture, Long> {
                          @Param("season") int season,
                          @Param("terminal") Collection<String> terminal);
 
+    /**
+     * Intalnirile directe TERMINALE dintre doua echipe (indiferent cine a fost gazda) dinaintea
+     * unei date, cele mai recente primele. Numarul se limiteaza prin {@link Pageable}.
+     */
+    @Query("""
+            select f from Fixture f
+            where ((f.homeTeamId = :teamA and f.awayTeamId = :teamB)
+                or (f.homeTeamId = :teamB and f.awayTeamId = :teamA))
+              and f.statusShort in :terminal
+              and f.kickoff < :before
+            order by f.kickoff desc
+            """)
+    List<Fixture> findHeadToHead(@Param("teamA") long teamA,
+                                 @Param("teamB") long teamB,
+                                 @Param("terminal") Collection<String> terminal,
+                                 @Param("before") OffsetDateTime before,
+                                 Pageable pageable);
+
     /** Meciurile viitoare ({@code NS}) ale unei ligi intr-o fereastra, cele mai apropiate primele. */
     @Query("""
             select f from Fixture f

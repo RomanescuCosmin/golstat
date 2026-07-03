@@ -8,6 +8,10 @@ import ro.golstat.collector.publish.EventPublisher;
 import ro.golstat.common.GolstatConstants;
 import ro.golstat.common.dto.FixtureDto;
 import ro.golstat.common.dto.FixtureEventDto;
+import ro.golstat.common.dto.FixtureLineupDto;
+import ro.golstat.common.dto.FixtureLineupPlayerDto;
+import ro.golstat.common.dto.FixtureTeamStatsDto;
+import ro.golstat.common.dto.InjuryDto;
 import ro.golstat.common.dto.LeagueDto;
 import ro.golstat.common.dto.SeasonDto;
 import ro.golstat.common.dto.StandingDto;
@@ -138,9 +142,80 @@ class CollectionServiceTest {
         assertEquals("200", pub.first(GolstatConstants.KafkaTopics.FIXTURE_EVENTS).key());
     }
 
-    /** Furnizor cu un meci terminat (200, FT) si unul viitor (201, NS); retine pentru cine s-au cerut evenimente. */
+    @Test
+    void statisticsRequestedOnlyForTerminalFixtures_publishedAsBatch() {
+        StatusProvider provider = new StatusProvider();
+        RecordingPublisher pub = new RecordingPublisher();
+        new CollectionService(provider, pub, new LiveSchedule())
+                .collectGoalsData(1, 2026, LocalDate.of(2026, 6, 1), LocalDate.of(2026, 7, 31));
+
+        assertEquals(List.of(200L), provider.statsAskedFor, "NS nu declanseaza cerere de statistici");
+        assertEquals(1, pub.countOn(GolstatConstants.KafkaTopics.FIXTURE_TEAM_STATS));
+        RecordingPublisher.Message msg = pub.first(GolstatConstants.KafkaTopics.FIXTURE_TEAM_STATS);
+        assertEquals("200", msg.key());
+        List<?> batch = assertInstanceOf(List.class, msg.payload());   // lot: ambele echipe intr-un mesaj
+        assertEquals(2, batch.size());
+    }
+
+    @Test
+    void emptyStatistics_notPublished() {
+        StatusProvider provider = new StatusProvider();
+        provider.statsAvailable = false;
+        RecordingPublisher pub = new RecordingPublisher();
+        new CollectionService(provider, pub, new LiveSchedule())
+                .collectGoalsData(1, 2026, LocalDate.of(2026, 6, 1), LocalDate.of(2026, 7, 31));
+
+        assertEquals(0, pub.countOn(GolstatConstants.KafkaTopics.FIXTURE_TEAM_STATS));
+    }
+
+    @Test
+    void lineupsRequestedForTerminalAndNotStarted_publishedAsBatchPerFixture() {
+        StatusProvider provider = new StatusProvider();
+        RecordingPublisher pub = new RecordingPublisher();
+        new CollectionService(provider, pub, new LiveSchedule())
+                .collectGoalsData(1, 2026, LocalDate.of(2026, 6, 1), LocalDate.of(2026, 7, 31));
+
+        // lineup-urile se cer si pentru NS (apar aproape de kickoff), nu doar pentru FT
+        assertEquals(List.of(200L, 201L), provider.lineupsAskedFor);
+        assertEquals(2, pub.countOn(GolstatConstants.KafkaTopics.FIXTURE_LINEUPS));
+        RecordingPublisher.Message msg = pub.first(GolstatConstants.KafkaTopics.FIXTURE_LINEUPS);
+        assertEquals("200", msg.key());
+        List<?> batch = assertInstanceOf(List.class, msg.payload());   // lot: ambele formatii intr-un mesaj
+        assertEquals(2, batch.size());
+    }
+
+    @Test
+    void emptyLineups_notPublished() {
+        StatusProvider provider = new StatusProvider();
+        provider.lineupsAvailable = false;
+        RecordingPublisher pub = new RecordingPublisher();
+        new CollectionService(provider, pub, new LiveSchedule())
+                .collectGoalsData(1, 2026, LocalDate.of(2026, 6, 1), LocalDate.of(2026, 7, 31));
+
+        assertEquals(0, pub.countOn(GolstatConstants.KafkaTopics.FIXTURE_LINEUPS));
+    }
+
+    @Test
+    void injuriesPublishedAsBatchKeyedByLeagueSeason() {
+        StatusProvider provider = new StatusProvider();
+        RecordingPublisher pub = new RecordingPublisher();
+        new CollectionService(provider, pub, new LiveSchedule())
+                .collectGoalsData(1, 2026, LocalDate.of(2026, 6, 1), LocalDate.of(2026, 7, 31));
+
+        assertEquals(1, pub.countOn(GolstatConstants.KafkaTopics.INJURIES));
+        RecordingPublisher.Message msg = pub.first(GolstatConstants.KafkaTopics.INJURIES);
+        assertEquals("1:2026", msg.key());
+        List<?> batch = assertInstanceOf(List.class, msg.payload());
+        assertEquals(1, batch.size());
+    }
+
+    /** Furnizor cu un meci terminat (200, FT) si unul viitor (201, NS); retine pentru cine s-au cerut evenimente/statistici. */
     private static final class StatusProvider implements DataProvider {
         final List<Long> eventsAskedFor = new ArrayList<>();
+        final List<Long> statsAskedFor = new ArrayList<>();
+        final List<Long> lineupsAskedFor = new ArrayList<>();
+        boolean statsAvailable = true;
+        boolean lineupsAvailable = true;
 
         @Override
         public List<FixtureDto> fixtures(long leagueId, int season, LocalDate from, LocalDate to) {
@@ -153,6 +228,40 @@ class CollectionServiceTest {
             eventsAskedFor.add(fixtureId);
             return List.of(new FixtureEventDto(fixtureId, 1L, null, null, 10, null,
                     GolstatConstants.EventType.GOAL, "Normal Goal", null));
+        }
+
+        @Override
+        public List<FixtureTeamStatsDto> fixtureStatistics(long fixtureId) {
+            statsAskedFor.add(fixtureId);
+            if (!statsAvailable) {
+                return List.of();
+            }
+            return List.of(teamStats(fixtureId, 1L), teamStats(fixtureId, 2L));
+        }
+
+        private static FixtureTeamStatsDto teamStats(long fixtureId, long teamId) {
+            return new FixtureTeamStatsDto(fixtureId, teamId, null, null, null, null, null, null,
+                    null, null, null, null, null, null, null, null, null, null, null);
+        }
+
+        @Override
+        public List<FixtureLineupDto> fixtureLineups(long fixtureId) {
+            lineupsAskedFor.add(fixtureId);
+            if (!lineupsAvailable) {
+                return List.of();
+            }
+            return List.of(lineup(fixtureId, 1L), lineup(fixtureId, 2L));
+        }
+
+        private static FixtureLineupDto lineup(long fixtureId, long teamId) {
+            return new FixtureLineupDto(fixtureId, teamId, "4-4-2", 5L, List.of(
+                    new FixtureLineupPlayerDto(fixtureId, teamId, 100 + teamId, "Portar", 1, "G", "1:1", false)));
+        }
+
+        @Override
+        public List<InjuryDto> injuries(long leagueId, int season) {
+            return List.of(new InjuryDto(900L, "Jucator Accidentat", 1L, 200L, leagueId, season,
+                    "Missing Fixture", "Knee Injury", LocalDate.of(2026, 6, 10)));
         }
 
         @Override

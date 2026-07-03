@@ -9,6 +9,9 @@ import ro.golstat.api.web.LiveBroadcaster;
 import ro.golstat.common.GolstatConstants;
 import ro.golstat.common.dto.FixtureDto;
 import ro.golstat.common.dto.FixtureEventDto;
+import ro.golstat.common.dto.FixtureLineupDto;
+import ro.golstat.common.dto.FixtureTeamStatsDto;
+import ro.golstat.common.dto.InjuryDto;
 import ro.golstat.common.dto.LeagueDto;
 import ro.golstat.common.dto.SeasonDto;
 import ro.golstat.common.dto.StandingDto;
@@ -74,6 +77,36 @@ public class DataIngestListeners {
             }));
         } catch (JsonProcessingException e) {
             throw new IllegalStateException("JSON invalid pe " + GolstatConstants.KafkaTopics.FIXTURE_EVENTS, e);
+        }
+    }
+
+    @KafkaListener(topics = GolstatConstants.KafkaTopics.FIXTURE_TEAM_STATS)
+    void onFixtureTeamStats(String json) {
+        try {
+            ingest.ingestFixtureTeamStats(mapper.readValue(json, new TypeReference<List<FixtureTeamStatsDto>>() {
+            }));
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("JSON invalid pe " + GolstatConstants.KafkaTopics.FIXTURE_TEAM_STATS, e);
+        }
+    }
+
+    @KafkaListener(topics = GolstatConstants.KafkaTopics.FIXTURE_LINEUPS)
+    void onFixtureLineups(String json) {
+        try {
+            ingest.ingestFixtureLineups(mapper.readValue(json, new TypeReference<List<FixtureLineupDto>>() {
+            }));
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("JSON invalid pe " + GolstatConstants.KafkaTopics.FIXTURE_LINEUPS, e);
+        }
+    }
+
+    @KafkaListener(topics = GolstatConstants.KafkaTopics.INJURIES)
+    void onInjuries(String json) {
+        try {
+            ingest.ingestInjuries(mapper.readValue(json, new TypeReference<List<InjuryDto>>() {
+            }));
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("JSON invalid pe " + GolstatConstants.KafkaTopics.INJURIES, e);
         }
     }
 
