@@ -1,5 +1,6 @@
 package ro.golstat.stats.goals;
 
+import ro.golstat.stats.market.OverUnder;
 import ro.golstat.stats.math.Poisson;
 import ro.golstat.stats.model.MatchSample;
 
@@ -40,12 +41,12 @@ public final class GoalLineBlend {
 
         GoalLineStats empirical = GoalLines.of(window, lines);
 
-        List<GoalLineStats.OverUnder> blended = new ArrayList<>();
+        List<OverUnder> blended = new ArrayList<>();
         for (double line : lines) {
             double pEmpiric = empirical.line(line).overRate();
             double pPoisson = Poisson.probabilityOver(lambdaTotal, line);
             double over = w * pEmpiric + (1 - w) * pPoisson;
-            blended.add(new GoalLineStats.OverUnder(line, over, 1.0 - over));
+            blended.add(new OverUnder(line, over, 1.0 - over));
         }
 
         // BTTS Poisson: doua Poisson independente, P(ambele marcheaza) = (1-e^-λfor)(1-e^-λagainst)
