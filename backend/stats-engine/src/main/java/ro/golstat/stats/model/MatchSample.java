@@ -15,7 +15,7 @@ public record MatchSample(
         int goalsForHt,          // goluri marcate de noi pana la pauza
         int goalsAgainstHt,      // goluri primite de noi pana la pauza
         Integer opponentRank     // pozitia adversarului in clasament (null = necunoscut)
-) {
+) implements TeamMatch {
     public int goalsForSecondHalf() {
         return goalsFor - goalsForHt;
     }
