@@ -1,5 +1,7 @@
 package ro.golstat.collector.collection;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import ro.golstat.collector.provider.DataProvider;
 import ro.golstat.collector.publish.EventPublisher;
@@ -30,6 +32,8 @@ import java.util.List;
 @Service
 public class CollectionService {
 
+    private static final Logger log = LoggerFactory.getLogger(CollectionService.class);
+
     private final DataProvider provider;
     private final EventPublisher publisher;
 
@@ -57,7 +61,8 @@ public class CollectionService {
             publisher.publish(GolstatConstants.KafkaTopics.STANDINGS, standingKey(standing), standing);
         }
 
-        for (FixtureDto fixture : provider.fixtures(leagueId, season, from, to)) {
+        List<FixtureDto> fixtures = provider.fixtures(leagueId, season, from, to);
+        for (FixtureDto fixture : fixtures) {
             publisher.publish(GolstatConstants.KafkaTopics.FIXTURES, String.valueOf(fixture.id()), fixture);
 
             List<FixtureEventDto> events = provider.fixtureEvents(fixture.id());
@@ -65,6 +70,9 @@ public class CollectionService {
                 publisher.publish(GolstatConstants.KafkaTopics.FIXTURE_EVENTS, String.valueOf(fixture.id()), events);
             }
         }
+
+        log.info("Colectat liga {} sezon {}: {} fixtures in fereastra {}..{}",
+                leagueId, season, fixtures.size(), from, to);
     }
 
     private static String standingKey(StandingDto standing) {
