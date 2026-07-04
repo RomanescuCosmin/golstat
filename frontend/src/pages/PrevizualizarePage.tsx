@@ -10,6 +10,8 @@ import { PesteSubGoluri } from '../components/previzualizare/PesteSubGoluri';
 import { ProbabilitateRezultat } from '../components/previzualizare/ProbabilitateRezultat';
 import { StatisticiCheie } from '../components/previzualizare/StatisticiCheie';
 import { TotalOverUnder } from '../components/previzualizare/TotalOverUnder';
+import { EchipaDeStart } from '../components/lineup/EchipaDeStart';
+import { PageLayout } from '../components/layout/PageLayout';
 import { Card } from '../components/ui/Card';
 import { ErrorState } from '../components/ui/ErrorState';
 import { Spinner } from '../components/ui/Spinner';
@@ -51,7 +53,7 @@ export function PrevizualizarePage() {
   }, [id, incercare]);
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <PageLayout>
       <nav className="mb-4 flex items-center gap-1.5 text-sm text-ink2" aria-label="Breadcrumb">
         <Link to="/" className="font-medium hover:text-primary">
           Meciuri
@@ -69,10 +71,18 @@ export function PrevizualizarePage() {
       {!loading && eroare && (
         <Card>
           {eroare.status === 404 ? (
-            <ErrorState
-              titlu="Meciul nu are predicție"
-              mesaj="Meciul nu are predicție (nu e viitor)."
-            />
+            <div className="flex flex-col items-center gap-3 py-2">
+              <ErrorState
+                titlu="Meciul nu are predicție"
+                mesaj="Predicțiile există doar pentru meciuri viitoare. Dacă meciul e în desfășurare sau s-a jucat, vezi desfășurarea lui."
+              />
+              <Link
+                to={`/meci/${id}/centru`}
+                className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+              >
+                Vezi desfășurarea meciului
+              </Link>
+            </div>
           ) : (
             <ErrorState
               titlu={eroare.title}
@@ -106,6 +116,14 @@ export function PrevizualizarePage() {
             formaOaspeti={date.formaOaspeti}
           />
 
+          {date.echipeDeStart != null && (
+            <EchipaDeStart
+              echipe={date.echipeDeStart}
+              gazde={date.predictie.echipaGazde}
+              oaspeti={date.predictie.echipaOaspeti}
+            />
+          )}
+
           <div className="grid gap-5 xl:grid-cols-[2fr_3fr]">
             <FormaEchipe
               gazde={date.predictie.echipaGazde}
@@ -117,6 +135,6 @@ export function PrevizualizarePage() {
           </div>
         </div>
       )}
-    </div>
+    </PageLayout>
   );
 }

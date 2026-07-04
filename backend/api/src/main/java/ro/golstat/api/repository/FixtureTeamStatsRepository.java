@@ -14,6 +14,20 @@ public interface FixtureTeamStatsRepository extends JpaRepository<FixtureTeamSta
 
     List<FixtureTeamStats> findByFixtureIdIn(Collection<Long> fixtureIds);
 
+    /** Statisticile pe meci ale unei echipe intr-o liga/sezon (meciuri TERMINALE) — mediate in Java pentru barele de sezon. */
+    @Query("""
+            select s from FixtureTeamStats s
+            join Fixture f on f.id = s.fixtureId
+            where s.teamId = :teamId
+              and f.leagueId = :leagueId
+              and f.seasonYear = :season
+              and f.statusShort in :terminal
+            """)
+    List<FixtureTeamStats> findForTeamSeason(@Param("teamId") long teamId,
+                                             @Param("leagueId") long leagueId,
+                                             @Param("season") int season,
+                                             @Param("terminal") Collection<String> terminal);
+
     /**
      * Mediile PE ECHIPA de cornere/faulturi/cartonase pe o liga/sezon, doar din meciuri TERMINALE
      * cu statistici colectate. Rosiile lipsa langa galbene inseamna 0 (coalesce). Fara randuri →

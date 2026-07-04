@@ -77,4 +77,37 @@ public interface FixtureRepository extends JpaRepository<Fixture, Long> {
                                @Param("status") String status,
                                @Param("from") OffsetDateTime from,
                                @Param("to") OffsetDateTime to);
+
+    /** Meciurile in DESFASURARE acum (orice liga), cele mai apropiate de start primele. */
+    @Query("""
+            select f from Fixture f
+            where f.statusShort in :inPlay
+            order by f.kickoff asc
+            """)
+    List<Fixture> findLive(@Param("inPlay") Collection<String> inPlay);
+
+    /** Toate meciurile unei ligi intr-o fereastra de timp (orice status), cronologic. */
+    @Query("""
+            select f from Fixture f
+            where f.leagueId = :leagueId
+              and f.kickoff >= :from
+              and f.kickoff < :to
+            order by f.kickoff asc
+            """)
+    List<Fixture> findByDay(@Param("leagueId") long leagueId,
+                            @Param("from") OffsetDateTime from,
+                            @Param("to") OffsetDateTime to);
+
+    /** Urmatoarele meciuri ({@code NS}) ale unei echipe de la {@code now} incolo, cele mai apropiate primele. */
+    @Query("""
+            select f from Fixture f
+            where (f.homeTeamId = :teamId or f.awayTeamId = :teamId)
+              and f.statusShort = :ns
+              and f.kickoff >= :now
+            order by f.kickoff asc
+            """)
+    List<Fixture> findNextForTeam(@Param("teamId") long teamId,
+                                  @Param("ns") String ns,
+                                  @Param("now") OffsetDateTime now,
+                                  Pageable pageable);
 }

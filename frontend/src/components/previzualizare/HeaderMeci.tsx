@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import type { PredictieMeciDto } from '../../api/types';
 import { esteInPlay, minutLive, useLiveScore } from '../../hooks/useLiveScore';
 import { numeEchipa } from '../../lib/echipa';
@@ -21,12 +22,15 @@ export function HeaderMeci({ predictie }: HeaderMeciProps) {
       <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 sm:gap-6">
         <div className="flex items-center justify-center gap-3">
           <IconStar width={18} height={18} className="hidden shrink-0 text-ink2/40 sm:block" />
-          <div className="flex min-w-0 flex-col items-center gap-2">
+          <Link
+            to={`/echipa/${echipaGazde.id}`}
+            className="flex min-w-0 flex-col items-center gap-2 rounded-lg transition hover:opacity-80"
+          >
             <TeamLogo nume={echipaGazde.nume} logo={echipaGazde.logo} size={64} />
             <span className="max-w-full truncate text-center text-base font-bold text-ink sm:text-lg">
               {numeEchipa(echipaGazde)}
             </span>
-          </div>
+          </Link>
         </div>
 
         <div className="flex flex-col items-center px-2 text-center">
@@ -46,12 +50,15 @@ export function HeaderMeci({ predictie }: HeaderMeciProps) {
         </div>
 
         <div className="flex items-center justify-center gap-3">
-          <div className="flex min-w-0 flex-col items-center gap-2">
+          <Link
+            to={`/echipa/${echipaOaspeti.id}`}
+            className="flex min-w-0 flex-col items-center gap-2 rounded-lg transition hover:opacity-80"
+          >
             <TeamLogo nume={echipaOaspeti.nume} logo={echipaOaspeti.logo} size={64} />
             <span className="max-w-full truncate text-center text-base font-bold text-ink sm:text-lg">
               {numeEchipa(echipaOaspeti)}
             </span>
-          </div>
+          </Link>
           <IconStar width={18} height={18} className="hidden shrink-0 text-ink2/40 sm:block" />
         </div>
       </div>

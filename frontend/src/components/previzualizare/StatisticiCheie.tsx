@@ -1,31 +1,14 @@
 import type { EchipaDto, FormaEchipaDto, StatisticiCheieDto } from '../../api/types';
 import { numeEchipa } from '../../lib/echipa';
+import { BaraComparativa } from '../ui/BaraComparativa';
 import { Card } from '../ui/Card';
 import { TeamLogo } from '../ui/TeamLogo';
-
-const numar = new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 1 });
 
 interface Rand {
   eticheta: string;
   gazde: number | null;
   oaspeti: number | null;
   procent?: boolean;
-}
-
-function fmt(valoare: number | null, procent?: boolean): string {
-  if (valoare == null) {
-    return '—';
-  }
-  return procent ? `${Math.round(valoare)}%` : numar.format(valoare);
-}
-
-/** Latimea barei, proportional cu maximul randului; null → bara goala (nu 0 fals). */
-function latime(valoare: number | null, celalalt: number | null): number {
-  if (valoare == null || valoare <= 0) {
-    return 0;
-  }
-  const maxim = Math.max(valoare, celalalt ?? 0);
-  return Math.max((valoare / maxim) * 100, 8);
 }
 
 interface StatisticiCheieProps {
@@ -67,28 +50,13 @@ export function StatisticiCheie({ gazde, oaspeti, statistici, formaGazde, formaO
 
       <div className="mt-4 space-y-3.5">
         {randuri.map((rand) => (
-          <div
+          <BaraComparativa
             key={rand.eticheta}
-            className="grid grid-cols-[2.75rem_1fr_auto_1fr_2.75rem] items-center gap-2 sm:gap-3"
-          >
-            <span className="text-sm font-semibold tabular-nums text-ink">{fmt(rand.gazde, rand.procent)}</span>
-            <div className="flex justify-end">
-              <div
-                className="h-[5px] rounded-full bg-primary"
-                style={{ width: `${latime(rand.gazde, rand.oaspeti)}%` }}
-              />
-            </div>
-            <span className="whitespace-nowrap px-1 text-center text-xs text-ink2 sm:text-sm">{rand.eticheta}</span>
-            <div>
-              <div
-                className="h-[5px] rounded-full bg-accent"
-                style={{ width: `${latime(rand.oaspeti, rand.gazde)}%` }}
-              />
-            </div>
-            <span className="text-right text-sm font-semibold tabular-nums text-ink">
-              {fmt(rand.oaspeti, rand.procent)}
-            </span>
-          </div>
+            eticheta={rand.eticheta}
+            gazde={rand.gazde}
+            oaspeti={rand.oaspeti}
+            procent={rand.procent}
+          />
         ))}
       </div>
     </Card>

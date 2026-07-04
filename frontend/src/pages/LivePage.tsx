@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getPredictiiZi } from '../api/client';
 import type { PredictieMeciDto } from '../api/types';
+import { PageLayout } from '../components/layout/PageLayout';
 import { MatchCard } from '../components/meciuri/MatchCard';
 import { SelectorLiga } from '../components/meciuri/SelectorLiga';
 import { Card } from '../components/ui/Card';
@@ -45,7 +46,7 @@ export function LivePage() {
   const inDesfasurare = meciuri.filter((m) => esteInPlay(scoruri[m.fixtureId]));
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <PageLayout>
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <h1 className="text-lg font-bold">Live</h1>
         <div className="ml-auto">
@@ -75,11 +76,12 @@ export function LivePage() {
               key={meci.fixtureId}
               meci={meci}
               numeLiga={numeLiga(leagueId)}
-              onOpen={() => navigate(`/meci/${meci.fixtureId}`)}
+              actiuneText="Vezi desfășurarea"
+              onOpen={() => navigate(`/meci/${meci.fixtureId}/centru`)}
             />
           ))}
         </div>
       )}
-    </div>
+    </PageLayout>
   );
 }

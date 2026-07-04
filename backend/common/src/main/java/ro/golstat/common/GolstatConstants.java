@@ -1,5 +1,7 @@
 package ro.golstat.common;
 
+import java.util.List;
+
 public final class GolstatConstants {
 
     private GolstatConstants() {
@@ -88,5 +90,11 @@ public final class GolstatConstants {
         public static final String FINISHED_PEN = "PEN";
         public static final String POSTPONED = "PST";
         public static final String CANCELLED = "CANC";
+
+        /** Statusuri "in desfasurare" (repriza 1/pauza/repriza 2/prelungiri/penalty-uri). */
+        public static final List<String> IN_PLAY = List.of(FIRST_HALF, HALF_TIME, SECOND_HALF, EXTRA_TIME, PENALTY);
+
+        /** Statusuri terminale (meci incheiat, eventual dupa prelungiri sau penalty-uri). */
+        public static final List<String> TERMINAL = List.of(FINISHED, FINISHED_AET, FINISHED_PEN);
     }
 }

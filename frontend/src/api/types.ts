@@ -114,6 +114,19 @@ export interface FixtureLive {
   leagueId: number | null;
 }
 
+/** Oglinda `ro.golstat.api.live.MeciLiveDto` — un meci in desfasurare (din DB, prin endpoint-ul /live). */
+export interface MeciLive {
+  fixtureId: number;
+  leagueId: number | null;
+  gazde: EchipaDto;
+  oaspeti: EchipaDto;
+  golGazde: number | null;
+  golOaspeti: number | null;
+  /** status in-play: "1H" / "HT" / "2H" / "ET" / "P". */
+  status: string | null;
+  minut: number | null;
+}
+
 /** Un jucator din formatie; `grid` = pozitia in teren "rand:coloana" (null la rezerve). */
 export interface JucatorLineupDto {
   id: number | null;
@@ -158,4 +171,162 @@ export interface PrevizualizareMeciDto {
   statisticiCheie: StatisticiCheieDto;
   /** `null` pana se anunta formatiile, aproape de meci. */
   echipeDeStart: EchipaDeStartDto | null;
+}
+
+/* ─────────────────────────── Match Center ─────────────────────────── */
+
+/** Statisticile REALE ale unei echipe intr-un meci (din fixture_team_stats); `null` = necolectat. */
+export interface StatisticiEchipaMeci {
+  posesie: number | null;
+  suturiPePoarta: number | null;
+  suturiTotal: number | null;
+  cornere: number | null;
+  faulturi: number | null;
+  galbene: number | null;
+  rosii: number | null;
+  pase: number | null;
+  paseReusite: number | null;
+  preciziePase: number | null;
+  xg: number | null;
+}
+
+/** Statisticile ambelor echipe pentru un meci. */
+export interface StatisticiMeci {
+  gazde: StatisticiEchipaMeci;
+  oaspeti: StatisticiEchipaMeci;
+}
+
+/** Un eveniment din cronologia meciului; `tip`: "Goal" / "Card" / "subst" / "Var". */
+export interface EvenimentMeci {
+  id: number | null;
+  teamId: number | null;
+  gazde: boolean;
+  minut: number | null;
+  minutExtra: number | null;
+  tip: string | null;
+  detaliu: string | null;
+  jucator: string | null;
+  asist: string | null;
+}
+
+/** Oglinda `ro.golstat.api.matchcenter.MeciCentralDto` — detaliul unui meci (live sau finalizat). */
+export interface MeciCentral {
+  fixtureId: number;
+  leagueId: number | null;
+  gazde: EchipaDto;
+  oaspeti: EchipaDto;
+  golGazde: number | null;
+  golOaspeti: number | null;
+  status: string | null;
+  statusLung: string | null;
+  minut: number | null;
+  inDesfasurare: boolean;
+  terminat: boolean;
+  /** OffsetDateTime serializat ISO-8601. */
+  kickoff: string | null;
+  /** `null` daca nu exista statistici colectate pentru meci. */
+  statistici: StatisticiMeci | null;
+  evenimente: EvenimentMeci[];
+}
+
+/* ─────────────────────────── Pagina Echipa ─────────────────────────── */
+
+export interface AntetEchipa {
+  teamId: number;
+  nume: string | null;
+  logo: string | null;
+  tara: string | null;
+  liga: string | null;
+  leagueId: number | null;
+  sezon: number | null;
+  antrenor: string | null;
+  stadion: string | null;
+  capacitate: number | null;
+}
+
+export interface SumarSezon {
+  pozitie: number | null;
+  puncte: number | null;
+  jucate: number | null;
+  victorii: number | null;
+  egaluri: number | null;
+  infrangeri: number | null;
+  goluriMarcate: number | null;
+  goluriPrimite: number | null;
+  golaveraj: number | null;
+}
+
+/** Un meci din forma recenta a echipei; `rezultat`: "V" / "E" / "I". */
+export interface MeciForma {
+  fixtureId: number;
+  /** OffsetDateTime serializat ISO-8601. */
+  data: string;
+  acasa: boolean;
+  adversar: EchipaDto;
+  golMarcate: number | null;
+  golPrimite: number | null;
+  rezultat: 'V' | 'E' | 'I';
+}
+
+export interface MeciScurt {
+  fixtureId: number;
+  /** OffsetDateTime serializat ISO-8601. */
+  kickoff: string;
+  adversar: EchipaDto;
+  acasa: boolean;
+}
+
+export interface RandClasament {
+  rank: number | null;
+  teamId: number;
+  nume: string | null;
+  logo: string | null;
+  jucate: number | null;
+  puncte: number | null;
+  golaveraj: number | null;
+  echipaCurenta: boolean;
+}
+
+export interface StatBareSezon {
+  goluriMarcatePeMeci: number | null;
+  goluriPrimitePeMeci: number | null;
+  cleanSheets: number | null;
+  galbene: number | null;
+  rosii: number | null;
+  suturiPeMeci: number | null;
+  posesieMedie: number | null;
+  preciziePase: number | null;
+}
+
+/** Un interval de 15 minute cu numarul de goluri marcate in el; `interval`: "0-15" … "90+". */
+export interface BucketGoluri {
+  interval: string;
+  goluri: number;
+}
+
+/** Un jucator cu o valoare-cheie (goluri / pase decisive / minute / cartonase). */
+export interface JucatorStat {
+  playerId: number | null;
+  nume: string | null;
+  foto: string | null;
+  valoare: number;
+}
+
+export interface TopJucatori {
+  golgheter: JucatorStat | null;
+  pasator: JucatorStat | null;
+  minute: JucatorStat | null;
+  cartonase: JucatorStat | null;
+}
+
+/** Oglinda `ro.golstat.api.team.PaginaEchipaDto`. Fiecare bloc poate lipsi independent. */
+export interface PaginaEchipa {
+  antet: AntetEchipa;
+  sumar: SumarSezon | null;
+  forma: MeciForma[];
+  urmatorulMeci: MeciScurt | null;
+  clasament: RandClasament[];
+  statistici: StatBareSezon | null;
+  goluriPeInterval: BucketGoluri[];
+  topJucatori: TopJucatori | null;
 }

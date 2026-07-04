@@ -12,10 +12,12 @@ interface MatchCardProps {
   meci: PredictieMeciDto;
   numeLiga: string;
   onOpen: () => void;
+  /** Textul actiunii din subsolul cardului (implicit "Vezi previzualizare"). */
+  actiuneText?: string;
 }
 
 /** Card de meci din lista zilei: liga, echipe cu logo, ora (sau scorul live) si mini-indicatorul 1X2. */
-export function MatchCard({ meci, numeLiga, onOpen }: MatchCardProps) {
+export function MatchCard({ meci, numeLiga, onOpen, actiuneText = 'Vezi previzualizare' }: MatchCardProps) {
   const live = useLiveScore(meci.fixtureId);
   const g = Math.round(meci.gazde.procent);
   const e = Math.round(meci.egal.procent);
@@ -87,7 +89,7 @@ export function MatchCard({ meci, numeLiga, onOpen }: MatchCardProps) {
 
       <div className="flex items-center justify-center gap-1.5 border-t border-line py-2.5 text-xs font-bold uppercase tracking-wide text-primary">
         <IconChart width={14} height={14} />
-        Vezi previzualizare
+        {actiuneText}
       </div>
     </Card>
   );

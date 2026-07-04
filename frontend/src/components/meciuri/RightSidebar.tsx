@@ -3,8 +3,8 @@ import type { PredictieMeciDto } from '../../api/types';
 import { numeEchipa } from '../../lib/echipa';
 import { formatOra } from '../../lib/format';
 import { LIGI } from '../../lib/ligi';
+import { SectiuneRail } from '../layout/SectiuneRail';
 import { Badge } from '../ui/Badge';
-import { Card } from '../ui/Card';
 import { TeamLogo } from '../ui/TeamLogo';
 import { IconStar, IconTrophy } from '../ui/icons';
 
@@ -14,29 +14,15 @@ interface RightSidebarProps {
   onAlegeLiga: (leagueId: number) => void;
 }
 
-function AntetSectiune({ titlu, linkText, linkTo }: { titlu: string; linkText?: string; linkTo?: string }) {
-  return (
-    <div className="flex items-center justify-between border-b border-line px-4 py-3">
-      <h2 className="text-sm font-extrabold uppercase tracking-wide text-ink">{titlu}</h2>
-      {linkText && linkTo && (
-        <Link to={linkTo} className="text-xs font-semibold text-accent hover:underline">
-          {linkText}
-        </Link>
-      )}
-    </div>
-  );
-}
-
-/** Sidebar-ul drept al paginii Meciuri: "LIVE ACUM" + "COMPETIȚII POPULARE". */
+/** Continutul rail-ului drept al paginii Meciuri: "LIVE ACUM" + "COMPETIȚII POPULARE". */
 export function RightSidebar({ meciuri, ligaSelectata, onAlegeLiga }: RightSidebarProps) {
   // Predictiile sunt pentru meciuri viitoare; "live" = deja incepute (rar, dar posibil in ziua curenta).
   const acum = Date.now();
   const live = meciuri.filter((m) => new Date(m.kickoff).getTime() <= acum);
 
   return (
-    <aside className="hidden w-80 shrink-0 space-y-5 xl:block">
-      <Card>
-        <AntetSectiune titlu="Live acum" linkText="Vezi toate" linkTo="/live" />
+    <>
+      <SectiuneRail titlu="Live acum" linkText="Vezi toate" linkTo="/live">
         {live.length === 0 ? (
           <p className="px-4 py-4 text-xs text-ink2">Niciun meci live momentan.</p>
         ) : (
@@ -44,7 +30,7 @@ export function RightSidebar({ meciuri, ligaSelectata, onAlegeLiga }: RightSideb
             {live.map((m) => (
               <li key={m.fixtureId}>
                 <Link
-                  to={`/meci/${m.fixtureId}`}
+                  to={`/meci/${m.fixtureId}/centru`}
                   className="flex items-center gap-3 px-4 py-3 transition hover:bg-bg"
                 >
                   <Badge variant="live">{formatOra(m.kickoff)}</Badge>
@@ -63,10 +49,9 @@ export function RightSidebar({ meciuri, ligaSelectata, onAlegeLiga }: RightSideb
             ))}
           </ul>
         )}
-      </Card>
+      </SectiuneRail>
 
-      <Card>
-        <AntetSectiune titlu="Competiții populare" />
+      <SectiuneRail titlu="Competiții populare">
         <ul className="divide-y divide-line">
           {LIGI.map((liga) => {
             const activa = liga.id === ligaSelectata;
@@ -100,7 +85,7 @@ export function RightSidebar({ meciuri, ligaSelectata, onAlegeLiga }: RightSideb
             );
           })}
         </ul>
-      </Card>
-    </aside>
+      </SectiuneRail>
+    </>
   );
 }

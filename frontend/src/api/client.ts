@@ -1,4 +1,4 @@
-import type { PredictieMeciDto, PrevizualizareMeciDto } from './types';
+import type { MeciCentral, MeciLive, PaginaEchipa, PredictieMeciDto, PrevizualizareMeciDto } from './types';
 
 const BASE = '/api';
 
@@ -58,4 +58,23 @@ export function getPredictiiZi(leagueId: number, data: string): Promise<Predicti
 /** Previzualizarea completa a unui meci viitor. */
 export function getPrevizualizare(fixtureId: number): Promise<PrevizualizareMeciDto> {
   return request<PrevizualizareMeciDto>(`/v1/predictii/meciuri/${fixtureId}/previzualizare`);
+}
+
+/** Meciurile in desfasurare acum (orice competitie), din DB. */
+export function getLive(): Promise<MeciLive[]> {
+  return request<MeciLive[]>('/v1/meciuri/live');
+}
+
+/** Detaliul unui meci (scor, statistici, cronologie) — functioneaza pentru meciuri live si finalizate. */
+export function getMatchCenter(fixtureId: number): Promise<MeciCentral> {
+  return request<MeciCentral>(`/v1/meciuri/${fixtureId}`);
+}
+
+/** Pagina unei echipe: antet, sumar sezon, forma, clasament, statistici, top jucatori. */
+export function getEchipa(teamId: number, leagueId?: number, sezon?: number): Promise<PaginaEchipa> {
+  const params = new URLSearchParams();
+  if (leagueId != null) params.set('leagueId', String(leagueId));
+  if (sezon != null) params.set('sezon', String(sezon));
+  const qs = params.toString();
+  return request<PaginaEchipa>(`/v1/echipe/${teamId}${qs ? `?${qs}` : ''}`);
 }

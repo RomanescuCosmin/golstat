@@ -163,3 +163,52 @@ export function IconGlobe(props: IconProps) {
     </svg>
   );
 }
+
+/** Minge de fotbal — folosita pentru evenimentul "gol" din cronologie. */
+export function IconBall(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7.5l3.2 2.3-1.2 3.7h-4l-1.2-3.7L12 7.5Z" strokeWidth={1.4} />
+      <path d="M12 3v2m6.4 2.8-1.7 1.3m2.3 5.6-2-.7M6.9 16l-2 .7M5.3 7.8 7 9.1" strokeWidth={1.2} />
+    </svg>
+  );
+}
+
+/** Dreptunghi vertical (cartonas) — evenimentul "cartonas" din cronologie; culoarea vine din className. */
+export function IconCartonas(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <rect x="7" y="3.5" width="10" height="14" rx="1.5" fill="currentColor" stroke="none" transform="rotate(8 12 10.5)" />
+    </svg>
+  );
+}
+
+/** Sageti opuse (schimbare de jucator) — evenimentul "subst" din cronologie. */
+export function IconSchimbare(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M4 8h11l-3-3M20 16H9l3 3" />
+    </svg>
+  );
+}
+
+/** Ecran (VAR) — evenimentul "Var" din cronologie. */
+export function IconVar(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <rect x="3" y="5" width="18" height="12" rx="2" />
+      <path d="M8 21h8M12 17v4" />
+    </svg>
+  );
+}
+
+/** Fluier — folosit pentru arbitru / informatii oficiale. */
+export function IconFluier(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M3 10h9l6-2v6a5 5 0 0 1-10 0v-1H3v-3Z" />
+      <circle cx="8" cy="13" r="1.4" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ApiError, getPredictiiZi } from '../api/client';
 import type { PredictieMeciDto } from '../api/types';
+import { PageLayout } from '../components/layout/PageLayout';
 import { BandaLive } from '../components/meciuri/BandaLive';
 import { BandaZile } from '../components/meciuri/BandaZile';
 import { RightSidebar } from '../components/meciuri/RightSidebar';
@@ -46,14 +47,13 @@ export function MeciuriPage() {
   }, [leagueId, dataISO, incercare]);
 
   return (
-    <div className="mx-auto flex max-w-7xl items-start gap-5">
-      <div className="min-w-0 flex-1">
-        <div className="mb-5 flex flex-wrap items-center gap-3">
-          <BandaZile selectata={dataISO} onSelect={setDataISO} />
-          <div className="ml-auto">
-            <SelectorLiga leagueId={leagueId} onChange={setLeagueId} />
-          </div>
+    <PageLayout rightRail={<RightSidebar meciuri={meciuri} ligaSelectata={leagueId} onAlegeLiga={setLeagueId} />}>
+      <div className="mb-5 flex flex-wrap items-center gap-3">
+        <BandaZile selectata={dataISO} onSelect={setDataISO} />
+        <div className="ml-auto">
+          <SelectorLiga leagueId={leagueId} onChange={setLeagueId} />
         </div>
+      </div>
 
         {loading && (
           <div className="flex justify-center py-20">
@@ -88,16 +88,9 @@ export function MeciuriPage() {
               meciuri={meciuri}
               onOpen={(id) => navigate(`/meci/${id}`)}
             />
-            <BandaLive
-              meciuri={meciuri}
-              numeLiga={numeLiga(leagueId)}
-              onOpen={(id) => navigate(`/meci/${id}`)}
-            />
+            <BandaLive onOpen={(id) => navigate(`/meci/${id}/centru`)} />
           </div>
         )}
-      </div>
-
-      <RightSidebar meciuri={meciuri} ligaSelectata={leagueId} onAlegeLiga={setLeagueId} />
-    </div>
+    </PageLayout>
   );
 }

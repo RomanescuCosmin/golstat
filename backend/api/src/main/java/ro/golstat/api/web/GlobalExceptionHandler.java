@@ -13,7 +13,9 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
+import ro.golstat.api.matchcenter.MeciNotFoundException;
 import ro.golstat.api.prediction.PredictionNotFoundException;
+import ro.golstat.api.team.EchipaNotFoundException;
 
 import java.time.Instant;
 
@@ -36,6 +38,18 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(PredictionNotFoundException.class)
     public ProblemDetail handleNotFound(PredictionNotFoundException ex) {
         return problem(HttpStatus.NOT_FOUND, "Predictie indisponibila", ex.getMessage());
+    }
+
+    /** Meci inexistent → 404. */
+    @ExceptionHandler(MeciNotFoundException.class)
+    public ProblemDetail handleMeciNotFound(MeciNotFoundException ex) {
+        return problem(HttpStatus.NOT_FOUND, "Meci inexistent", ex.getMessage());
+    }
+
+    /** Echipa inexistenta → 404. */
+    @ExceptionHandler(EchipaNotFoundException.class)
+    public ProblemDetail handleEchipaNotFound(EchipaNotFoundException ex) {
+        return problem(HttpStatus.NOT_FOUND, "Echipa inexistenta", ex.getMessage());
     }
 
     /** Parametru care incalca o constrangere (ex. {@code leagueId} sub 1) → 400. */
