@@ -98,7 +98,9 @@ function MiniLive({ meci, onOpen }: { meci: MeciLive; onOpen: () => void }) {
     >
       <div className="mb-2 flex items-center justify-between">
         <Badge variant="live">LIVE {minutText(meci)}</Badge>
-        <span className="truncate pl-2 text-[11px] text-ink2">{meci.leagueId != null ? numeLiga(meci.leagueId) : ''}</span>
+        <span className="truncate pl-2 text-[11px] text-ink2">
+          {meci.ligaNume ?? (meci.leagueId != null ? numeLiga(meci.leagueId) : '')}
+        </span>
       </div>
       <Rand echipa={numeEchipa(meci.gazde)} logo={meci.gazde.logo} nume={meci.gazde.nume} gol={meci.golGazde ?? 0} />
       <Rand echipa={numeEchipa(meci.oaspeti)} logo={meci.oaspeti.logo} nume={meci.oaspeti.nume} gol={meci.golOaspeti ?? 0} />

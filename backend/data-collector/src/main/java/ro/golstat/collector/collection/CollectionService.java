@@ -5,17 +5,23 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import ro.golstat.collector.live.LiveSchedule;
 import ro.golstat.collector.provider.DataProvider;
+import ro.golstat.collector.provider.apifootball.ApiFootballQuotaExceededException;
 import ro.golstat.collector.publish.EventPublisher;
 import ro.golstat.common.GolstatConstants;
+import ro.golstat.common.dto.CoachDto;
 import ro.golstat.common.dto.FixtureDto;
 import ro.golstat.common.dto.FixtureEventDto;
 import ro.golstat.common.dto.FixtureLineupDto;
 import ro.golstat.common.dto.FixtureTeamStatsDto;
 import ro.golstat.common.dto.InjuryDto;
 import ro.golstat.common.dto.LeagueDto;
+import ro.golstat.common.dto.PlayerDto;
+import ro.golstat.common.dto.PlayerSeasonStatsDto;
+import ro.golstat.common.dto.PlayerSezonDto;
 import ro.golstat.common.dto.SeasonDto;
 import ro.golstat.common.dto.StandingDto;
 import ro.golstat.common.dto.TeamDto;
+import ro.golstat.common.dto.TeamSeasonStatsDto;
 import ro.golstat.common.dto.VenueDto;
 
 import java.time.LocalDate;
@@ -72,9 +78,11 @@ public class CollectionService {
         for (SeasonDto season2 : provider.seasons(leagueId)) {
             publisher.publish(GolstatConstants.KafkaTopics.SEASONS, seasonKey(season2), season2);
         }
-        for (TeamDto team : provider.teams(leagueId, season)) {
+        List<TeamDto> teams = provider.teams(leagueId, season);
+        for (TeamDto team : teams) {
             publisher.publish(GolstatConstants.KafkaTopics.TEAMS, String.valueOf(team.id()), team);
         }
+        enrichTeams(teams, leagueId, season);
 
         for (StandingDto standing : provider.standings(leagueId, season)) {
             publisher.publish(GolstatConstants.KafkaTopics.STANDINGS, standingKey(standing), standing);
@@ -119,6 +127,50 @@ public class CollectionService {
 
         log.info("Colectat liga {} sezon {}: {} fixtures in fereastra {}..{}",
                 leagueId, season, fixtures.size(), from, to);
+    }
+
+    /**
+     * Imbogatire per echipa (pagina echipei): statistici de sezon, lot de jucatori (profil + stats) si
+     * antrenorul curent. Fara scheduler nou — TTL-urile Redis fac ciclul auto-limitant. La cota epuizata,
+     * ne oprim din imbogatit in ciclul curent (restul se reia cand cota se reseteaza).
+     */
+    private void enrichTeams(List<TeamDto> teams, long leagueId, int season) {
+        for (TeamDto team : teams) {
+            if (team.id() == null) {
+                continue;
+            }
+            try {
+                for (TeamSeasonStatsDto stats : provider.teamStatistics(leagueId, season, team.id())) {
+                    publisher.publish(GolstatConstants.KafkaTopics.TEAM_SEASON_STATS,
+                            stats.teamId() + ":" + stats.leagueId() + ":" + stats.seasonYear(), stats);
+                }
+                List<PlayerSezonDto> jucatori = provider.players(team.id(), season);
+                List<PlayerDto> profile = jucatori.stream()
+                        .map(PlayerSezonDto::profil)
+                        .filter(p -> p != null && p.id() != null)
+                        .toList();
+                if (!profile.isEmpty()) {
+                    publisher.publish(GolstatConstants.KafkaTopics.PLAYERS, "team:" + team.id(), profile);
+                }
+                List<PlayerSeasonStatsDto> statistici = jucatori.stream()
+                        .flatMap(p -> p.statistici().stream())
+                        .toList();
+                if (!statistici.isEmpty()) {
+                    publisher.publish(GolstatConstants.KafkaTopics.PLAYER_SEASON_STATS,
+                            "team:" + team.id() + ":" + season, statistici);
+                }
+                for (CoachDto coach : provider.coaches(team.id())) {
+                    publisher.publish(GolstatConstants.KafkaTopics.COACHES, String.valueOf(coach.id()), coach);
+                }
+            } catch (ApiFootballQuotaExceededException e) {
+                log.warn("Imbogatire echipe oprita (cota atinsa) la echipa {}: {}", team.id(), e.getMessage());
+                return;
+            } catch (RuntimeException e) {
+                // eroare izolata pe o echipa (raspuns API invalid, limita pe minut, etc.) → o sarim,
+                // se reia la ciclul urmator. NU oprim intreg ciclul pentru o singura echipa.
+                log.warn("Imbogatire esuata pentru echipa {}: {}", team.id(), e.toString());
+            }
+        }
     }
 
     private static String standingKey(StandingDto standing) {

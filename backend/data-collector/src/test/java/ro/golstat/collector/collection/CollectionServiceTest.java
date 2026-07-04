@@ -10,12 +10,18 @@ import ro.golstat.common.dto.FixtureDto;
 import ro.golstat.common.dto.FixtureEventDto;
 import ro.golstat.common.dto.FixtureLineupDto;
 import ro.golstat.common.dto.FixtureLineupPlayerDto;
+import ro.golstat.common.dto.FixtureLiveDto;
 import ro.golstat.common.dto.FixtureTeamStatsDto;
 import ro.golstat.common.dto.InjuryDto;
+import ro.golstat.common.dto.CoachDto;
 import ro.golstat.common.dto.LeagueDto;
+import ro.golstat.common.dto.PlayerDto;
+import ro.golstat.common.dto.PlayerSeasonStatsDto;
+import ro.golstat.common.dto.PlayerSezonDto;
 import ro.golstat.common.dto.SeasonDto;
 import ro.golstat.common.dto.StandingDto;
 import ro.golstat.common.dto.TeamDto;
+import ro.golstat.common.dto.TeamSeasonStatsDto;
 import ro.golstat.common.dto.VenueDto;
 
 import java.time.LocalDate;
@@ -209,6 +215,110 @@ class CollectionServiceTest {
         assertEquals(1, batch.size());
     }
 
+    @Test
+    void enrichesTeams_publishesSeasonStatsPlayersAndCoaches() {
+        RecordingPublisher pub = new RecordingPublisher();
+        new CollectionService(new EnrichProvider(), pub, new LiveSchedule())
+                .collectGoalsData(39, 2025, LocalDate.of(2025, 1, 1), LocalDate.of(2025, 1, 2));
+
+        assertEquals(1, pub.countOn(GolstatConstants.KafkaTopics.TEAM_SEASON_STATS));
+        assertEquals("50:39:2025", pub.first(GolstatConstants.KafkaTopics.TEAM_SEASON_STATS).key());
+
+        RecordingPublisher.Message players = pub.first(GolstatConstants.KafkaTopics.PLAYERS);
+        assertEquals("team:50", players.key());
+        assertEquals(1, assertInstanceOf(List.class, players.payload()).size());
+
+        RecordingPublisher.Message playerStats = pub.first(GolstatConstants.KafkaTopics.PLAYER_SEASON_STATS);
+        assertEquals("team:50:2025", playerStats.key());
+        assertEquals(1, assertInstanceOf(List.class, playerStats.payload()).size());
+
+        assertEquals(1, pub.countOn(GolstatConstants.KafkaTopics.COACHES));
+        assertEquals("18", pub.first(GolstatConstants.KafkaTopics.COACHES).key());
+    }
+
+    /** Furnizor minimal cu o singura echipa si datele de imbogatire (statistici sezon, jucatori, antrenor). */
+    private static final class EnrichProvider implements DataProvider {
+        @Override
+        public List<TeamDto> teams(long leagueId, int season) {
+            return List.of(new TeamDto(50L, "Man City", null, null, null, false, null, null));
+        }
+
+        @Override
+        public List<TeamSeasonStatsDto> teamStatistics(long leagueId, int season, long teamId) {
+            return List.of(new TeamSeasonStatsDto(teamId, leagueId, season, "WWWWW",
+                    null, null, 38, null, null, 28, null, null, 5, null, null, 5,
+                    null, null, 94, null, null, null, null, null, 33, null, null, null,
+                    null, null, 18, null, null, null, 60, 2));
+        }
+
+        @Override
+        public List<PlayerSezonDto> players(long teamId, int season) {
+            PlayerDto profil = new PlayerDto(617L, "E. Haaland", null, null, null, null, null, null,
+                    null, null, null, null, "h.png");
+            PlayerSeasonStatsDto stats = new PlayerSeasonStatsDto(617L, teamId, 39L, season, "Attacker",
+                    30, 28, 2500, java.math.BigDecimal.valueOf(7.5), false,
+                    20, null, 8, null, 60, 30, 800, 40, 85,
+                    null, null, null, null, null, null, null, null, null, 3, 0, 0,
+                    null, null, null, null, null);
+            return List.of(new PlayerSezonDto(profil, List.of(stats)));
+        }
+
+        @Override
+        public List<CoachDto> coaches(long teamId) {
+            return List.of(new CoachDto(18L, "P. Guardiola", null, null, null, null, null));
+        }
+
+        @Override
+        public List<FixtureDto> fixtures(long leagueId, int season, LocalDate from, LocalDate to) {
+            return List.of();
+        }
+
+        @Override
+        public List<FixtureEventDto> fixtureEvents(long fixtureId) {
+            return List.of();
+        }
+
+        @Override
+        public List<FixtureTeamStatsDto> fixtureStatistics(long fixtureId) {
+            return List.of();
+        }
+
+        @Override
+        public List<FixtureLineupDto> fixtureLineups(long fixtureId) {
+            return List.of();
+        }
+
+        @Override
+        public List<InjuryDto> injuries(long leagueId, int season) {
+            return List.of();
+        }
+
+        @Override
+        public List<FixtureLiveDto> liveFixtures() {
+            return List.of();
+        }
+
+        @Override
+        public List<StandingDto> standings(long leagueId, int season) {
+            return List.of();
+        }
+
+        @Override
+        public List<LeagueDto> leagues() {
+            return List.of();
+        }
+
+        @Override
+        public List<SeasonDto> seasons(long leagueId) {
+            return List.of();
+        }
+
+        @Override
+        public List<VenueDto> venues() {
+            return List.of();
+        }
+    }
+
     /** Furnizor cu un meci terminat (200, FT) si unul viitor (201, NS); retine pentru cine s-au cerut evenimente/statistici. */
     private static final class StatusProvider implements DataProvider {
         final List<Long> eventsAskedFor = new ArrayList<>();
@@ -265,7 +375,7 @@ class CollectionServiceTest {
         }
 
         @Override
-        public List<FixtureDto> liveFixtures() {
+        public List<FixtureLiveDto> liveFixtures() {
             return List.of();
         }
 

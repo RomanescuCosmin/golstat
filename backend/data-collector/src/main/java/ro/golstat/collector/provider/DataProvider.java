@@ -1,14 +1,18 @@
 package ro.golstat.collector.provider;
 
+import ro.golstat.common.dto.CoachDto;
 import ro.golstat.common.dto.FixtureDto;
 import ro.golstat.common.dto.FixtureEventDto;
 import ro.golstat.common.dto.FixtureLineupDto;
+import ro.golstat.common.dto.FixtureLiveDto;
 import ro.golstat.common.dto.FixtureTeamStatsDto;
 import ro.golstat.common.dto.InjuryDto;
 import ro.golstat.common.dto.LeagueDto;
+import ro.golstat.common.dto.PlayerSezonDto;
 import ro.golstat.common.dto.SeasonDto;
 import ro.golstat.common.dto.StandingDto;
 import ro.golstat.common.dto.TeamDto;
+import ro.golstat.common.dto.TeamSeasonStatsDto;
 import ro.golstat.common.dto.VenueDto;
 
 import java.time.LocalDate;
@@ -40,16 +44,37 @@ public interface DataProvider {
     List<InjuryDto> injuries(long leagueId, int season);
 
     /**
-     * Meciurile in DESFASURARE acum, din TOATE ligile (un singur apel la sursa). Filtrarea pe ligile
-     * urmarite ramane in sarcina apelantului. Se schimba la fiecare poll → implementarea nu cache-uieste.
+     * Meciurile in DESFASURARE acum, din TOATE ligile (un singur apel la sursa), cu evenimentele inline
+     * (gratis din {@code live=all}). Filtrarea pe ligile urmarite ramane la apelant. Se schimba la fiecare
+     * poll → implementarea nu cache-uieste.
      */
-    List<FixtureDto> liveFixtures();
+    List<FixtureLiveDto> liveFixtures();
+
+    /** Statisticile LIVE ale unui meci (TTL 0 — ocoleste cache-ul istoric); pentru refresh in timpul jocului. */
+    default List<FixtureTeamStatsDto> liveFixtureStatistics(long fixtureId) {
+        return List.of();
+    }
 
     /** Clasamentul unei ligi/sezon. */
     List<StandingDto> standings(long leagueId, int season);
 
     /** Echipele dintr-o liga/sezon. */
     List<TeamDto> teams(long leagueId, int season);
+
+    /** Statisticile de sezon ale unei echipe (pagina echipei). */
+    default List<TeamSeasonStatsDto> teamStatistics(long leagueId, int season, long teamId) {
+        return List.of();
+    }
+
+    /** Jucatorii unei echipe pe un sezon (profil + statistici, aduse impreuna). */
+    default List<PlayerSezonDto> players(long teamId, int season) {
+        return List.of();
+    }
+
+    /** Antrenorul curent al unei echipe (0 sau 1). */
+    default List<CoachDto> coaches(long teamId) {
+        return List.of();
+    }
 
     // --- catalog (colectat rar; prerequisit FK pentru fixtures/standings) ---
 

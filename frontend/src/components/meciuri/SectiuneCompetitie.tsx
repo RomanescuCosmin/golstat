@@ -5,23 +5,25 @@ import { numeEchipa } from '../../lib/echipa';
 import { formatOra } from '../../lib/format';
 import { Badge } from '../ui/Badge';
 import { Card } from '../ui/Card';
+import { LigaLogo } from '../ui/LigaLogo';
 import { TeamLogo } from '../ui/TeamLogo';
-import { IconStar, IconTrophy } from '../ui/icons';
+import { IconStar } from '../ui/icons';
 
 interface SectiuneCompetitieProps {
   numeLiga: string;
+  leagueId?: number;
   regiune?: string;
   meciuri: PredictieMeciDto[];
   onOpen: (fixtureId: number) => void;
 }
 
 /** O competitie = O sectiune: antet o singura data, apoi meciurile ei ca RANDURI (nu card per meci). */
-export function SectiuneCompetitie({ numeLiga, regiune, meciuri, onOpen }: SectiuneCompetitieProps) {
+export function SectiuneCompetitie({ numeLiga, leagueId, regiune, meciuri, onOpen }: SectiuneCompetitieProps) {
   return (
     <Card>
       <div className="flex items-center gap-3 border-b border-line px-5 py-3">
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary dark:bg-primary/20">
-          <IconTrophy width={18} height={18} />
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 dark:bg-primary/20">
+          <LigaLogo id={leagueId} nume={numeLiga} size={20} />
         </span>
         <div className="min-w-0">
           <p className="truncate text-sm font-extrabold text-ink">{numeLiga}</p>

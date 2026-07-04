@@ -29,6 +29,9 @@ golstat:
     cache-ttl: 6h                       # default (catalog/clasament)
     ttl-upcoming: 1h                    # fixtures (contin meciuri viitoare/live)
     ttl-historic: 24h                   # evenimente de meci terminat (imuabile)
+    ttl-team-stats: 20h                 # /teams/statistics (statistici de sezon, se schimba lent)
+    ttl-players: 7d                     # /players (profil + statistici sezon)
+    ttl-coaches: 7d                     # /coachs (antrenor curent)
   collection:
     # Ligile de aici sunt pentru profilul STUB. Tintele REALE (CM 2026 + campionatele europene)
     # stau in application-local.yml, profil `local`.
@@ -47,3 +50,5 @@ golstat:
     poll-ms: 15000             # ritmul de poll cand exista meciuri in desfasurare
     window-before-minutes: 180 # cat timp dupa kickoff mai consideram meciul "live"
     window-after-minutes: 15   # cat inainte de kickoff pornim polul
+    stats-every-ms: 120000     # refresh throttled al statisticilor live (2 min → cota controlata)
+    stats-leagues: []          # allowlist ligi pentru statistici live (gol = toate cele urmarite)

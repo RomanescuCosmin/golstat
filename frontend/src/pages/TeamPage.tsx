@@ -5,7 +5,12 @@ import type { PaginaEchipa } from '../api/types';
 import { AntetEchipa } from '../components/echipa/AntetEchipa';
 import { ClasamentSnippet } from '../components/echipa/ClasamentSnippet';
 import { DistributieGoluri } from '../components/echipa/DistributieGoluri';
+import { GraficForma } from '../components/echipa/GraficForma';
+import { RezultateRecente } from '../components/echipa/RezultateRecente';
+import { SelectorSezon } from '../components/echipa/SelectorSezon';
 import { StatBareSezon } from '../components/echipa/StatBareSezon';
+import { StatProcente } from '../components/echipa/StatProcente';
+import { TabsEchipa } from '../components/echipa/TabsEchipa';
 import { TopJucatori } from '../components/echipa/TopJucatori';
 import { UrmatorulMeci } from '../components/echipa/UrmatorulMeci';
 import { PageLayout } from '../components/layout/PageLayout';
@@ -21,6 +26,12 @@ export function TeamPage() {
   const [loading, setLoading] = useState(true);
   const [eroare, setEroare] = useState<ApiError | null>(null);
   const [incercare, setIncercare] = useState(0);
+  const [sezon, setSezon] = useState<number | null>(null);
+
+  // schimbarea echipei reseteaza sezonul selectat
+  useEffect(() => {
+    setSezon(null);
+  }, [id]);
 
   useEffect(() => {
     if (!Number.isInteger(id) || id <= 0) {
@@ -31,7 +42,7 @@ export function TeamPage() {
     let anulat = false;
     setLoading(true);
     setEroare(null);
-    getEchipa(id)
+    getEchipa(id, undefined, sezon ?? undefined)
       .then((rezultat) => {
         if (!anulat) setDate(rezultat);
       })
@@ -47,7 +58,7 @@ export function TeamPage() {
     return () => {
       anulat = true;
     };
-  }, [id, incercare]);
+  }, [id, incercare, sezon]);
 
   const rightRail =
     date && !loading && !eroare ? (
@@ -91,11 +102,21 @@ export function TeamPage() {
         <div className="space-y-5">
           <AntetEchipa antet={date.antet} sumar={date.sumar} forma={date.forma} />
 
-          <div className="grid gap-5 lg:grid-cols-3">
-            <StatBareSezon statistici={date.statistici} />
-            <DistributieGoluri buckets={date.goluriPeInterval} />
-            <ClasamentSnippet randuri={date.clasament} teamId={id} />
+          <div className="flex items-center justify-between gap-3">
+            <TabsEchipa />
+            <div className="shrink-0">
+              <SelectorSezon sezoane={date.sezoane} valoare={sezon ?? date.antet.sezon} onChange={setSezon} />
+            </div>
           </div>
+
+          <div className="grid gap-5 lg:grid-cols-2">
+            <GraficForma rezultate={date.rezultateRecente} />
+            <StatProcente statProcente={date.statProcente} />
+            <StatBareSezon statistici={date.statistici} />
+            <RezultateRecente rezultate={date.rezultateRecente} />
+          </div>
+
+          <DistributieGoluri buckets={date.goluriPeInterval} />
 
           <TopJucatori top={date.topJucatori} />
         </div>

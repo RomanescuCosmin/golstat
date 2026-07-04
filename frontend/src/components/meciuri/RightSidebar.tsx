@@ -1,24 +1,45 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import type { PredictieMeciDto } from '../../api/types';
+import { getLive } from '../../api/client';
+import type { MeciLive } from '../../api/types';
 import { numeEchipa } from '../../lib/echipa';
-import { formatOra } from '../../lib/format';
-import { LIGI } from '../../lib/ligi';
+import { LIGI, LIGI_POPULARE, numeLiga } from '../../lib/ligi';
 import { SectiuneRail } from '../layout/SectiuneRail';
 import { Badge } from '../ui/Badge';
+import { LigaLogo } from '../ui/LigaLogo';
 import { TeamLogo } from '../ui/TeamLogo';
-import { IconStar, IconTrophy } from '../ui/icons';
+import { IconStar } from '../ui/icons';
+
+const REIMPROSPATARE_MS = 15000;
 
 interface RightSidebarProps {
-  meciuri: PredictieMeciDto[];
-  ligaSelectata: number;
+  /** Liga folosita ca filtru pe prima pagina; `null` = toate competitiile. */
+  ligaSelectata: number | null;
   onAlegeLiga: (leagueId: number) => void;
 }
 
-/** Continutul rail-ului drept al paginii Meciuri: "LIVE ACUM" + "COMPETIȚII POPULARE". */
-export function RightSidebar({ meciuri, ligaSelectata, onAlegeLiga }: RightSidebarProps) {
-  // Predictiile sunt pentru meciuri viitoare; "live" = deja incepute (rar, dar posibil in ziua curenta).
-  const acum = Date.now();
-  const live = meciuri.filter((m) => new Date(m.kickoff).getTime() <= acum);
+/** Continutul rail-ului drept al paginii Meciuri: "LIVE ACUM" (real) + "COMPETIȚII POPULARE" (filtru). */
+export function RightSidebar({ ligaSelectata, onAlegeLiga }: RightSidebarProps) {
+  const [live, setLive] = useState<MeciLive[]>([]);
+
+  useEffect(() => {
+    let anulat = false;
+    const incarca = () => {
+      getLive()
+        .then((r) => {
+          if (!anulat) setLive(r);
+        })
+        .catch(() => {
+          if (!anulat) setLive([]);
+        });
+    };
+    incarca();
+    const t = setInterval(incarca, REIMPROSPATARE_MS);
+    return () => {
+      anulat = true;
+      clearInterval(t);
+    };
+  }, []);
 
   return (
     <>
@@ -33,15 +54,17 @@ export function RightSidebar({ meciuri, ligaSelectata, onAlegeLiga }: RightSideb
                   to={`/meci/${m.fixtureId}/centru`}
                   className="flex items-center gap-3 px-4 py-3 transition hover:bg-bg"
                 >
-                  <Badge variant="live">{formatOra(m.kickoff)}</Badge>
+                  <Badge variant="live">{m.status === 'HT' ? 'Pauză' : m.minut != null ? `${m.minut}'` : 'LIVE'}</Badge>
                   <span className="min-w-0 flex-1 space-y-1">
                     <span className="flex items-center gap-2 text-xs font-semibold text-ink">
-                      <TeamLogo nume={m.echipaGazde.nume} logo={m.echipaGazde.logo} size={16} />
-                      <span className="truncate">{numeEchipa(m.echipaGazde)}</span>
+                      <TeamLogo nume={m.gazde.nume} logo={m.gazde.logo} size={16} />
+                      <span className="truncate">{numeEchipa(m.gazde)}</span>
+                      <span className="ml-auto font-bold text-ink">{m.golGazde ?? 0}</span>
                     </span>
                     <span className="flex items-center gap-2 text-xs font-semibold text-ink">
-                      <TeamLogo nume={m.echipaOaspeti.nume} logo={m.echipaOaspeti.logo} size={16} />
-                      <span className="truncate">{numeEchipa(m.echipaOaspeti)}</span>
+                      <TeamLogo nume={m.oaspeti.nume} logo={m.oaspeti.logo} size={16} />
+                      <span className="truncate">{numeEchipa(m.oaspeti)}</span>
+                      <span className="ml-auto font-bold text-ink">{m.golOaspeti ?? 0}</span>
                     </span>
                   </span>
                 </Link>
@@ -53,27 +76,28 @@ export function RightSidebar({ meciuri, ligaSelectata, onAlegeLiga }: RightSideb
 
       <SectiuneRail titlu="Competiții populare">
         <ul className="divide-y divide-line">
-          {LIGI.map((liga) => {
-            const activa = liga.id === ligaSelectata;
+          {LIGI_POPULARE.map((id) => {
+            const liga = LIGI.find((l) => l.id === id);
+            const activa = id === ligaSelectata;
             return (
-              <li key={liga.id}>
+              <li key={id}>
                 <button
                   type="button"
-                  onClick={() => onAlegeLiga(liga.id)}
+                  onClick={() => onAlegeLiga(id)}
                   className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-bg"
                 >
                   <span
                     className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
-                      activa ? 'bg-primary/10 text-primary dark:bg-primary/20' : 'bg-ink2/10 text-ink2 dark:bg-ink2/15'
+                      activa ? 'bg-primary/10 dark:bg-primary/20' : 'bg-ink2/10 dark:bg-ink2/15'
                     }`}
                   >
-                    <IconTrophy width={18} height={18} />
+                    <LigaLogo id={id} nume={numeLiga(id)} size={22} />
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className={`block truncate text-sm font-semibold ${activa ? 'text-primary' : 'text-ink'}`}>
-                      {liga.nume}
+                      {numeLiga(id)}
                     </span>
-                    <span className="block text-xs text-ink2">{liga.regiune}</span>
+                    {liga?.regiune && <span className="block text-xs text-ink2">{liga.regiune}</span>}
                   </span>
                   <IconStar
                     width={16}

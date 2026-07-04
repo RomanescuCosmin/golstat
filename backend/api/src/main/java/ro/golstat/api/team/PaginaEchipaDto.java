@@ -14,6 +14,9 @@ public record PaginaEchipaDto(
         Antet antet,
         Sumar sumar,
         List<MeciForma> forma,
+        List<MeciForma> rezultateRecente,
+        List<StatProcent> statProcente,
+        List<Integer> sezoane,
         MeciScurt urmatorulMeci,
         List<RandClasament> clasament,
         StatBare statistici,
@@ -27,6 +30,7 @@ public record PaginaEchipaDto(
             String logo,
             String tara,
             String liga,
+            String ligaLogo,
             Long leagueId,
             Integer sezon,
             String antrenor,
@@ -59,6 +63,13 @@ public record PaginaEchipaDto(
             Integer golPrimite,
             String rezultat
     ) {
+    }
+
+    /**
+     * Procentul unei categorii relativ la media ligii: {@code procent = 100 × medieEchipa / (2 × medieLiga)},
+     * plafonat [0,100] (50% = exact media ligii). Afisam si valoarea echipei si media ligii.
+     */
+    public record StatProcent(String categorie, Double medieEchipa, Double medieLiga, Integer procent) {
     }
 
     /** Urmatorul meci programat al echipei. */

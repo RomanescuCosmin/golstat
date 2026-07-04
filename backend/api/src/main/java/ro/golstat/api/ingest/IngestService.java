@@ -21,10 +21,13 @@ import ro.golstat.api.repository.FixtureTeamStatsRepository;
 import ro.golstat.api.repository.InjuryRepository;
 import ro.golstat.api.repository.LeagueRepository;
 import ro.golstat.api.repository.PlayerRepository;
+import ro.golstat.api.repository.PlayerSeasonStatsRepository;
 import ro.golstat.api.repository.SeasonRepository;
 import ro.golstat.api.repository.StandingRepository;
 import ro.golstat.api.repository.TeamRepository;
+import ro.golstat.api.repository.TeamSeasonStatsRepository;
 import ro.golstat.api.repository.VenueRepository;
+import ro.golstat.common.dto.CoachDto;
 import ro.golstat.common.dto.FixtureDto;
 import ro.golstat.common.dto.FixtureEventDto;
 import ro.golstat.common.dto.FixtureLineupDto;
@@ -32,9 +35,12 @@ import ro.golstat.common.dto.FixtureLineupPlayerDto;
 import ro.golstat.common.dto.FixtureTeamStatsDto;
 import ro.golstat.common.dto.InjuryDto;
 import ro.golstat.common.dto.LeagueDto;
+import ro.golstat.common.dto.PlayerDto;
+import ro.golstat.common.dto.PlayerSeasonStatsDto;
 import ro.golstat.common.dto.SeasonDto;
 import ro.golstat.common.dto.StandingDto;
 import ro.golstat.common.dto.TeamDto;
+import ro.golstat.common.dto.TeamSeasonStatsDto;
 import ro.golstat.common.dto.VenueDto;
 
 import java.util.HashSet;
@@ -68,6 +74,8 @@ public class IngestService {
     private final InjuryRepository injuries;
     private final PlayerRepository players;
     private final CoachRepository coaches;
+    private final TeamSeasonStatsRepository teamSeasonStats;
+    private final PlayerSeasonStatsRepository playerSeasonStats;
 
     public IngestService(TeamRepository teams, FixtureRepository fixtures,
                          FixtureEventRepository events, FixtureTeamStatsRepository teamStats,
@@ -75,7 +83,9 @@ public class IngestService {
                          LeagueRepository leagues, SeasonRepository seasons, VenueRepository venues,
                          CountryRepository countries,
                          FixtureLineupRepository lineups, FixtureLineupPlayerRepository lineupPlayers,
-                         InjuryRepository injuries, PlayerRepository players, CoachRepository coaches) {
+                         InjuryRepository injuries, PlayerRepository players, CoachRepository coaches,
+                         TeamSeasonStatsRepository teamSeasonStats,
+                         PlayerSeasonStatsRepository playerSeasonStats) {
         this.teams = teams;
         this.fixtures = fixtures;
         this.events = events;
@@ -90,6 +100,8 @@ public class IngestService {
         this.injuries = injuries;
         this.players = players;
         this.coaches = coaches;
+        this.teamSeasonStats = teamSeasonStats;
+        this.playerSeasonStats = playerSeasonStats;
     }
 
     // --- catalog ---
@@ -117,6 +129,58 @@ public class IngestService {
         ensureCountry(dto.countryName());
         ensureVenue(dto.venueId());   // echipa are FK spre stadion
         teams.save(EntityMapper.toTeam(dto));
+    }
+
+    /** Un lot de jucatori (profil) — upsert pe id. */
+    @Transactional
+    public void ingestPlayers(List<PlayerDto> batch) {
+        for (PlayerDto dto : batch) {
+            if (dto.id() != null) {
+                players.save(EntityMapper.toPlayer(dto));
+            }
+        }
+    }
+
+    @Transactional
+    public void ingestCoach(CoachDto dto) {
+        if (dto.id() == null) {
+            return;
+        }
+        coaches.save(EntityMapper.toCoach(dto));
+    }
+
+    @Transactional
+    public void ingestTeamSeasonStats(TeamSeasonStatsDto dto) {
+        if (dto.teamId() == null || dto.leagueId() == null || dto.seasonYear() == null) {
+            return;
+        }
+        ensureSeason(dto.leagueId(), dto.seasonYear());
+        ensureTeam(dto.teamId());
+        teamSeasonStats.save(EntityMapper.toTeamSeasonStats(dto));
+    }
+
+    /**
+     * Un lot de statistici de sezon per jucator. FK dur pe {@code player_season_stats.player_id}
+     * (+ team, season) → asiguram parintii o SINGURA data per id inainte de save (topicele sosesc asincron).
+     */
+    @Transactional
+    public void ingestPlayerSeasonStats(List<PlayerSeasonStatsDto> batch) {
+        List<PlayerSeasonStatsDto> valide = batch.stream()
+                .filter(d -> d.playerId() != null && d.teamId() != null
+                        && d.leagueId() != null && d.seasonYear() != null)   // PK compus
+                .toList();
+        if (valide.isEmpty()) {
+            return;
+        }
+        valide.stream().map(PlayerSeasonStatsDto::playerId).distinct().forEach(id -> ensurePlayer(id, "?"));
+        valide.stream().map(PlayerSeasonStatsDto::teamId).distinct().forEach(this::ensureTeam);
+        valide.stream()
+                .map(d -> Map.entry(d.leagueId(), d.seasonYear()))
+                .distinct()
+                .forEach(e -> ensureSeason(e.getKey(), e.getValue()));
+        for (PlayerSeasonStatsDto dto : valide) {
+            playerSeasonStats.save(EntityMapper.toPlayerSeasonStats(dto));
+        }
     }
 
     // --- meciuri ---
@@ -293,6 +357,7 @@ public class IngestService {
         Season placeholder = new Season();
         placeholder.setLeagueId(leagueId);
         placeholder.setYear(year);
+        placeholder.setIsCurrent(false);   // is_current e NOT NULL; Hibernate ar insera null si ar sari default-ul din schema
         seasons.save(placeholder);
     }
 

@@ -13,6 +13,8 @@ import java.util.List;
 public record MeciCentralDto(
         long fixtureId,
         Long leagueId,
+        String ligaNume,
+        String ligaLogo,
         EchipaDto gazde,
         EchipaDto oaspeti,
         Integer golGazde,
@@ -23,11 +25,31 @@ public record MeciCentralDto(
         boolean inDesfasurare,
         boolean terminat,
         OffsetDateTime kickoff,
+        String arbitru,
+        String stadion,
         Statistici statistici,
+        Formatii formatii,
         List<EvenimentDto> evenimente
 ) {
     /** Statisticile ambelor echipe; oricare camp poate lipsi. */
     public record Statistici(Echipa gazde, Echipa oaspeti) {
+    }
+
+    /** Formatiile ambelor echipe; blocul e {@code null} pana exista lineup pentru AMBELE. */
+    public record Formatii(EchipaFormatie gazde, EchipaFormatie oaspeti) {
+    }
+
+    /** Formatia unei echipe: schema, antrenor si loturile (titulari + rezerve). */
+    public record EchipaFormatie(
+            String formatie,
+            String antrenor,
+            List<JucatorDto> titulari,
+            List<JucatorDto> rezerve
+    ) {
+    }
+
+    /** Un jucator din formatie; {@code grid} = pozitia in teren "rand:coloana" (null la rezerve). */
+    public record JucatorDto(Long id, String nume, Integer numar, String pozitie, String grid) {
     }
 
     /** Statisticile unei echipe pentru meciul curent; toate nullable (date partiale/lipsa). */

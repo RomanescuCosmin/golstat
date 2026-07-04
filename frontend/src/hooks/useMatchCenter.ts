@@ -72,7 +72,8 @@ export function useMatchCenter(fixtureId: string | undefined): RezultatMatchCent
         .catch(() => {
           // eroare tranzitorie: pastram datele curente, reincercam la urmatorul tick
         });
-    }, 25_000);
+      // aliniat cu poll-ul colectorului: evenimentele vin la ~15s, statisticile la ~120s server-side
+    }, 15_000);
     return () => {
       anulat = true;
       clearInterval(interval);

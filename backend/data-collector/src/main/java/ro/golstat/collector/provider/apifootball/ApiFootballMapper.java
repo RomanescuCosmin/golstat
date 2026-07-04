@@ -1,15 +1,21 @@
 package ro.golstat.collector.provider.apifootball;
 
+import ro.golstat.common.dto.CoachDto;
 import ro.golstat.common.dto.FixtureDto;
 import ro.golstat.common.dto.FixtureEventDto;
 import ro.golstat.common.dto.FixtureLineupDto;
 import ro.golstat.common.dto.FixtureLineupPlayerDto;
+import ro.golstat.common.dto.FixtureLiveDto;
 import ro.golstat.common.dto.FixtureTeamStatsDto;
 import ro.golstat.common.dto.InjuryDto;
 import ro.golstat.common.dto.LeagueDto;
+import ro.golstat.common.dto.PlayerDto;
+import ro.golstat.common.dto.PlayerSeasonStatsDto;
+import ro.golstat.common.dto.PlayerSezonDto;
 import ro.golstat.common.dto.SeasonDto;
 import ro.golstat.common.dto.StandingDto;
 import ro.golstat.common.dto.TeamDto;
+import ro.golstat.common.dto.TeamSeasonStatsDto;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -70,6 +76,180 @@ public final class ApiFootballMapper {
                 pen != null ? pen.home() : null,
                 pen != null ? pen.away() : null
         );
+    }
+
+    /** Un meci live cu evenimentele inline (din {@code fixtures?live=all}); evenimente {@code null} → lista goala. */
+    public static FixtureLiveDto toFixtureLive(FixtureItem item) {
+        FixtureDto fixture = toFixture(item);
+        Long fixtureId = item.fixture() != null ? item.fixture().id() : null;
+        List<FixtureEventDto> evenimente = new ArrayList<>();
+        if (item.events() != null && fixtureId != null) {
+            for (EventItem e : item.events()) {
+                if (e != null) {
+                    evenimente.add(toEvent(e, fixtureId));
+                }
+            }
+        }
+        return new FixtureLiveDto(fixture, evenimente);
+    }
+
+    public static TeamSeasonStatsDto toTeamSeasonStats(TeamStatisticsItem item) {
+        TeamStatisticsItem.League league = item.league();
+        TeamStatisticsItem.Fixtures fx = item.fixtures();
+        TeamStatisticsItem.Goals goals = item.goals();
+        TeamStatisticsItem.Side forGoals = goals != null ? goals.forGoals() : null;
+        TeamStatisticsItem.Side against = goals != null ? goals.against() : null;
+        return new TeamSeasonStatsDto(
+                item.team() != null ? item.team().id() : null,
+                league != null ? league.id() : null,
+                league != null ? league.season() : null,
+                item.form(),
+                home(fx != null ? fx.played() : null), away(fx != null ? fx.played() : null), total(fx != null ? fx.played() : null),
+                home(fx != null ? fx.wins() : null), away(fx != null ? fx.wins() : null), total(fx != null ? fx.wins() : null),
+                home(fx != null ? fx.draws() : null), away(fx != null ? fx.draws() : null), total(fx != null ? fx.draws() : null),
+                home(fx != null ? fx.loses() : null), away(fx != null ? fx.loses() : null), total(fx != null ? fx.loses() : null),
+                home(forGoals != null ? forGoals.total() : null), away(forGoals != null ? forGoals.total() : null), total(forGoals != null ? forGoals.total() : null),
+                avg(forGoals != null && forGoals.average() != null ? forGoals.average().home() : null),
+                avg(forGoals != null && forGoals.average() != null ? forGoals.average().away() : null),
+                avg(forGoals != null && forGoals.average() != null ? forGoals.average().total() : null),
+                home(against != null ? against.total() : null), away(against != null ? against.total() : null), total(against != null ? against.total() : null),
+                avg(against != null && against.average() != null ? against.average().home() : null),
+                avg(against != null && against.average() != null ? against.average().away() : null),
+                avg(against != null && against.average() != null ? against.average().total() : null),
+                home(item.cleanSheet()), away(item.cleanSheet()), total(item.cleanSheet()),
+                home(item.failedToScore()), away(item.failedToScore()), total(item.failedToScore()),
+                sumCards(item.cards() != null ? item.cards().yellow() : null),
+                sumCards(item.cards() != null ? item.cards().red() : null)
+        );
+    }
+
+    public static PlayerSezonDto toPlayerSezon(PlayerItem item) {
+        PlayerItem.Player p = item.player();
+        Long playerId = p != null ? p.id() : null;
+        PlayerItem.Birth birth = p != null ? p.birth() : null;
+        PlayerDto profil = new PlayerDto(
+                playerId,
+                p != null ? p.name() : null,
+                p != null ? p.firstname() : null,
+                p != null ? p.lastname() : null,
+                p != null ? p.age() : null,
+                birth != null ? parseDate(birth.date()) : null,
+                birth != null ? birth.place() : null,
+                birth != null ? birth.country() : null,
+                p != null ? p.nationality() : null,
+                p != null ? p.height() : null,
+                p != null ? p.weight() : null,
+                p != null ? p.injured() : null,
+                p != null ? p.photo() : null
+        );
+        List<PlayerSeasonStatsDto> statistici = new ArrayList<>();
+        if (item.statistics() != null) {
+            for (PlayerItem.Statistic s : item.statistics()) {
+                if (s != null) {
+                    statistici.add(toPlayerSeasonStats(s, playerId));
+                }
+            }
+        }
+        return new PlayerSezonDto(profil, statistici);
+    }
+
+    private static PlayerSeasonStatsDto toPlayerSeasonStats(PlayerItem.Statistic s, Long playerId) {
+        PlayerItem.Games games = s.games();
+        PlayerItem.Goals goals = s.goals();
+        PlayerItem.Shots shots = s.shots();
+        PlayerItem.Passes passes = s.passes();
+        PlayerItem.Tackles tackles = s.tackles();
+        PlayerItem.Duels duels = s.duels();
+        PlayerItem.Dribbles dribbles = s.dribbles();
+        PlayerItem.Fouls fouls = s.fouls();
+        PlayerItem.Cards cards = s.cards();
+        PlayerItem.Penalty penalty = s.penalty();
+        return new PlayerSeasonStatsDto(
+                playerId,
+                s.team() != null ? s.team().id() : null,
+                s.league() != null ? s.league().id() : null,
+                s.league() != null ? s.league().season() : null,
+                games != null ? games.position() : null,
+                games != null ? games.appearences() : null,
+                games != null ? games.lineups() : null,
+                games != null ? games.minutes() : null,
+                games != null ? toDecimal(games.rating()) : null,
+                games != null ? games.captain() : null,
+                goals != null ? goals.total() : null,
+                goals != null ? goals.conceded() : null,
+                goals != null ? goals.assists() : null,
+                goals != null ? goals.saves() : null,
+                shots != null ? shots.total() : null,
+                shots != null ? shots.on() : null,
+                passes != null ? passes.total() : null,
+                passes != null ? passes.key() : null,
+                passes != null ? passes.accuracy() : null,
+                tackles != null ? tackles.total() : null,
+                tackles != null ? tackles.blocks() : null,
+                tackles != null ? tackles.interceptions() : null,
+                duels != null ? duels.total() : null,
+                duels != null ? duels.won() : null,
+                dribbles != null ? dribbles.attempts() : null,
+                dribbles != null ? dribbles.success() : null,
+                fouls != null ? fouls.drawn() : null,
+                fouls != null ? fouls.committed() : null,
+                cards != null ? cards.yellow() : null,
+                cards != null ? cards.yellowred() : null,
+                cards != null ? cards.red() : null,
+                penalty != null ? penalty.won() : null,
+                penalty != null ? penalty.commited() : null,
+                penalty != null ? penalty.scored() : null,
+                penalty != null ? penalty.missed() : null,
+                penalty != null ? penalty.saved() : null
+        );
+    }
+
+    public static CoachDto toCoach(CoachItem item) {
+        return new CoachDto(
+                item.id(), item.name(), item.firstname(), item.lastname(),
+                item.age(), item.nationality(), item.photo()
+        );
+    }
+
+    /** Antrenorul curent al echipei cerute = intrarea cu {@code end == null} pe acea echipa; altfel {@code null}. */
+    public static boolean esteAntrenorCurent(CoachItem item, long teamId) {
+        if (item.career() == null) {
+            return false;
+        }
+        return item.career().stream().anyMatch(c ->
+                c != null && c.end() == null && c.team() != null
+                        && c.team().id() != null && c.team().id() == teamId);
+    }
+
+    private static Integer home(TeamStatisticsItem.HomeAwayTotal h) {
+        return h != null ? h.home() : null;
+    }
+
+    private static Integer away(TeamStatisticsItem.HomeAwayTotal h) {
+        return h != null ? h.away() : null;
+    }
+
+    private static Integer total(TeamStatisticsItem.HomeAwayTotal h) {
+        return h != null ? h.total() : null;
+    }
+
+    private static BigDecimal avg(String value) {
+        return toDecimal(value);
+    }
+
+    private static Integer sumCards(Map<String, TeamStatisticsItem.Bucket> buckets) {
+        if (buckets == null) {
+            return null;
+        }
+        int sum = 0;
+        boolean any = false;
+        for (TeamStatisticsItem.Bucket b : buckets.values()) {
+            if (b != null && b.total() != null) {
+                sum += b.total();
+                any = true;
+            }
+        }
+        return any ? sum : null;
     }
 
     public static FixtureEventDto toEvent(EventItem e, long fixtureId) {

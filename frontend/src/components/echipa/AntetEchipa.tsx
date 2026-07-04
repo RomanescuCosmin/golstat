@@ -1,5 +1,6 @@
 import type { AntetEchipa as AntetEchipaData, MeciForma, SumarSezon } from '../../api/types';
 import { Card } from '../ui/Card';
+import { LigaLogo } from '../ui/LigaLogo';
 import { TeamLogo } from '../ui/TeamLogo';
 import { IconStar } from '../ui/icons';
 import { FormaRecenta } from './FormaRecenta';
@@ -30,7 +31,6 @@ export function AntetEchipa({ antet, sumar, forma }: AntetEchipaProps) {
   if (antet.antrenor) detalii.push(`Antrenor: ${antet.antrenor}`);
   if (antet.stadion) detalii.push(`Stadion: ${antet.stadion}`);
   if (antet.capacitate != null) detalii.push(`Capacitate: ${antet.capacitate.toLocaleString('ro-RO')}`);
-  const subtitlu = [antet.tara, antet.liga].filter(Boolean).join(' • ');
 
   return (
     <Card className="p-5 sm:p-6">
@@ -44,7 +44,12 @@ export function AntetEchipa({ antet, sumar, forma }: AntetEchipaProps) {
               </h1>
               <IconStar width={18} height={18} className="shrink-0 text-ink2/40" />
             </div>
-            {subtitlu && <p className="text-sm font-medium text-ink2">{subtitlu}</p>}
+            <div className="flex items-center gap-1.5 text-sm font-medium text-ink2">
+              {antet.liga && (
+                <LigaLogo id={antet.leagueId ?? undefined} logo={antet.ligaLogo} nume={antet.liga} size={16} />
+              )}
+              <span>{[antet.tara, antet.liga].filter(Boolean).join(' • ')}</span>
+            </div>
             {detalii.length > 0 && (
               <div className="mt-2 space-y-0.5">
                 {detalii.map((linie) => (

@@ -118,6 +118,8 @@ export interface FixtureLive {
 export interface MeciLive {
   fixtureId: number;
   leagueId: number | null;
+  ligaNume: string | null;
+  ligaLogo: string | null;
   gazde: EchipaDto;
   oaspeti: EchipaDto;
   golGazde: number | null;
@@ -209,10 +211,26 @@ export interface EvenimentMeci {
   asist: string | null;
 }
 
+/** Formatia unei echipe intr-un meci: schema, antrenor, titulari + rezerve. */
+export interface EchipaFormatie {
+  formatie: string | null;
+  antrenor: string | null;
+  titulari: JucatorLineupDto[];
+  rezerve: JucatorLineupDto[];
+}
+
+/** Formatiile ambelor echipe; `null` pana exista lineup pentru amandoua. */
+export interface Formatii {
+  gazde: EchipaFormatie;
+  oaspeti: EchipaFormatie;
+}
+
 /** Oglinda `ro.golstat.api.matchcenter.MeciCentralDto` — detaliul unui meci (live sau finalizat). */
 export interface MeciCentral {
   fixtureId: number;
   leagueId: number | null;
+  ligaNume: string | null;
+  ligaLogo: string | null;
   gazde: EchipaDto;
   oaspeti: EchipaDto;
   golGazde: number | null;
@@ -224,9 +242,87 @@ export interface MeciCentral {
   terminat: boolean;
   /** OffsetDateTime serializat ISO-8601. */
   kickoff: string | null;
+  arbitru: string | null;
+  stadion: string | null;
   /** `null` daca nu exista statistici colectate pentru meci. */
   statistici: StatisticiMeci | null;
+  /** `null` pana exista formatiile ambelor echipe. */
+  formatii: Formatii | null;
   evenimente: EvenimentMeci[];
+}
+
+/** Oglinda `ro.golstat.api.team.RezultatCautareDto` — un rezultat din cautarea de echipe. */
+export interface RezultatCautare {
+  teamId: number;
+  nume: string | null;
+  logo: string | null;
+  tara: string | null;
+  nationala: boolean;
+}
+
+/* ─────────────────────────── Program ─────────────────────────── */
+
+/** Un meci viitor din program. */
+export interface ProgramMeci {
+  fixtureId: number;
+  /** OffsetDateTime serializat ISO-8601. */
+  kickoff: string;
+  gazde: EchipaDto;
+  oaspeti: EchipaDto;
+}
+
+/** O competitie dintr-o zi de program cu meciurile ei. */
+export interface ProgramLiga {
+  leagueId: number;
+  nume: string | null;
+  tara: string | null;
+  logo: string | null;
+  meciuri: ProgramMeci[];
+}
+
+/** O zi de program (UTC) cu competitiile care au meciuri in ea. */
+export interface ProgramZi {
+  /** LocalDate serializat "YYYY-MM-DD". */
+  data: string;
+  ligi: ProgramLiga[];
+}
+
+/** Oglinda `ro.golstat.api.live.ProgramDto` — meciuri viitoare grupate pe zi/competitie. */
+export interface Program {
+  zile: ProgramZi[];
+}
+
+/* ─────────────────────────── Meciurile zilei (prima pagina) ─────────────────────────── */
+
+/** Un meci dintr-o zi (orice status): scor + status, ca sa fie randat direct (ora/scor live/scor final). */
+export interface MeciZiGrupat {
+  fixtureId: number;
+  /** OffsetDateTime serializat ISO-8601. */
+  kickoff: string;
+  gazde: EchipaDto;
+  oaspeti: EchipaDto;
+  golGazde: number | null;
+  golOaspeti: number | null;
+  status: string | null;
+  inDesfasurare: boolean;
+  terminat: boolean;
+  minut: number | null;
+}
+
+/** O competitie dintr-o zi cu meciurile ei; nume/tara/logo pot lipsi daca liga nu e in DB. */
+export interface LigaZi {
+  leagueId: number;
+  nume: string | null;
+  tara: string | null;
+  logo: string | null;
+  meciuri: MeciZiGrupat[];
+}
+
+/** Oglinda `ro.golstat.api.live.ProgramZiDto` — meciurile unei zile grupate pe competitie. */
+export interface ProgramZiGrupat {
+  /** LocalDate serializat "YYYY-MM-DD". */
+  data: string;
+  ligi: LigaZi[];
 }
 
 /* ─────────────────────────── Pagina Echipa ─────────────────────────── */
@@ -237,6 +333,7 @@ export interface AntetEchipa {
   logo: string | null;
   tara: string | null;
   liga: string | null;
+  ligaLogo: string | null;
   leagueId: number | null;
   sezon: number | null;
   antrenor: string | null;
@@ -319,11 +416,22 @@ export interface TopJucatori {
   cartonase: JucatorStat | null;
 }
 
+/** O categorie de statistici cu procent relativ la media ligii (50% = media ligii). */
+export interface StatProcent {
+  categorie: 'GOLURI' | 'CORNERE' | 'FAULTURI' | 'CARTONASE';
+  medieEchipa: number | null;
+  medieLiga: number | null;
+  procent: number;
+}
+
 /** Oglinda `ro.golstat.api.team.PaginaEchipaDto`. Fiecare bloc poate lipsi independent. */
 export interface PaginaEchipa {
   antet: AntetEchipa;
   sumar: SumarSezon | null;
   forma: MeciForma[];
+  rezultateRecente: MeciForma[];
+  statProcente: StatProcent[];
+  sezoane: number[];
   urmatorulMeci: MeciScurt | null;
   clasament: RandClasament[];
   statistici: StatBareSezon | null;

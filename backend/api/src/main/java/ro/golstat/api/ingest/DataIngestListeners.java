@@ -7,15 +7,19 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 import ro.golstat.api.web.LiveBroadcaster;
 import ro.golstat.common.GolstatConstants;
+import ro.golstat.common.dto.CoachDto;
 import ro.golstat.common.dto.FixtureDto;
 import ro.golstat.common.dto.FixtureEventDto;
 import ro.golstat.common.dto.FixtureLineupDto;
 import ro.golstat.common.dto.FixtureTeamStatsDto;
 import ro.golstat.common.dto.InjuryDto;
 import ro.golstat.common.dto.LeagueDto;
+import ro.golstat.common.dto.PlayerDto;
+import ro.golstat.common.dto.PlayerSeasonStatsDto;
 import ro.golstat.common.dto.SeasonDto;
 import ro.golstat.common.dto.StandingDto;
 import ro.golstat.common.dto.TeamDto;
+import ro.golstat.common.dto.TeamSeasonStatsDto;
 import ro.golstat.common.dto.VenueDto;
 
 import java.util.List;
@@ -68,6 +72,36 @@ public class DataIngestListeners {
     @KafkaListener(topics = GolstatConstants.KafkaTopics.STANDINGS)
     void onStanding(String json) {
         ingest.ingestStanding(read(json, StandingDto.class));
+    }
+
+    @KafkaListener(topics = GolstatConstants.KafkaTopics.COACHES)
+    void onCoach(String json) {
+        ingest.ingestCoach(read(json, CoachDto.class));
+    }
+
+    @KafkaListener(topics = GolstatConstants.KafkaTopics.TEAM_SEASON_STATS)
+    void onTeamSeasonStats(String json) {
+        ingest.ingestTeamSeasonStats(read(json, TeamSeasonStatsDto.class));
+    }
+
+    @KafkaListener(topics = GolstatConstants.KafkaTopics.PLAYERS)
+    void onPlayers(String json) {
+        try {
+            ingest.ingestPlayers(mapper.readValue(json, new TypeReference<List<PlayerDto>>() {
+            }));
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("JSON invalid pe " + GolstatConstants.KafkaTopics.PLAYERS, e);
+        }
+    }
+
+    @KafkaListener(topics = GolstatConstants.KafkaTopics.PLAYER_SEASON_STATS)
+    void onPlayerSeasonStats(String json) {
+        try {
+            ingest.ingestPlayerSeasonStats(mapper.readValue(json, new TypeReference<List<PlayerSeasonStatsDto>>() {
+            }));
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("JSON invalid pe " + GolstatConstants.KafkaTopics.PLAYER_SEASON_STATS, e);
+        }
     }
 
     @KafkaListener(topics = GolstatConstants.KafkaTopics.FIXTURE_EVENTS)

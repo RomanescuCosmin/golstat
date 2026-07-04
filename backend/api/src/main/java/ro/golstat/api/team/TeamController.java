@@ -8,6 +8,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 /** Expune pagina unei echipe. Erorile sunt tratate central in {@code GlobalExceptionHandler}. */
 @RestController
 @RequestMapping("/api/v1/echipe")
@@ -18,6 +20,12 @@ public class TeamController {
 
     public TeamController(TeamService teams) {
         this.teams = teams;
+    }
+
+    /** Cautare echipe dupa nume (min 2 caractere, max 10 rezultate). Prioritar fata de {@code /{teamId}}. */
+    @GetMapping("/cauta")
+    public List<RezultatCautareDto> cauta(@RequestParam(required = false) String q) {
+        return teams.cauta(q);
     }
 
     /** Pagina echipei; 404 doar daca echipa nu exista. Liga/sezonul sunt optionale (altfel derivate). */

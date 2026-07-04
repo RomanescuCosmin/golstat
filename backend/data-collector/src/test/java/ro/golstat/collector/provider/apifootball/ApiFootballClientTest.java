@@ -27,7 +27,8 @@ class ApiFootballClientTest {
 
     private static ApiFootballProperties props(int limit) {
         return new ApiFootballProperties("http://api.test", "k", limit,
-                Duration.ofHours(6), Duration.ofHours(1), Duration.ofHours(24));
+                Duration.ofHours(6), Duration.ofHours(1), Duration.ofHours(24),
+                Duration.ofHours(20), Duration.ofDays(7), Duration.ofDays(7));
     }
 
     @Test

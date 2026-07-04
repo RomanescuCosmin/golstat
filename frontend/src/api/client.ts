@@ -1,4 +1,4 @@
-import type { MeciCentral, MeciLive, PaginaEchipa, PredictieMeciDto, PrevizualizareMeciDto } from './types';
+import type { MeciCentral, MeciLive, PaginaEchipa, PredictieMeciDto, PrevizualizareMeciDto, Program, ProgramZiGrupat, RezultatCautare } from './types';
 
 const BASE = '/api';
 
@@ -23,11 +23,12 @@ interface ProblemDetail {
   status?: number;
 }
 
-async function request<T>(path: string): Promise<T> {
+async function request<T>(path: string, signal?: AbortSignal): Promise<T> {
   let res: Response;
   try {
-    res = await fetch(`${BASE}${path}`, { headers: { Accept: 'application/json' } });
-  } catch {
+    res = await fetch(`${BASE}${path}`, { headers: { Accept: 'application/json' }, signal });
+  } catch (e) {
+    if (e instanceof DOMException && e.name === 'AbortError') throw e;
     throw new ApiError(0, 'Conexiune eșuată', 'Serverul nu a putut fi contactat.');
   }
 
@@ -60,6 +61,17 @@ export function getPrevizualizare(fixtureId: number): Promise<PrevizualizareMeci
   return request<PrevizualizareMeciDto>(`/v1/predictii/meciuri/${fixtureId}/previzualizare`);
 }
 
+/** Programul meciurilor viitoare (toate competitiile) pe urmatoarele `zile` (1..14), grupat pe zi/liga. */
+export function getProgram(zile = 7): Promise<Program> {
+  return request<Program>(`/v1/meciuri/urmatoare?zile=${zile}`);
+}
+
+/** Meciurile unei zile (`data` "YYYY-MM-DD", implicit azi) din toate ligile europene, grupate pe competitie. */
+export function getMeciuriZi(data?: string): Promise<ProgramZiGrupat> {
+  const qs = data ? `?data=${data}` : '';
+  return request<ProgramZiGrupat>(`/v1/meciuri/zi${qs}`);
+}
+
 /** Meciurile in desfasurare acum (orice competitie), din DB. */
 export function getLive(): Promise<MeciLive[]> {
   return request<MeciLive[]>('/v1/meciuri/live');
@@ -68,6 +80,11 @@ export function getLive(): Promise<MeciLive[]> {
 /** Detaliul unui meci (scor, statistici, cronologie) — functioneaza pentru meciuri live si finalizate. */
 export function getMatchCenter(fixtureId: number): Promise<MeciCentral> {
   return request<MeciCentral>(`/v1/meciuri/${fixtureId}`);
+}
+
+/** Cautare echipe dupa nume (min 2 caractere); `signal` anuleaza cererile stale. */
+export function cautaEchipe(q: string, signal?: AbortSignal): Promise<RezultatCautare[]> {
+  return request<RezultatCautare[]>(`/v1/echipe/cauta?q=${encodeURIComponent(q)}`, signal);
 }
 
 /** Pagina unei echipe: antet, sumar sezon, forma, clasament, statistici, top jucatori. */

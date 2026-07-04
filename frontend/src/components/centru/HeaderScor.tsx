@@ -6,6 +6,7 @@ import { formatOra } from '../../lib/format';
 import { numeLiga } from '../../lib/ligi';
 import { Badge } from '../ui/Badge';
 import { Card } from '../ui/Card';
+import { LigaLogo } from '../ui/LigaLogo';
 import { TeamLogo } from '../ui/TeamLogo';
 
 interface HeaderScorProps {
@@ -34,9 +35,10 @@ export function HeaderScor({ meci, live }: HeaderScorProps) {
   return (
     <Card className="px-5 py-6 sm:px-8">
       {leagueId != null && (
-        <p className="mb-5 text-center text-xs font-semibold uppercase tracking-wide text-ink2">
-          {numeLiga(leagueId)}
-        </p>
+        <div className="mb-5 flex items-center justify-center gap-2 text-xs font-semibold uppercase tracking-wide text-ink2">
+          <LigaLogo id={leagueId} logo={meci.ligaLogo} nume={meci.ligaNume} size={18} />
+          <span>{meci.ligaNume ?? numeLiga(leagueId)}</span>
+        </div>
       )}
 
       <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 sm:gap-6">
@@ -69,6 +71,14 @@ export function HeaderScor({ meci, live }: HeaderScorProps) {
           </span>
         </Link>
       </div>
+
+      {(meci.arbitru || meci.stadion) && (
+        <p className="mt-5 text-center text-xs text-ink2">
+          {[meci.stadion && `Stadion: ${meci.stadion}`, meci.arbitru && `Arbitru: ${meci.arbitru}`]
+            .filter(Boolean)
+            .join(' · ')}
+        </p>
+      )}
     </Card>
   );
 }
