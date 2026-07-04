@@ -1,13 +1,21 @@
-import { LIGI } from '../../lib/ligi';
 import { IconChevronDown, IconGlobe } from '../ui/icons';
 
-interface SelectorLigaProps {
-  leagueId: number;
-  onChange: (leagueId: number) => void;
+/** O optiune de competitie in selector. */
+export interface OptiuneLiga {
+  id: number;
+  nume: string;
 }
 
-/** Dropdown de competitii, stilul pastilei "Toate competițiile" din design. */
-export function SelectorLiga({ leagueId, onChange }: SelectorLigaProps) {
+interface SelectorLigaProps {
+  /** Liga selectata; `null` = toate competitiile. */
+  leagueId: number | null;
+  onChange: (leagueId: number | null) => void;
+  /** Competitiile disponibile (dinamic, din ziua incarcata). Prima optiune e mereu „Toate competițiile". */
+  optiuni: OptiuneLiga[];
+}
+
+/** Dropdown de competitii; optiunile vin dinamic din ligile zilei, deci reflecta exact ce e afisat. */
+export function SelectorLiga({ leagueId, onChange, optiuni }: SelectorLigaProps) {
   return (
     <label className="relative flex items-center">
       <span className="sr-only">Competiție</span>
@@ -17,11 +25,12 @@ export function SelectorLiga({ leagueId, onChange }: SelectorLigaProps) {
         className="pointer-events-none absolute left-3 text-ink2"
       />
       <select
-        value={leagueId}
-        onChange={(e) => onChange(Number(e.target.value))}
+        value={leagueId ?? ''}
+        onChange={(e) => onChange(e.target.value === '' ? null : Number(e.target.value))}
         className="h-11 w-full appearance-none rounded-xl border border-line bg-card pl-9 pr-9 text-sm font-medium text-ink shadow-card focus:outline-none focus:ring-2 focus:ring-primary/40 dark:shadow-none"
       >
-        {LIGI.map((liga) => (
+        <option value="">Toate competițiile</option>
+        {optiuni.map((liga) => (
           <option key={liga.id} value={liga.id}>
             {liga.nume}
           </option>

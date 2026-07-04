@@ -5,16 +5,25 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import ro.golstat.api.entity.Coach;
 import ro.golstat.api.entity.Fixture;
 import ro.golstat.api.entity.FixtureEvent;
+import ro.golstat.api.entity.FixtureLineup;
+import ro.golstat.api.entity.FixtureLineupPlayer;
 import ro.golstat.api.entity.FixtureTeamStats;
 import ro.golstat.api.entity.Player;
 import ro.golstat.api.entity.Team;
+import ro.golstat.api.entity.Venue;
+import ro.golstat.api.repository.CoachRepository;
 import ro.golstat.api.repository.FixtureEventRepository;
+import ro.golstat.api.repository.FixtureLineupPlayerRepository;
+import ro.golstat.api.repository.FixtureLineupRepository;
 import ro.golstat.api.repository.FixtureRepository;
 import ro.golstat.api.repository.FixtureTeamStatsRepository;
+import ro.golstat.api.repository.LeagueRepository;
 import ro.golstat.api.repository.PlayerRepository;
 import ro.golstat.api.repository.TeamRepository;
+import ro.golstat.api.repository.VenueRepository;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -39,6 +48,11 @@ class MatchCenterServiceTest {
     @Mock FixtureTeamStatsRepository teamStats;
     @Mock FixtureEventRepository events;
     @Mock PlayerRepository players;
+    @Mock FixtureLineupRepository lineups;
+    @Mock FixtureLineupPlayerRepository lineupPlayers;
+    @Mock CoachRepository coaches;
+    @Mock VenueRepository venues;
+    @Mock LeagueRepository leagues;
     @InjectMocks MatchCenterService service;
 
     private static Team team(long id, String nume, String logo) {
@@ -98,6 +112,43 @@ class MatchCenterServiceTest {
         p.setId(id);
         p.setName(nume);
         return p;
+    }
+
+    private static FixtureLineup lineup(long teamId, String formatie, Long coachId) {
+        FixtureLineup l = new FixtureLineup();
+        l.setFixtureId(100L);
+        l.setTeamId(teamId);
+        l.setFormation(formatie);
+        l.setCoachId(coachId);
+        return l;
+    }
+
+    private static FixtureLineupPlayer lineupPlayer(long teamId, long playerId, String nume, Integer numar,
+                                                    String pozitie, String grid, boolean rezerva) {
+        FixtureLineupPlayer p = new FixtureLineupPlayer();
+        p.setFixtureId(100L);
+        p.setTeamId(teamId);
+        p.setPlayerId(playerId);
+        p.setPlayerName(nume);
+        p.setNumber(numar);
+        p.setPosition(pozitie);
+        p.setGrid(grid);
+        p.setIsSubstitute(rezerva);
+        return p;
+    }
+
+    private static Coach coach(long id, String nume) {
+        Coach c = new Coach();
+        c.setId(id);
+        c.setName(nume);
+        return c;
+    }
+
+    private static Venue venue(long id, String nume) {
+        Venue v = new Venue();
+        v.setId(id);
+        v.setName(nume);
+        return v;
     }
 
     @Test
@@ -161,6 +212,57 @@ class MatchCenterServiceTest {
         // echipe lipsa din DB → doar id
         assertNull(dto.gazde().nume());
         assertEquals(10L, dto.gazde().id());
+    }
+
+    @Test
+    void matchCenter_cuFormatii_arbitruSiStadion() {
+        Fixture f = ftFixture();
+        f.setReferee("A. Marciniak");
+        f.setVenueId(555L);
+        when(fixtures.findById(100L)).thenReturn(Optional.of(f));
+        when(teams.findAllById(any())).thenReturn(List.of(team(10L, "FC Gazde", null), team(20L, "FC Oaspeti", null)));
+        when(teamStats.findByFixtureIdIn(List.of(100L))).thenReturn(List.of());
+        when(events.findTimeline(100L)).thenReturn(List.of());
+        when(players.findAllById(any())).thenReturn(List.of());
+        when(venues.findById(555L)).thenReturn(Optional.of(venue(555L, "Etihad Stadium")));
+        when(lineups.findByFixtureId(100L)).thenReturn(List.of(
+                lineup(10L, "4-3-3", 900L), lineup(20L, "3-5-2", 901L)));
+        when(lineupPlayers.findByFixtureId(100L)).thenReturn(List.of(
+                lineupPlayer(10L, 1L, "Ederson", 31, "G", "1:1", false),
+                lineupPlayer(10L, 2L, "Rezerva Gazde", 50, null, null, true),
+                lineupPlayer(20L, 3L, "Titular Oaspeti", 7, "F", "4:2", false)));
+        when(coaches.findAllById(any())).thenReturn(List.of(coach(900L, "P. Guardiola"), coach(901L, "S. Inzaghi")));
+
+        MeciCentralDto dto = service.matchCenter(100L);
+
+        assertEquals("A. Marciniak", dto.arbitru());
+        assertEquals("Etihad Stadium", dto.stadion());
+        MeciCentralDto.EchipaFormatie gazde = dto.formatii().gazde();
+        assertEquals("4-3-3", gazde.formatie());
+        assertEquals("P. Guardiola", gazde.antrenor());
+        assertEquals(1, gazde.titulari().size());
+        assertEquals("Ederson", gazde.titulari().get(0).nume());
+        assertEquals("1:1", gazde.titulari().get(0).grid());
+        assertEquals(1, gazde.rezerve().size());
+        assertEquals("Rezerva Gazde", gazde.rezerve().get(0).nume());
+        assertEquals("3-5-2", dto.formatii().oaspeti().formatie());
+        assertEquals("S. Inzaghi", dto.formatii().oaspeti().antrenor());
+    }
+
+    @Test
+    void matchCenter_lineupDoarPeOEchipa_formatiiNull() {
+        when(fixtures.findById(100L)).thenReturn(Optional.of(ftFixture()));
+        when(teams.findAllById(any())).thenReturn(List.of());
+        when(teamStats.findByFixtureIdIn(List.of(100L))).thenReturn(List.of());
+        when(events.findTimeline(100L)).thenReturn(List.of());
+        when(players.findAllById(any())).thenReturn(List.of());
+        when(lineups.findByFixtureId(100L)).thenReturn(List.of(lineup(10L, "4-3-3", 900L)));
+
+        MeciCentralDto dto = service.matchCenter(100L);
+
+        assertNull(dto.formatii());
+        assertNull(dto.arbitru());
+        assertNull(dto.stadion());
     }
 
     @Test

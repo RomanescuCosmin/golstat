@@ -1,6 +1,7 @@
 import { Link, useParams } from 'react-router-dom';
 import { useMatchCenter } from '../hooks/useMatchCenter';
 import { CronologieMeci } from '../components/centru/CronologieMeci';
+import { FormatiiMeci } from '../components/centru/FormatiiMeci';
 import { HeaderScor } from '../components/centru/HeaderScor';
 import { LiveAcumRail } from '../components/centru/LiveAcumRail';
 import { StatisticiLive } from '../components/centru/StatisticiLive';
@@ -50,6 +51,10 @@ export function MatchCenterPage() {
             <Card>
               <EmptyState titlu="Statistici indisponibile" mesaj="Statistici indisponibile pentru acest meci." />
             </Card>
+          )}
+
+          {date.formatii && (
+            <FormatiiMeci formatii={date.formatii} gazde={date.gazde} oaspeti={date.oaspeti} />
           )}
 
           {date.evenimente.length > 0 ? (

@@ -2,8 +2,15 @@ package ro.golstat.collector.provider.apifootball;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-/** Un element din {@code /fixtures}: meciul, liga/sezon, cele doua echipe, golurile si scorurile. */
-public record FixtureItem(Fixture fixture, League league, Teams teams, Goals goals, Score score) {
+import java.util.List;
+
+/**
+ * Un element din {@code /fixtures}: meciul, liga/sezon, cele doua echipe, golurile si scorurile.
+ * La {@code fixtures?live=all} raspunsul include si {@code events} inline (gratis) — {@code null}
+ * la raspunsurile {@code /fixtures} normale.
+ */
+public record FixtureItem(Fixture fixture, League league, Teams teams, Goals goals, Score score,
+                          List<EventItem> events) {
 
     public record Fixture(Long id, String referee, String timezone, String date, Venue venue, Status status) {
     }

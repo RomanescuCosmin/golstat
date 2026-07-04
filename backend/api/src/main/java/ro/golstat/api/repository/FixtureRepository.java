@@ -78,6 +78,18 @@ public interface FixtureRepository extends JpaRepository<Fixture, Long> {
                                @Param("from") OffsetDateTime from,
                                @Param("to") OffsetDateTime to);
 
+    /** Meciurile viitoare ({@code NS}) din TOATE competitiile intr-o fereastra, cronologic. */
+    @Query("""
+            select f from Fixture f
+            where f.statusShort = :status
+              and f.kickoff >= :from
+              and f.kickoff < :to
+            order by f.kickoff asc
+            """)
+    List<Fixture> findUpcomingAll(@Param("status") String status,
+                                  @Param("from") OffsetDateTime from,
+                                  @Param("to") OffsetDateTime to);
+
     /** Meciurile in DESFASURARE acum (orice liga), cele mai apropiate de start primele. */
     @Query("""
             select f from Fixture f
@@ -85,6 +97,16 @@ public interface FixtureRepository extends JpaRepository<Fixture, Long> {
             order by f.kickoff asc
             """)
     List<Fixture> findLive(@Param("inPlay") Collection<String> inPlay);
+
+    /** Toate meciurile dintr-o fereastra (o zi) din TOATE competitiile (orice status), cronologic. */
+    @Query("""
+            select f from Fixture f
+            where f.kickoff >= :from
+              and f.kickoff < :to
+            order by f.kickoff asc
+            """)
+    List<Fixture> findByDayAllLeagues(@Param("from") OffsetDateTime from,
+                                      @Param("to") OffsetDateTime to);
 
     /** Toate meciurile unei ligi intr-o fereastra de timp (orice status), cronologic. */
     @Query("""
@@ -97,6 +119,32 @@ public interface FixtureRepository extends JpaRepository<Fixture, Long> {
     List<Fixture> findByDay(@Param("leagueId") long leagueId,
                             @Param("from") OffsetDateTime from,
                             @Param("to") OffsetDateTime to);
+
+    /**
+     * Media golurilor marcate de o echipa pe o liga/sezon (meciuri TERMINALE), indiferent de locatie.
+     * Fallback pentru {@code StatProcent} cand {@code team_season_stats} lipseste. {@code null} fara meciuri.
+     */
+    @Query("""
+            select avg(case when f.homeTeamId = :teamId then coalesce(f.scoreFtHome, f.goalsHome)
+                            else coalesce(f.scoreFtAway, f.goalsAway) end)
+            from Fixture f
+            where (f.homeTeamId = :teamId or f.awayTeamId = :teamId)
+              and f.leagueId = :leagueId
+              and f.seasonYear = :season
+              and f.statusShort in :terminal
+            """)
+    Double avgGoalsForTeam(@Param("teamId") long teamId,
+                           @Param("leagueId") long leagueId,
+                           @Param("season") int season,
+                           @Param("terminal") Collection<String> terminal);
+
+    /** Sezoanele distincte in care echipa are meciuri (orice status), pentru selectorul de sezon. */
+    @Query("""
+            select distinct f.seasonYear from Fixture f
+            where (f.homeTeamId = :teamId or f.awayTeamId = :teamId)
+              and f.seasonYear is not null
+            """)
+    List<Integer> distinctSeasons(@Param("teamId") long teamId);
 
     /** Urmatoarele meciuri ({@code NS}) ale unei echipe de la {@code now} incolo, cele mai apropiate primele. */
     @Query("""

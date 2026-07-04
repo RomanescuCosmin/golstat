@@ -26,8 +26,11 @@ import ro.golstat.api.repository.StandingRepository;
 import ro.golstat.api.repository.TeamRepository;
 import ro.golstat.api.repository.TeamSeasonStatsRepository;
 import ro.golstat.api.repository.VenueRepository;
+import ro.golstat.api.stats.CountAverage;
+import ro.golstat.api.stats.GoalAverage;
 import ro.golstat.common.GolstatConstants.EventType;
 import ro.golstat.common.GolstatConstants.FixtureStatus;
+import ro.golstat.common.GolstatConstants.Piata;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -52,6 +55,7 @@ import java.util.stream.Stream;
 public class TeamService {
 
     private static final int FEREASTRA_FORMA = 5;
+    private static final int FEREASTRA_REZULTATE = 10;
     private static final List<String> TERMINAL = FixtureStatus.TERMINAL;
 
     /** Intervalele de 15 min pentru distributia golurilor; ultimul acopera prelungirile (>90). */
@@ -91,6 +95,22 @@ public class TeamService {
         this.lineups = lineups;
     }
 
+    private static final int LIMITA_CAUTARE = 10;
+    private static final int MIN_CARACTERE_CAUTARE = 2;
+
+    /** Cautare echipe dupa nume; sub {@value #MIN_CARACTERE_CAUTARE} caractere → lista goala. */
+    public List<RezultatCautareDto> cauta(String q) {
+        String termen = q != null ? q.strip().toLowerCase() : "";
+        if (termen.length() < MIN_CARACTERE_CAUTARE) {
+            return List.of();
+        }
+        return teams.search(termen, PageRequest.of(0, LIMITA_CAUTARE)).stream()
+                .map(t -> new RezultatCautareDto(
+                        t.getId(), t.getName(), t.getLogo(), t.getCountryName(),
+                        Boolean.TRUE.equals(t.getIsNational())))
+                .toList();
+    }
+
     public PaginaEchipaDto pagina(long teamId, Long leagueId, Integer sezon) {
         Team echipa = teams.findById(teamId)
                 .orElseThrow(() -> new EchipaNotFoundException(teamId));
@@ -107,7 +127,10 @@ public class TeamService {
         return new PaginaEchipaDto(
                 antet(echipa, ctx),
                 sumar(standing, sezonStats),
-                forma(teamId),
+                rezultate(teamId, FEREASTRA_FORMA),
+                rezultate(teamId, FEREASTRA_REZULTATE),
+                statProcente(teamId, sezonStats, ctx),
+                sezoane(teamId),
                 urmatorulMeci(teamId),
                 clasament(teamId, ctx),
                 statBare(teamId, sezonStats, ctx),
@@ -144,8 +167,7 @@ public class TeamService {
     }
 
     private PaginaEchipaDto.Antet antet(Team echipa, Context ctx) {
-        String liga = ctx.leagueId != null
-                ? leagues.findById(ctx.leagueId).map(League::getName).orElse(null) : null;
+        League liga = ctx.leagueId != null ? leagues.findById(ctx.leagueId).orElse(null) : null;
         Venue venue = echipa.getVenueId() != null ? venues.findById(echipa.getVenueId()).orElse(null) : null;
         String antrenor = lineups.recentCoachIds(echipa.getId(), PageRequest.of(0, 1)).stream()
                 .findFirst()
@@ -154,7 +176,8 @@ public class TeamService {
                 .orElse(null);
         return new PaginaEchipaDto.Antet(
                 echipa.getId(), echipa.getName(), echipa.getLogo(), echipa.getCountryName(),
-                liga, ctx.leagueId, ctx.sezon, antrenor,
+                liga != null ? liga.getName() : null, liga != null ? liga.getLogo() : null,
+                ctx.leagueId, ctx.sezon, antrenor,
                 venue != null ? venue.getName() : null,
                 venue != null ? venue.getCapacity() : null);
     }
@@ -177,9 +200,9 @@ public class TeamService {
                 (marcate != null && primite != null) ? marcate - primite : null);
     }
 
-    private List<PaginaEchipaDto.MeciForma> forma(long teamId) {
+    private List<PaginaEchipaDto.MeciForma> rezultate(long teamId, int limita) {
         List<Fixture> recent = fixtures.findRecentForTeam(
-                teamId, TERMINAL, OffsetDateTime.now(), PageRequest.of(0, FEREASTRA_FORMA));
+                teamId, TERMINAL, OffsetDateTime.now(), PageRequest.of(0, limita));
         Map<Long, Team> adversari = adversari(recent, teamId);
         return recent.stream().map(f -> {
             boolean acasa = Objects.equals(f.getHomeTeamId(), teamId);
@@ -190,6 +213,64 @@ public class TeamService {
                     f.getId(), f.getKickoff(), acasa, echipa(advId, adversari),
                     marcate, primite, rezultat(marcate, primite));
         }).toList();
+    }
+
+    /**
+     * Procentaje per categorie relativ la media ligii. Media echipei: goluri din statisticile de sezon
+     * (fallback: medie din fixtures); cornere/faulturi/cartonase mediate din {@code fixture_team_stats}.
+     * Media ligii: goluri prin {@code (avgGazde+avgOaspeti)/2}; restul din {@code avgCounts}. Categorie
+     * omisa cand lipseste oricare parte.
+     */
+    private List<PaginaEchipaDto.StatProcent> statProcente(long teamId, TeamSeasonStats s, Context ctx) {
+        if (ctx.leagueId == null || ctx.sezon == null) {
+            return List.of();
+        }
+        List<FixtureTeamStats> peMeci = teamStats.findForTeamSeason(teamId, ctx.leagueId, ctx.sezon, TERMINAL);
+        GoalAverage golLiga = fixtures.avgGoals(ctx.leagueId, ctx.sezon, TERMINAL);
+        CountAverage countLiga = teamStats.avgCounts(ctx.leagueId, ctx.sezon, TERMINAL);
+
+        Double golEchipa = s != null && s.getGoalsForAvgTotal() != null
+                ? rotunjit(s.getGoalsForAvgTotal().doubleValue())
+                : fixtures.avgGoalsForTeam(teamId, ctx.leagueId, ctx.sezon, TERMINAL);
+        Double golLigaMedie = (golLiga != null && golLiga.getAvgGazde() != null && golLiga.getAvgOaspeti() != null)
+                ? (golLiga.getAvgGazde() + golLiga.getAvgOaspeti()) / 2.0 : null;
+
+        List<PaginaEchipaDto.StatProcent> rezultat = new ArrayList<>(4);
+        adauga(rezultat, Piata.GOLURI, golEchipa, golLigaMedie);
+        adauga(rezultat, Piata.CORNERE,
+                medie(peMeci, x -> caDouble(x.getCornerKicks())),
+                countLiga != null ? countLiga.getAvgCornere() : null);
+        adauga(rezultat, Piata.FAULTURI,
+                medie(peMeci, x -> caDouble(x.getFouls())),
+                countLiga != null ? countLiga.getAvgFaulturi() : null);
+        adauga(rezultat, Piata.CARTONASE,
+                medie(peMeci, x -> caDouble(nz(x.getYellowCards()) + nz(x.getRedCards()))),
+                countLiga != null ? countLiga.getAvgCartonase() : null);
+        return rezultat;
+    }
+
+    /** Adauga o categorie doar cand ambele medii exista si media ligii e > 0. */
+    private static void adauga(List<PaginaEchipaDto.StatProcent> acc, String categorie,
+                               Double medieEchipa, Double medieLiga) {
+        if (medieEchipa == null || medieLiga == null || medieLiga <= 0) {
+            return;
+        }
+        int procent = (int) Math.round(100.0 * medieEchipa / (2.0 * medieLiga));
+        procent = Math.max(0, Math.min(100, procent));
+        acc.add(new PaginaEchipaDto.StatProcent(
+                categorie, rotunjit(medieEchipa), rotunjit(medieLiga), procent));
+    }
+
+    /** Sezoanele echipei (din statistici ∪ meciuri), descrescator. */
+    private List<Integer> sezoane(long teamId) {
+        return Stream.concat(
+                        teamSeasonStats.findByTeamId(teamId).stream()
+                                .map(TeamSeasonStats::getSeasonYear),
+                        fixtures.distinctSeasons(teamId).stream())
+                .filter(Objects::nonNull)
+                .distinct()
+                .sorted(Comparator.reverseOrder())
+                .toList();
     }
 
     private PaginaEchipaDto.MeciScurt urmatorulMeci(long teamId) {

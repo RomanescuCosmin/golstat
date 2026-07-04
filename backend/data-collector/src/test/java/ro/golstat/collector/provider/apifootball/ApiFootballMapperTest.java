@@ -4,16 +4,20 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import org.junit.jupiter.api.Test;
+import ro.golstat.common.dto.CoachDto;
 import ro.golstat.common.dto.FixtureDto;
 import ro.golstat.common.dto.FixtureEventDto;
 import ro.golstat.common.dto.FixtureLineupDto;
 import ro.golstat.common.dto.FixtureLineupPlayerDto;
+import ro.golstat.common.dto.FixtureLiveDto;
 import ro.golstat.common.dto.FixtureTeamStatsDto;
 import ro.golstat.common.dto.InjuryDto;
 import ro.golstat.common.dto.LeagueDto;
+import ro.golstat.common.dto.PlayerSezonDto;
 import ro.golstat.common.dto.SeasonDto;
 import ro.golstat.common.dto.StandingDto;
 import ro.golstat.common.dto.TeamDto;
+import ro.golstat.common.dto.TeamSeasonStatsDto;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -317,6 +321,134 @@ class ApiFootballMapperTest {
         assertEquals(1878, t.founded());
         assertEquals(false, t.isNational());
         assertEquals(556L, t.venueId());
+    }
+
+    @Test
+    void liveFixture_mapsInlineEventsToFixtureLive() throws Exception {
+        String body = """
+                {"response":[{
+                  "fixture":{"id":215,"referee":null,"timezone":"UTC","date":"2026-07-03T18:00:00+00:00",
+                    "venue":{"id":null,"name":null,"city":null},
+                    "status":{"long":"First Half","short":"1H","elapsed":30}},
+                  "league":{"id":39,"season":2025,"round":"R"},
+                  "teams":{"home":{"id":33},"away":{"id":34}},
+                  "goals":{"home":1,"away":0},
+                  "score":{"halftime":{"home":null,"away":null},"fulltime":{"home":null,"away":null},
+                           "extratime":{"home":null,"away":null},"penalty":{"home":null,"away":null}},
+                  "events":[
+                    {"time":{"elapsed":23,"extra":null},"team":{"id":33},"player":{"id":874},
+                     "assist":{"id":null},"type":"Goal","detail":"Normal Goal","comments":null}
+                  ]
+                }]}""";
+        FixtureLiveDto fl = ApiFootballMapper.toFixtureLive(parse(body, FixtureItem.class).get(0));
+
+        assertEquals(215L, fl.fixture().id());
+        assertEquals("1H", fl.fixture().statusShort());
+        assertEquals(1, fl.evenimente().size());
+        assertEquals(215L, fl.evenimente().get(0).fixtureId());
+        assertEquals("Goal", fl.evenimente().get(0).type());
+    }
+
+    @Test
+    void liveFixture_noEvents_emptyList() throws Exception {
+        String body = """
+                {"response":[{
+                  "fixture":{"id":900,"date":"2026-07-03T18:00:00+00:00",
+                    "status":{"long":"First Half","short":"1H","elapsed":10}},
+                  "league":{"id":39,"season":2025,"round":"R"},
+                  "teams":{"home":{"id":33},"away":{"id":34}},
+                  "goals":{"home":0,"away":0}
+                }]}""";
+        FixtureLiveDto fl = ApiFootballMapper.toFixtureLive(parse(body, FixtureItem.class).get(0));
+
+        assertEquals(900L, fl.fixture().id());
+        assertTrue(fl.evenimente().isEmpty());
+    }
+
+    @Test
+    void teamStatistics_mapsTotalsAndSumsCardBuckets() throws Exception {
+        String body = """
+                {"response":[{
+                  "league":{"id":39,"season":2023},
+                  "team":{"id":50},
+                  "form":"WWDLW",
+                  "fixtures":{"played":{"home":19,"away":19,"total":38},
+                              "wins":{"home":15,"away":13,"total":28},
+                              "draws":{"home":2,"away":3,"total":5},
+                              "loses":{"home":2,"away":3,"total":5}},
+                  "goals":{"for":{"total":{"home":50,"away":44,"total":94},
+                                  "average":{"home":"2.6","away":"2.3","total":"2.47"}},
+                           "against":{"total":{"home":15,"away":18,"total":33},
+                                      "average":{"home":"0.8","away":"0.9","total":"0.87"}}},
+                  "clean_sheet":{"home":10,"away":8,"total":18},
+                  "failed_to_score":{"home":1,"away":2,"total":3},
+                  "cards":{"yellow":{"0-15":{"total":5,"percentage":"8%"},"16-30":{"total":7,"percentage":"11%"}},
+                           "red":{"76-90":{"total":2,"percentage":"100%"}}}
+                }]}""";
+        TeamSeasonStatsDto s = ApiFootballMapper.toTeamSeasonStats(parse(body, TeamStatisticsItem.class).get(0));
+
+        assertEquals(50L, s.teamId());
+        assertEquals(39L, s.leagueId());
+        assertEquals(2023, s.seasonYear());
+        assertEquals("WWDLW", s.form());
+        assertEquals(38, s.playedTotal());
+        assertEquals(28, s.winsTotal());
+        assertEquals(94, s.goalsForTotal());
+        assertEquals(new BigDecimal("2.47"), s.goalsForAvgTotal());
+        assertEquals(33, s.goalsAgainstTotal());
+        assertEquals(18, s.cleanSheetTotal());
+        assertEquals(12, s.yellowCardsTotal());   // 5 + 7 din bucket-uri
+        assertEquals(2, s.redCardsTotal());
+    }
+
+    @Test
+    void players_mapProfileAndSeasonStats() throws Exception {
+        String body = """
+                {"response":[{
+                  "player":{"id":874,"name":"Marcus Rashford","firstname":"Marcus","lastname":"Rashford","age":26,
+                    "birth":{"date":"1997-10-31","place":"Manchester","country":"England"},
+                    "nationality":"England","height":"180 cm","weight":"70 kg","injured":false,"photo":"r.png"},
+                  "statistics":[{
+                    "team":{"id":33},"league":{"id":39,"season":2023},
+                    "games":{"position":"Attacker","appearences":33,"lineups":30,"minutes":2600,"rating":"6.8","captain":false},
+                    "goals":{"total":8,"conceded":null,"assists":5,"saves":null},
+                    "shots":{"total":60,"on":25},"passes":{"total":700,"key":30,"accuracy":78},
+                    "cards":{"yellow":3,"yellowred":0,"red":0},"penalty":{"scored":2}}]
+                }]}""";
+        PlayerSezonDto ps = ApiFootballMapper.toPlayerSezon(parse(body, PlayerItem.class).get(0));
+
+        assertEquals(874L, ps.profil().id());
+        assertEquals("Marcus Rashford", ps.profil().name());
+        assertEquals(LocalDate.of(1997, 10, 31), ps.profil().birthDate());
+        assertEquals("r.png", ps.profil().photo());
+        assertEquals(1, ps.statistici().size());
+        assertEquals(874L, ps.statistici().get(0).playerId());
+        assertEquals(33L, ps.statistici().get(0).teamId());
+        assertEquals(39L, ps.statistici().get(0).leagueId());
+        assertEquals(2023, ps.statistici().get(0).seasonYear());
+        assertEquals(8, ps.statistici().get(0).goalsTotal());
+        assertEquals(new BigDecimal("6.8"), ps.statistici().get(0).rating());
+        assertEquals(3, ps.statistici().get(0).cardsYellow());
+        assertEquals(2, ps.statistici().get(0).penaltyScored());
+    }
+
+    @Test
+    void coach_mapsAndDetectsCurrent() throws Exception {
+        String body = """
+                {"response":[{
+                  "id":18,"name":"Erik ten Hag","firstname":"Erik","lastname":"ten Hag",
+                  "nationality":"Netherlands","photo":"eth.png","team":{"id":33},
+                  "career":[{"team":{"id":33},"start":"2022-07-01","end":null},
+                            {"team":{"id":492},"start":"2017-01-01","end":"2022-06-30"}]
+                }]}""";
+        CoachItem item = parse(body, CoachItem.class).get(0);
+        CoachDto coach = ApiFootballMapper.toCoach(item);
+
+        assertEquals(18L, coach.id());
+        assertEquals("Erik ten Hag", coach.name());
+        assertEquals("Netherlands", coach.nationality());
+        assertTrue(ApiFootballMapper.esteAntrenorCurent(item, 33L));
+        assertTrue(!ApiFootballMapper.esteAntrenorCurent(item, 492L));
     }
 
     @Test

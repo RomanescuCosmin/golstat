@@ -1,6 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import { ThemeToggle } from '../ui/ThemeToggle';
-import { IconSearch } from '../ui/icons';
+import { CautareEchipe } from './CautareEchipe';
 
 function Logo() {
   // Cerc din trei arce colorate (albastru / rosu / navy), ca in design.
@@ -42,7 +42,10 @@ export function TopNav() {
               •
             </span>
           </NavLink>
-          {['Competiții', 'Statistici', 'Echipe'].map((eticheta) => (
+          <NavLink to="/program" className={tabClasa}>
+            Program
+          </NavLink>
+          {['Competiții', 'Statistici'].map((eticheta) => (
             <span
               key={eticheta}
               title="În curând"
@@ -55,16 +58,7 @@ export function TopNav() {
         </nav>
 
         <div className="ml-auto flex items-center gap-2 lg:gap-3">
-          <div className="relative hidden lg:block">
-            <IconSearch className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink2" width={16} height={16} />
-            <input
-              type="search"
-              placeholder="Caută echipe, competiții…"
-              disabled
-              title="În curând"
-              className="h-9 w-56 rounded-full border border-line bg-bg pl-9 pr-3 text-sm text-ink placeholder:text-ink2 focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:cursor-not-allowed"
-            />
-          </div>
+          <CautareEchipe />
 
           <ThemeToggle />
 

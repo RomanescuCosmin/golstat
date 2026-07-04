@@ -6,6 +6,7 @@ import ro.golstat.common.GolstatConstants;
 import ro.golstat.common.dto.FixtureDto;
 import ro.golstat.common.dto.FixtureEventDto;
 import ro.golstat.common.dto.FixtureLineupDto;
+import ro.golstat.common.dto.FixtureLiveDto;
 import ro.golstat.common.dto.FixtureTeamStatsDto;
 import ro.golstat.common.dto.InjuryDto;
 import ro.golstat.common.dto.LeagueDto;
@@ -71,7 +72,7 @@ public class StubDataProvider implements DataProvider {
     }
 
     @Override
-    public List<FixtureDto> liveFixtures() {
+    public List<FixtureLiveDto> liveFixtures() {
         return List.of();   // stub-ul nu simuleaza meciuri live
     }
 

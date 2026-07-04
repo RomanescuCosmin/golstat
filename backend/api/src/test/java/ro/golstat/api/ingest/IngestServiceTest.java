@@ -27,20 +27,28 @@ import ro.golstat.api.repository.FixtureRepository;
 import ro.golstat.api.repository.FixtureTeamStatsRepository;
 import ro.golstat.api.repository.InjuryRepository;
 import ro.golstat.api.repository.LeagueRepository;
+import ro.golstat.api.entity.PlayerSeasonStats;
+import ro.golstat.api.entity.TeamSeasonStats;
 import ro.golstat.api.repository.PlayerRepository;
+import ro.golstat.api.repository.PlayerSeasonStatsRepository;
 import ro.golstat.api.repository.SeasonRepository;
 import ro.golstat.api.repository.StandingRepository;
 import ro.golstat.api.repository.TeamRepository;
+import ro.golstat.api.repository.TeamSeasonStatsRepository;
 import ro.golstat.api.repository.VenueRepository;
+import ro.golstat.common.dto.CoachDto;
 import ro.golstat.common.dto.FixtureDto;
 import ro.golstat.common.dto.FixtureEventDto;
 import ro.golstat.common.dto.FixtureLineupDto;
 import ro.golstat.common.dto.FixtureLineupPlayerDto;
 import ro.golstat.common.dto.FixtureTeamStatsDto;
 import ro.golstat.common.dto.InjuryDto;
+import ro.golstat.common.dto.PlayerDto;
+import ro.golstat.common.dto.PlayerSeasonStatsDto;
 import ro.golstat.common.dto.SeasonDto;
 import ro.golstat.common.dto.StandingDto;
 import ro.golstat.common.dto.TeamDto;
+import ro.golstat.common.dto.TeamSeasonStatsDto;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -71,6 +79,8 @@ class IngestServiceTest {
     @Mock InjuryRepository injuries;
     @Mock PlayerRepository players;
     @Mock CoachRepository coaches;
+    @Mock TeamSeasonStatsRepository teamSeasonStats;
+    @Mock PlayerSeasonStatsRepository playerSeasonStats;
     @InjectMocks IngestService ingest;
 
     private static FixtureDto fixture(long id, long home, long away) {
@@ -259,6 +269,61 @@ class IngestServiceTest {
     void ingestInjuries_empty_doesNothing() {
         ingest.ingestInjuries(List.of());
         verifyNoInteractions(injuries);
+    }
+
+    @Test
+    void ingestPlayers_savesEach() {
+        ingest.ingestPlayers(List.of(
+                new PlayerDto(617L, "E. Haaland", null, null, null, null, null, null, null, null, null, null, "h.png"),
+                new PlayerDto(618L, "K. De Bruyne", null, null, null, null, null, null, null, null, null, null, "kdb.png")));
+        verify(players, times(2)).save(any(Player.class));
+    }
+
+    @Test
+    void ingestCoach_saves() {
+        ingest.ingestCoach(new CoachDto(900L, "P. Guardiola", null, null, null, null, null));
+        verify(coaches).save(any(Coach.class));
+    }
+
+    @Test
+    void ingestTeamSeasonStats_ensuresParentsThenSaves() {
+        when(teams.existsById(1L)).thenReturn(false);
+        ingest.ingestTeamSeasonStats(teamSeasonStats(1L, 39L, 2023));
+        verify(teams).save(any(Team.class));       // echipa placeholder
+        verify(seasons).save(any(Season.class));   // sezon placeholder
+        verify(teamSeasonStats).save(any(TeamSeasonStats.class));
+    }
+
+    @Test
+    void ingestPlayerSeasonStats_ensuresPlayerThenSaves() {
+        when(players.existsById(anyLong())).thenReturn(false);
+        when(teams.existsById(anyLong())).thenReturn(true);
+        ingest.ingestPlayerSeasonStats(List.of(
+                playerSeasonStats(617L, 1L, 39L, 2023), playerSeasonStats(618L, 1L, 39L, 2023)));
+        verify(players, times(2)).save(any(Player.class));   // FK dur pe player_id → placeholder
+        verify(playerSeasonStats, times(2)).save(any(PlayerSeasonStats.class));
+    }
+
+    @Test
+    void ingestPlayerSeasonStats_empty_doesNothing() {
+        ingest.ingestPlayerSeasonStats(List.of());
+        verifyNoInteractions(playerSeasonStats);
+    }
+
+    private static TeamSeasonStatsDto teamSeasonStats(long teamId, long leagueId, int season) {
+        return new TeamSeasonStatsDto(teamId, leagueId, season, "WWDLW",
+                null, null, 38, null, null, 28, null, null, 5, null, null, 5,
+                null, null, 94, null, null, java.math.BigDecimal.valueOf(2.47),
+                null, null, 33, null, null, null,
+                null, null, 18, null, null, null, 60, 2);
+    }
+
+    private static PlayerSeasonStatsDto playerSeasonStats(long playerId, long teamId, long leagueId, int season) {
+        return new PlayerSeasonStatsDto(playerId, teamId, leagueId, season, "Attacker",
+                30, 28, 2500, java.math.BigDecimal.valueOf(7.5), false,
+                20, null, 8, null, 60, 30, 800, 40, 85,
+                null, null, null, null, null, null, null, null, null, 3, 0, 0,
+                null, null, null, null, null);
     }
 
     @Test

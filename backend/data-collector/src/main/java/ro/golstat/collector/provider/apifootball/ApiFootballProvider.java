@@ -4,17 +4,22 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import ro.golstat.collector.provider.DataProvider;
 import ro.golstat.common.GolstatConstants;
+import ro.golstat.common.dto.CoachDto;
 import ro.golstat.common.dto.FixtureDto;
 import ro.golstat.common.dto.FixtureEventDto;
 import ro.golstat.common.dto.FixtureLineupDto;
+import ro.golstat.common.dto.FixtureLiveDto;
 import ro.golstat.common.dto.FixtureTeamStatsDto;
 import ro.golstat.common.dto.InjuryDto;
 import ro.golstat.common.dto.LeagueDto;
+import ro.golstat.common.dto.PlayerSezonDto;
 import ro.golstat.common.dto.SeasonDto;
 import ro.golstat.common.dto.StandingDto;
 import ro.golstat.common.dto.TeamDto;
+import ro.golstat.common.dto.TeamSeasonStatsDto;
 import ro.golstat.common.dto.VenueDto;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -84,11 +89,49 @@ public class ApiFootballProvider implements DataProvider {
     }
 
     @Override
-    public List<FixtureDto> liveFixtures() {
+    public List<FixtureLiveDto> liveFixtures() {
         // `live=all` → toate meciurile live din lume intr-un singur request; ttl=0 = fara cache.
+        // Evenimentele vin INLINE (gratis) → le pastram in FixtureLiveDto.
         return client.get(GolstatConstants.ApiFootball.FIXTURES, Map.of("live", "all"),
-                        FixtureItem.class, java.time.Duration.ZERO).stream()
-                .map(ApiFootballMapper::toFixture)
+                        FixtureItem.class, Duration.ZERO).stream()
+                .map(ApiFootballMapper::toFixtureLive)
+                .toList();
+    }
+
+    @Override
+    public List<FixtureTeamStatsDto> liveFixtureStatistics(long fixtureId) {
+        // statisticile se schimba in timpul jocului → TTL 0 (ocoleste cache-ul istoric de 24h).
+        return client.get(GolstatConstants.ApiFootball.FIXTURES_STATISTICS, Map.of("fixture", fixtureId),
+                        StatisticsItem.class, Duration.ZERO).stream()
+                .map(s -> ApiFootballMapper.toFixtureTeamStats(s, fixtureId))
+                .toList();
+    }
+
+    @Override
+    public List<TeamSeasonStatsDto> teamStatistics(long leagueId, int season, long teamId) {
+        Map<String, Object> params = Map.of("league", leagueId, "season", season, "team", teamId);
+        return client.get(GolstatConstants.ApiFootball.TEAMS_STATISTICS, params,
+                        TeamStatisticsItem.class, props.ttlTeamStats()).stream()
+                .map(ApiFootballMapper::toTeamSeasonStats)
+                .toList();
+    }
+
+    @Override
+    public List<PlayerSezonDto> players(long teamId, int season) {
+        Map<String, Object> params = Map.of("team", teamId, "season", season);
+        return client.getPaged(GolstatConstants.ApiFootball.PLAYERS, params,
+                        PlayerItem.class, props.ttlPlayers()).stream()
+                .map(ApiFootballMapper::toPlayerSezon)
+                .toList();
+    }
+
+    @Override
+    public List<CoachDto> coaches(long teamId) {
+        // /coachs?team=X → antrenorii legati de echipa; pastram doar pe cel CURENT (career end==null pe X).
+        return client.get(GolstatConstants.ApiFootball.COACHS, Map.of("team", teamId),
+                        CoachItem.class, props.ttlCoaches()).stream()
+                .filter(c -> ApiFootballMapper.esteAntrenorCurent(c, teamId))
+                .map(ApiFootballMapper::toCoach)
                 .toList();
     }
 

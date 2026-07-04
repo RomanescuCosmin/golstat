@@ -18,7 +18,10 @@ public record ApiFootballProperties(
         Integer dailyRequestLimit,
         Duration cacheTtl,
         Duration ttlUpcoming,
-        Duration ttlHistoric) {
+        Duration ttlHistoric,
+        Duration ttlTeamStats,
+        Duration ttlPlayers,
+        Duration ttlCoaches) {
 
     public ApiFootballProperties {
         if (dailyRequestLimit == null) {
@@ -32,6 +35,15 @@ public record ApiFootballProperties(
         }
         if (ttlHistoric == null) {
             ttlHistoric = Duration.ofHours(24);
+        }
+        if (ttlTeamStats == null) {
+            ttlTeamStats = Duration.ofHours(20);   // statisticile de sezon se schimba lent
+        }
+        if (ttlPlayers == null) {
+            ttlPlayers = Duration.ofDays(7);
+        }
+        if (ttlCoaches == null) {
+            ttlCoaches = Duration.ofDays(7);
         }
     }
 }

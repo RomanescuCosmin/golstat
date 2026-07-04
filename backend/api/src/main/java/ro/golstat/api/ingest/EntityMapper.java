@@ -1,5 +1,6 @@
 package ro.golstat.api.ingest;
 
+import ro.golstat.api.entity.Coach;
 import ro.golstat.api.entity.Fixture;
 import ro.golstat.api.entity.FixtureEvent;
 import ro.golstat.api.entity.FixtureLineup;
@@ -7,10 +8,14 @@ import ro.golstat.api.entity.FixtureLineupPlayer;
 import ro.golstat.api.entity.FixtureTeamStats;
 import ro.golstat.api.entity.Injury;
 import ro.golstat.api.entity.League;
+import ro.golstat.api.entity.Player;
+import ro.golstat.api.entity.PlayerSeasonStats;
 import ro.golstat.api.entity.Season;
 import ro.golstat.api.entity.Standing;
 import ro.golstat.api.entity.Team;
+import ro.golstat.api.entity.TeamSeasonStats;
 import ro.golstat.api.entity.Venue;
+import ro.golstat.common.dto.CoachDto;
 import ro.golstat.common.dto.FixtureDto;
 import ro.golstat.common.dto.FixtureEventDto;
 import ro.golstat.common.dto.FixtureLineupDto;
@@ -18,9 +23,12 @@ import ro.golstat.common.dto.FixtureLineupPlayerDto;
 import ro.golstat.common.dto.FixtureTeamStatsDto;
 import ro.golstat.common.dto.InjuryDto;
 import ro.golstat.common.dto.LeagueDto;
+import ro.golstat.common.dto.PlayerDto;
+import ro.golstat.common.dto.PlayerSeasonStatsDto;
 import ro.golstat.common.dto.SeasonDto;
 import ro.golstat.common.dto.StandingDto;
 import ro.golstat.common.dto.TeamDto;
+import ro.golstat.common.dto.TeamSeasonStatsDto;
 import ro.golstat.common.dto.VenueDto;
 
 /** Mapare DTO (din Kafka) → entitate JPA. Pura, fara efecte secundare. */
@@ -190,6 +198,118 @@ final class EntityMapper {
         i.setReason(d.reason());
         i.setReportedAt(d.reportedAt());
         return i;
+    }
+
+    static Player toPlayer(PlayerDto d) {
+        Player p = new Player();
+        p.setId(d.id());
+        p.setName(d.name());
+        p.setFirstname(d.firstname());
+        p.setLastname(d.lastname());
+        p.setAge(d.age());
+        p.setBirthDate(d.birthDate());
+        p.setBirthPlace(d.birthPlace());
+        p.setBirthCountry(d.birthCountry());
+        p.setNationality(d.nationality());
+        p.setHeight(d.height());
+        p.setWeight(d.weight());
+        p.setIsInjured(d.isInjured());
+        p.setPhoto(d.photo());
+        return p;
+    }
+
+    static Coach toCoach(CoachDto d) {
+        Coach c = new Coach();
+        c.setId(d.id());
+        c.setName(d.name());
+        c.setFirstname(d.firstname());
+        c.setLastname(d.lastname());
+        c.setAge(d.age());
+        c.setNationality(d.nationality());
+        c.setPhoto(d.photo());
+        return c;
+    }
+
+    static TeamSeasonStats toTeamSeasonStats(TeamSeasonStatsDto d) {
+        TeamSeasonStats s = new TeamSeasonStats();
+        s.setTeamId(d.teamId());
+        s.setLeagueId(d.leagueId());
+        s.setSeasonYear(d.seasonYear());
+        s.setForm(d.form());
+        s.setPlayedHome(d.playedHome());
+        s.setPlayedAway(d.playedAway());
+        s.setPlayedTotal(d.playedTotal());
+        s.setWinsHome(d.winsHome());
+        s.setWinsAway(d.winsAway());
+        s.setWinsTotal(d.winsTotal());
+        s.setDrawsHome(d.drawsHome());
+        s.setDrawsAway(d.drawsAway());
+        s.setDrawsTotal(d.drawsTotal());
+        s.setLosesHome(d.losesHome());
+        s.setLosesAway(d.losesAway());
+        s.setLosesTotal(d.losesTotal());
+        s.setGoalsForHome(d.goalsForHome());
+        s.setGoalsForAway(d.goalsForAway());
+        s.setGoalsForTotal(d.goalsForTotal());
+        s.setGoalsForAvgHome(d.goalsForAvgHome());
+        s.setGoalsForAvgAway(d.goalsForAvgAway());
+        s.setGoalsForAvgTotal(d.goalsForAvgTotal());
+        s.setGoalsAgainstHome(d.goalsAgainstHome());
+        s.setGoalsAgainstAway(d.goalsAgainstAway());
+        s.setGoalsAgainstTotal(d.goalsAgainstTotal());
+        s.setGoalsAgainstAvgHome(d.goalsAgainstAvgHome());
+        s.setGoalsAgainstAvgAway(d.goalsAgainstAvgAway());
+        s.setGoalsAgainstAvgTotal(d.goalsAgainstAvgTotal());
+        s.setCleanSheetHome(d.cleanSheetHome());
+        s.setCleanSheetAway(d.cleanSheetAway());
+        s.setCleanSheetTotal(d.cleanSheetTotal());
+        s.setFailedToScoreHome(d.failedToScoreHome());
+        s.setFailedToScoreAway(d.failedToScoreAway());
+        s.setFailedToScoreTotal(d.failedToScoreTotal());
+        s.setYellowCardsTotal(d.yellowCardsTotal());
+        s.setRedCardsTotal(d.redCardsTotal());
+        return s;
+    }
+
+    static PlayerSeasonStats toPlayerSeasonStats(PlayerSeasonStatsDto d) {
+        PlayerSeasonStats s = new PlayerSeasonStats();
+        s.setPlayerId(d.playerId());
+        s.setTeamId(d.teamId());
+        s.setLeagueId(d.leagueId());
+        s.setSeasonYear(d.seasonYear());
+        s.setPosition(d.position());
+        s.setAppearances(d.appearances());
+        s.setLineups(d.lineups());
+        s.setMinutes(d.minutes());
+        s.setRating(d.rating());
+        s.setCaptain(d.captain());
+        s.setGoalsTotal(d.goalsTotal());
+        s.setGoalsConceded(d.goalsConceded());
+        s.setGoalsAssists(d.goalsAssists());
+        s.setGoalsSaves(d.goalsSaves());
+        s.setShotsTotal(d.shotsTotal());
+        s.setShotsOn(d.shotsOn());
+        s.setPassesTotal(d.passesTotal());
+        s.setPassesKey(d.passesKey());
+        s.setPassesAccuracy(d.passesAccuracy());
+        s.setTacklesTotal(d.tacklesTotal());
+        s.setTacklesBlocks(d.tacklesBlocks());
+        s.setTacklesIntercep(d.tacklesIntercep());
+        s.setDuelsTotal(d.duelsTotal());
+        s.setDuelsWon(d.duelsWon());
+        s.setDribblesAttempts(d.dribblesAttempts());
+        s.setDribblesSuccess(d.dribblesSuccess());
+        s.setFoulsDrawn(d.foulsDrawn());
+        s.setFoulsCommitted(d.foulsCommitted());
+        s.setCardsYellow(d.cardsYellow());
+        s.setCardsYellowred(d.cardsYellowred());
+        s.setCardsRed(d.cardsRed());
+        s.setPenaltyWon(d.penaltyWon());
+        s.setPenaltyCommitted(d.penaltyCommitted());
+        s.setPenaltyScored(d.penaltyScored());
+        s.setPenaltyMissed(d.penaltyMissed());
+        s.setPenaltySaved(d.penaltySaved());
+        return s;
     }
 
     static FixtureTeamStats toFixtureTeamStats(FixtureTeamStatsDto d) {

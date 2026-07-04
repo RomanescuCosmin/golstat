@@ -8,11 +8,14 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import ro.golstat.api.entity.Fixture;
+import ro.golstat.api.entity.FixtureTeamStats;
 import ro.golstat.api.entity.Player;
 import ro.golstat.api.entity.PlayerSeasonStats;
 import ro.golstat.api.entity.Standing;
 import ro.golstat.api.entity.Team;
 import ro.golstat.api.entity.TeamSeasonStats;
+import ro.golstat.api.stats.CountAverage;
+import ro.golstat.api.stats.GoalAverage;
 import ro.golstat.api.repository.CoachRepository;
 import ro.golstat.api.repository.FixtureEventRepository;
 import ro.golstat.api.repository.FixtureLineupRepository;
@@ -83,6 +86,33 @@ class TeamServiceTest {
         s.setYellowCardsTotal(60);
         s.setRedCardsTotal(2);
         return s;
+    }
+
+    @Test
+    void cauta_subDouaCaractere_returneazaGol() {
+        List<RezultatCautareDto> r = service.cauta("m");
+
+        assertTrue(r.isEmpty());
+        org.mockito.Mockito.verifyNoInteractions(teams);
+    }
+
+    @Test
+    void cauta_mapeazaSiTrimiteTermenLowercase() {
+        Team club = team(50L, "Manchester City");
+        club.setIsNational(false);
+        Team nat = team(768L, "Romania");
+        nat.setIsNational(true);
+        nat.setCountryName("Romania");
+        when(teams.search(eq("man"), any())).thenReturn(List.of(club, nat));
+
+        List<RezultatCautareDto> r = service.cauta("  MAN ");
+
+        assertEquals(2, r.size());
+        assertEquals(50L, r.get(0).teamId());
+        assertEquals("Manchester City", r.get(0).nume());
+        assertEquals("England", r.get(0).tara());
+        assertTrue(!r.get(0).nationala());
+        assertTrue(r.get(1).nationala());
     }
 
     @Test
@@ -253,5 +283,106 @@ class TeamServiceTest {
         p.setName(nume);
         p.setPhoto(foto);
         return p;
+    }
+
+    private static FixtureTeamStats teamStat(Integer cornere, Integer faulturi, Integer galbene, Integer rosii) {
+        FixtureTeamStats s = new FixtureTeamStats();
+        s.setCornerKicks(cornere);
+        s.setFouls(faulturi);
+        s.setYellowCards(galbene);
+        s.setRedCards(rosii);
+        return s;
+    }
+
+    private static GoalAverage golAvg(Double gazde, Double oaspeti) {
+        return new GoalAverage() {
+            public Double getAvgGazde() { return gazde; }
+            public Double getAvgOaspeti() { return oaspeti; }
+        };
+    }
+
+    private static CountAverage countAvg(Double cornere, Double faulturi, Double cartonase) {
+        return new CountAverage() {
+            public Double getAvgCornere() { return cornere; }
+            public Double getAvgFaulturi() { return faulturi; }
+            public Double getAvgCartonase() { return cartonase; }
+        };
+    }
+
+    @Test
+    void statProcente_procentRelativLaLiga_plafonSiOmitere() {
+        TeamSeasonStats s = seasonStats(1L, 39L, 2023);
+        s.setGoalsForAvgTotal(java.math.BigDecimal.valueOf(6.0)); // medie echipa goluri = 6.0
+        when(teams.findById(1L)).thenReturn(Optional.of(team(1L, "Man City")));
+        when(teamSeasonStats.findByTeamId(1L)).thenReturn(List.of(s));
+        when(teamSeasonStats.findByTeamIdAndLeagueIdAndSeasonYear(1L, 39L, 2023)).thenReturn(Optional.of(s));
+        when(standings.findByLeagueIdAndSeasonYearAndTeamId(39L, 2023, 1L)).thenReturn(Optional.empty());
+        when(standings.findByLeagueIdAndSeasonYearOrderByRankAsc(39L, 2023)).thenReturn(List.of());
+        when(fixtures.findRecentForTeam(eq(1L), any(), any(), any())).thenReturn(List.of());
+        when(fixtures.findNextForTeam(eq(1L), any(), any(), any())).thenReturn(List.of());
+        when(lineups.recentCoachIds(eq(1L), any())).thenReturn(List.of());
+        when(events.goalMinutes(anyLong(), anyLong(), anyInt(), any(), any())).thenReturn(List.of());
+        when(playerSeasonStats.findByTeamIdAndLeagueIdAndSeasonYear(1L, 39L, 2023)).thenReturn(List.of());
+        // media ligii goluri = (5.0+5.0)/2 = 5.0 → 100×6/(2×5) = 60%
+        when(fixtures.avgGoals(eq(39L), eq(2023), any())).thenReturn(golAvg(5.0, 5.0));
+        // cornere echipa 10 (medie), liga 3 → 100×10/6 = 166 → plafon 100; faulturi liga null → omis
+        when(teamStats.findForTeamSeason(eq(1L), eq(39L), eq(2023), any()))
+                .thenReturn(List.of(teamStat(10, null, 2, 0)));
+        when(teamStats.avgCounts(eq(39L), eq(2023), any())).thenReturn(countAvg(3.0, null, 4.0));
+
+        PaginaEchipaDto dto = service.pagina(1L, 39L, 2023);
+
+        var proc = dto.statProcente();
+        PaginaEchipaDto.StatProcent goluri = proc.stream().filter(p -> p.categorie().equals("GOLURI")).findFirst().orElseThrow();
+        assertEquals(60, goluri.procent());
+        assertEquals(6.0, goluri.medieEchipa());
+        assertEquals(5.0, goluri.medieLiga());
+        PaginaEchipaDto.StatProcent cornere = proc.stream().filter(p -> p.categorie().equals("CORNERE")).findFirst().orElseThrow();
+        assertEquals(100, cornere.procent());
+        // faulturi omis (media ligii null)
+        assertTrue(proc.stream().noneMatch(p -> p.categorie().equals("FAULTURI")));
+    }
+
+    @Test
+    void rezultateRecente_folosesteFereastraDe10() {
+        when(teams.findById(1L)).thenReturn(Optional.of(team(1L, "Man City")));
+        when(teamSeasonStats.findByTeamId(1L)).thenReturn(List.of());
+        when(fixtures.findNextForTeam(eq(1L), any(), any(), any())).thenReturn(List.of());
+        when(lineups.recentCoachIds(eq(1L), any())).thenReturn(List.of());
+        when(fixtures.findRecentForTeam(eq(1L), any(), any(), any())).thenReturn(List.of());
+        when(teamStats.findForTeamSeason(anyLong(), anyLong(), anyInt(), any())).thenReturn(List.of());
+        when(events.goalMinutes(anyLong(), anyLong(), anyInt(), any(), any())).thenReturn(List.of());
+        when(playerSeasonStats.findByTeamIdAndLeagueIdAndSeasonYear(anyLong(), anyLong(), anyInt())).thenReturn(List.of());
+        when(standings.findByLeagueIdAndSeasonYearOrderByRankAsc(anyLong(), anyInt())).thenReturn(List.of());
+
+        service.pagina(1L, null, null);
+
+        // forma cere 5, rezultateRecente cere 10 — verificam ca ambele limite ajung la repository
+        org.mockito.Mockito.verify(fixtures).findRecentForTeam(eq(1L), any(), any(),
+                eq(org.springframework.data.domain.PageRequest.of(0, 5)));
+        org.mockito.Mockito.verify(fixtures).findRecentForTeam(eq(1L), any(), any(),
+                eq(org.springframework.data.domain.PageRequest.of(0, 10)));
+    }
+
+    @Test
+    void sezoane_reuniuneStatisticiSiMeciuri_descrescator() {
+        when(teams.findById(1L)).thenReturn(Optional.of(team(1L, "Man City")));
+        when(teamSeasonStats.findByTeamId(1L)).thenReturn(List.of(
+                seasonStats(1L, 39L, 2023), seasonStats(1L, 39L, 2022)));
+        when(teamSeasonStats.findByTeamIdAndLeagueIdAndSeasonYear(1L, 39L, 2023))
+                .thenReturn(Optional.of(seasonStats(1L, 39L, 2023)));
+        when(standings.findByLeagueIdAndSeasonYearAndTeamId(39L, 2023, 1L)).thenReturn(Optional.empty());
+        when(standings.findByLeagueIdAndSeasonYearOrderByRankAsc(39L, 2023)).thenReturn(List.of());
+        when(fixtures.findRecentForTeam(eq(1L), any(), any(), any())).thenReturn(List.of());
+        when(fixtures.findNextForTeam(eq(1L), any(), any(), any())).thenReturn(List.of());
+        when(lineups.recentCoachIds(eq(1L), any())).thenReturn(List.of());
+        when(teamStats.findForTeamSeason(anyLong(), anyLong(), anyInt(), any())).thenReturn(List.of());
+        when(events.goalMinutes(anyLong(), anyLong(), anyInt(), any(), any())).thenReturn(List.of());
+        when(playerSeasonStats.findByTeamIdAndLeagueIdAndSeasonYear(1L, 39L, 2023)).thenReturn(List.of());
+        when(fixtures.distinctSeasons(1L)).thenReturn(List.of(2024, 2023));
+
+        PaginaEchipaDto dto = service.pagina(1L, null, null);
+
+        assertEquals(List.of(2024, 2023, 2022), dto.sezoane());
     }
 }
