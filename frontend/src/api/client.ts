@@ -1,4 +1,4 @@
-import type { MeciCentral, MeciLive, PaginaEchipa, PredictieMeciDto, PrevizualizareMeciDto, Program, ProgramZiGrupat, RezultatCautare } from './types';
+import type { MeciCentral, MeciLive, PaginaCompetitie, PaginaEchipa, PaginaJucator, PredictieMeciDto, PrevizualizareMeciDto, Program, ProgramZiGrupat, RezultatCautare, StatisticiLiga } from './types';
 
 const BASE = '/api';
 
@@ -94,4 +94,20 @@ export function getEchipa(teamId: number, leagueId?: number, sezon?: number): Pr
   if (sezon != null) params.set('sezon', String(sezon));
   const qs = params.toString();
   return request<PaginaEchipa>(`/v1/echipe/${teamId}${qs ? `?${qs}` : ''}`);
+}
+
+/** Pagina unei competiții: clasament, golgheteri/pasatori, rezultate, program. `sezon` opțional (default = ultimul jucat). */
+export function getCompetitie(leagueId: number, sezon?: number): Promise<PaginaCompetitie> {
+  const qs = sezon != null ? `?sezon=${sezon}` : '';
+  return request<PaginaCompetitie>(`/v1/competitii/${leagueId}${qs}`);
+}
+
+/** Clasamentul de tendințe pe ligi (medii goluri/cornere/faulturi/cartonașe) pentru pagina Statistici. */
+export function getStatisticiLigi(): Promise<StatisticiLiga[]> {
+  return request<StatisticiLiga[]>('/v1/statistici/ligi');
+}
+
+/** Profilul unui jucător: identitate + statistici pe sezoane. */
+export function getJucator(playerId: number): Promise<PaginaJucator> {
+  return request<PaginaJucator>(`/v1/jucatori/${playerId}`);
 }

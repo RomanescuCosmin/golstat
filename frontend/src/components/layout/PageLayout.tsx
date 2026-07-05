@@ -13,7 +13,7 @@ interface PageLayoutProps {
  */
 export function PageLayout({ children, rightRail }: PageLayoutProps) {
   return (
-    <div className="mx-auto flex max-w-7xl items-start gap-5 lg:gap-6">
+    <div className="mx-auto flex max-w-[1640px] items-start gap-5 lg:gap-6">
       <div className="min-w-0 flex-1">{children}</div>
       {rightRail && <aside className="hidden w-80 shrink-0 space-y-5 xl:block">{rightRail}</aside>}
     </div>

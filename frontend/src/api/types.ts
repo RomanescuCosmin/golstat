@@ -192,10 +192,10 @@ export interface StatisticiEchipaMeci {
   xg: number | null;
 }
 
-/** Statisticile ambelor echipe pentru un meci. */
+/** Statisticile ambelor echipe pentru un meci; `null` = necolectat pentru echipa respectiva. */
 export interface StatisticiMeci {
-  gazde: StatisticiEchipaMeci;
-  oaspeti: StatisticiEchipaMeci;
+  gazde: StatisticiEchipaMeci | null;
+  oaspeti: StatisticiEchipaMeci | null;
 }
 
 /** Un eveniment din cronologia meciului; `tip`: "Goal" / "Card" / "subst" / "Var". */
@@ -294,7 +294,14 @@ export interface Program {
 
 /* ─────────────────────────── Meciurile zilei (prima pagina) ─────────────────────────── */
 
-/** Un meci dintr-o zi (orice status): scor + status, ca sa fie randat direct (ora/scor live/scor final). */
+/** Sansele 1X2 pentru bara de probabilitate; `null` cand nu se poate calcula. */
+export interface Predictie1X2 {
+  gazde: ProcentCota;
+  egal: ProcentCota;
+  oaspeti: ProcentCota;
+}
+
+/** Un meci dintr-o zi (orice status): scor + status + predictie 1X2, ca sa fie randat direct. */
 export interface MeciZiGrupat {
   fixtureId: number;
   /** OffsetDateTime serializat ISO-8601. */
@@ -307,6 +314,10 @@ export interface MeciZiGrupat {
   inDesfasurare: boolean;
   terminat: boolean;
   minut: number | null;
+  /** Runda competitiei (text liber din sursa, ex. "Regular Season - 12"); poate lipsi. */
+  runda: string | null;
+  /** Predictia 1X2 pentru bara de probabilitate; `null` cand nu se poate calcula (ex. fara istoric). */
+  predictie: Predictie1X2 | null;
 }
 
 /** O competitie dintr-o zi cu meciurile ei; nume/tara/logo pot lipsi daca liga nu e in DB. */
@@ -363,6 +374,9 @@ export interface MeciForma {
   golMarcate: number | null;
   golPrimite: number | null;
   rezultat: 'V' | 'E' | 'I';
+  liga: string | null;
+  ligaLogo: string | null;
+  runda: string | null;
 }
 
 export interface MeciScurt {
@@ -371,6 +385,9 @@ export interface MeciScurt {
   kickoff: string;
   adversar: EchipaDto;
   acasa: boolean;
+  liga: string | null;
+  ligaLogo: string | null;
+  runda: string | null;
 }
 
 export interface RandClasament {
@@ -379,8 +396,11 @@ export interface RandClasament {
   nume: string | null;
   logo: string | null;
   jucate: number | null;
-  puncte: number | null;
+  victorii: number | null;
+  egaluri: number | null;
+  infrangeri: number | null;
   golaveraj: number | null;
+  puncte: number | null;
   echipaCurenta: boolean;
 }
 
@@ -395,10 +415,11 @@ export interface StatBareSezon {
   preciziePase: number | null;
 }
 
-/** Un interval de 15 minute cu numarul de goluri marcate in el; `interval`: "0-15" … "90+". */
+/** Un interval de 15 minute cu golurile marcate si primite in el; `interval`: "0-15" … "90+". */
 export interface BucketGoluri {
   interval: string;
-  goluri: number;
+  marcate: number;
+  primite: number;
 }
 
 /** Un jucator cu o valoare-cheie (goluri / pase decisive / minute / cartonase). */
@@ -413,7 +434,8 @@ export interface TopJucatori {
   golgheter: JucatorStat | null;
   pasator: JucatorStat | null;
   minute: JucatorStat | null;
-  cartonase: JucatorStat | null;
+  galbene: JucatorStat | null;
+  rosii: JucatorStat | null;
 }
 
 /** O categorie de statistici cu procent relativ la media ligii (50% = media ligii). */
@@ -437,4 +459,94 @@ export interface PaginaEchipa {
   statistici: StatBareSezon | null;
   goluriPeInterval: BucketGoluri[];
   topJucatori: TopJucatori | null;
+}
+
+/* ─────────────────────────── Competiție ─────────────────────────── */
+
+/** Un jucător dintr-un top al competiției (golgheteri/pasatori) cu echipa lui. */
+export interface JucatorTop {
+  playerId: number | null;
+  nume: string | null;
+  foto: string | null;
+  echipa: EchipaDto;
+  valoare: number;
+}
+
+/** Un meci al competiției (rezultat sau program). */
+export interface MeciCompetitie {
+  fixtureId: number;
+  /** OffsetDateTime serializat ISO-8601. */
+  kickoff: string;
+  gazde: EchipaDto;
+  oaspeti: EchipaDto;
+  golGazde: number | null;
+  golOaspeti: number | null;
+  status: string | null;
+  inDesfasurare: boolean;
+  terminat: boolean;
+}
+
+/** Antetul unei competiții. */
+export interface AntetCompetitie {
+  leagueId: number;
+  nume: string | null;
+  tara: string | null;
+  logo: string | null;
+  sezon: number | null;
+  sezoane: number[];
+}
+
+/** Oglinda `ro.golstat.api.competitie.PaginaCompetitieDto`. */
+export interface PaginaCompetitie {
+  antet: AntetCompetitie;
+  clasament: RandClasament[];
+  golgheteri: JucatorTop[];
+  pasatori: JucatorTop[];
+  rezultate: MeciCompetitie[];
+  urmatoare: MeciCompetitie[];
+}
+
+/* ─────────────────────────── Statistici (ligi) ─────────────────────────── */
+
+/** Oglinda `ro.golstat.api.statistici.StatisticiLigaDto` — mediile pe meci ale unei ligi. */
+export interface StatisticiLiga {
+  leagueId: number;
+  nume: string | null;
+  tara: string | null;
+  logo: string | null;
+  sezon: number | null;
+  medieGoluri: number | null;
+  medieCornere: number | null;
+  medieFaulturi: number | null;
+  medieCartonase: number | null;
+}
+
+/* ─────────────────────────── Jucător ─────────────────────────── */
+
+/** O linie de statistici a jucătorului într-o ligă/sezon la o echipă. */
+export interface SezonJucator {
+  leagueId: number;
+  liga: string | null;
+  ligaLogo: string | null;
+  sezon: number | null;
+  echipa: EchipaDto | null;
+  aparitii: number | null;
+  minute: number | null;
+  goluri: number | null;
+  pase: number | null;
+  galbene: number | null;
+  rosii: number | null;
+  rating: number | null;
+}
+
+/** Oglinda `ro.golstat.api.jucator.PaginaJucatorDto`. */
+export interface PaginaJucator {
+  playerId: number;
+  nume: string | null;
+  foto: string | null;
+  nationalitate: string | null;
+  varsta: number | null;
+  pozitie: string | null;
+  echipaCurenta: EchipaDto | null;
+  sezoane: SezonJucator[];
 }

@@ -1,18 +1,16 @@
 import { NavLink } from 'react-router-dom';
+import { MingeGolStat } from '../ui/MingeGolStat';
 import { ThemeToggle } from '../ui/ThemeToggle';
+import { IconClopot } from '../ui/icons';
 import { CautareEchipe } from './CautareEchipe';
 
 function Logo() {
-  // Cerc din trei arce colorate (albastru / rosu / navy), ca in design.
+  // Marca GolStat (aceeasi peste tot: navbar, favicon, spinner, splash) + wordmark.
   return (
-    <NavLink to="/" className="flex items-center gap-2" aria-label="golstat — acasă">
-      <svg width="34" height="34" viewBox="0 0 36 36" aria-hidden>
-        <circle cx="18" cy="18" r="13" fill="none" stroke="#2151E5" strokeWidth="6" strokeLinecap="round" strokeDasharray="24 57.7" strokeDashoffset="0" />
-        <circle cx="18" cy="18" r="13" fill="none" stroke="#E23B3B" strokeWidth="6" strokeLinecap="round" strokeDasharray="24 57.7" strokeDashoffset="-27.2" />
-        <circle cx="18" cy="18" r="13" fill="none" stroke="#1A2233" strokeWidth="6" strokeLinecap="round" strokeDasharray="24 57.7" strokeDashoffset="-54.4" className="dark:stroke-[#E6EAF2]" />
-      </svg>
+    <NavLink to="/" className="group flex items-center gap-2" aria-label="golstat — acasă">
+      <MingeGolStat size={36} className="animate-floaty transition-transform duration-200 group-hover:rotate-[16deg] group-hover:scale-110 group-hover:animate-none motion-reduce:animate-none" />
       <span className="text-2xl font-extrabold tracking-tight">
-        <span className="text-ink">gol</span>
+        <span className="text-primary">gol</span>
         <span className="text-accent">stat</span>
       </span>
     </NavLink>
@@ -20,7 +18,7 @@ function Logo() {
 }
 
 const tabClasa = ({ isActive }: { isActive: boolean }) =>
-  `relative flex h-16 items-center gap-1.5 border-b-2 px-1 text-sm font-semibold transition ${
+  `relative flex h-[72px] items-center gap-1.5 border-b-2 px-1 text-sm font-semibold transition ${
     isActive
       ? 'border-primary text-primary'
       : 'border-transparent text-ink2 hover:text-ink'
@@ -28,11 +26,11 @@ const tabClasa = ({ isActive }: { isActive: boolean }) =>
 
 export function TopNav() {
   return (
-    <header className="sticky top-0 z-20 border-b border-line bg-card">
-      <div className="flex h-16 items-center gap-8 px-4 lg:px-6">
+    <header className="sticky top-0 z-20 border-b border-line bg-card shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+      <div className="flex h-[72px] items-center gap-8 px-4 lg:px-6">
         <Logo />
 
-        <nav className="hidden h-16 items-center gap-6 md:flex" aria-label="Navigație principală">
+        <nav className="hidden h-[72px] items-center gap-6 md:flex lg:gap-10" aria-label="Navigație principală">
           <NavLink to="/" end className={tabClasa}>
             Meciuri
           </NavLink>
@@ -45,12 +43,21 @@ export function TopNav() {
           <NavLink to="/program" className={tabClasa}>
             Program
           </NavLink>
-          {['Competiții', 'Statistici'].map((eticheta) => (
+          <NavLink to="/competitie/39" className={tabClasa}>
+            Competiții
+          </NavLink>
+          <NavLink to="/statistici" className={tabClasa}>
+            Statistici
+          </NavLink>
+          <NavLink to="/echipe" className={tabClasa}>
+            Echipe
+          </NavLink>
+          {['Știri'].map((eticheta) => (
             <span
               key={eticheta}
               title="În curând"
               aria-disabled
-              className="flex h-16 cursor-not-allowed items-center border-b-2 border-transparent px-1 text-sm font-semibold text-ink2/60"
+              className="flex h-[72px] cursor-not-allowed items-center border-b-2 border-transparent px-1 text-sm font-semibold text-ink2/60"
             >
               {eticheta}
             </span>
@@ -61,6 +68,16 @@ export function TopNav() {
           <CautareEchipe />
 
           <ThemeToggle />
+
+          <button
+            type="button"
+            title="Notificări"
+            aria-label="Notificări"
+            className="relative flex h-9 w-9 items-center justify-center rounded-full text-ink2 transition hover:bg-bg hover:text-ink"
+          >
+            <IconClopot width={19} height={19} />
+            <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full border-2 border-card bg-accent" />
+          </button>
 
           <div className="flex items-center gap-2 pl-1">
             <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary dark:bg-primary/20">

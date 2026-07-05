@@ -146,7 +146,7 @@ class TeamServiceTest {
         assertNull(dto.statistici());
         // distributia golurilor: mereu 7 intervale, toate 0
         assertEquals(7, dto.goluriPeInterval().size());
-        assertTrue(dto.goluriPeInterval().stream().allMatch(b -> b.goluri() == 0));
+        assertTrue(dto.goluriPeInterval().stream().allMatch(b -> b.marcate() == 0 && b.primite() == 0));
         assertEquals("90+", dto.goluriPeInterval().get(6).interval());
         // top jucatori: toate categoriile null
         assertNull(dto.topJucatori().golgheter());
@@ -244,9 +244,12 @@ class TeamServiceTest {
         assertEquals("h.png", top.golgheter().foto());
         assertEquals("K. De Bruyne", top.pasator().nume());
         assertEquals(18, top.pasator().valoare());
-        // cartonase: Haaland 4+0 vs De Bruyne 2+1 → Haaland
-        assertEquals(617L, top.cartonase().playerId());
-        assertEquals(4, top.cartonase().valoare());
+        // galbene: Haaland 4 vs De Bruyne 2 → Haaland
+        assertEquals(617L, top.galbene().playerId());
+        assertEquals(4, top.galbene().valoare());
+        // rosii: Haaland 0 vs De Bruyne 1 → De Bruyne
+        assertEquals(618L, top.rosii().playerId());
+        assertEquals(1, top.rosii().valoare());
     }
 
     private static Fixture fixture(long id, long home, long away, int gh, int ga, long leagueId, int an) {

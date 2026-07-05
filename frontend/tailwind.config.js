@@ -15,8 +15,32 @@ export default {
         win: 'rgb(var(--gs-win) / <alpha-value>)',
         draw: 'rgb(var(--gs-draw) / <alpha-value>)',
       },
+      borderRadius: {
+        // Radius de brand (design system GolStat): carduri 18, butoane 12, inputuri 14.
+        card: '18px',
+        btn: '12px',
+        input: '14px',
+      },
       boxShadow: {
-        card: '0 1px 2px 0 rgb(16 24 40 / 0.04)',
+        // Umbra premium subtila, non-glossy (design system GolStat).
+        card: '0 8px 30px rgba(15, 23, 42, 0.06)',
+        cardHover: '0 12px 36px rgba(15, 23, 42, 0.10)',
+      },
+      keyframes: {
+        // Plutire subtila a mingii-marca (idle).
+        floaty: {
+          '0%, 100%': { transform: 'translateY(0)' },
+          '50%': { transform: 'translateY(-3px)' },
+        },
+        // Aparitie subtila a continutului dupa incarcare.
+        fadeIn: {
+          from: { opacity: '0', transform: 'translateY(6px)' },
+          to: { opacity: '1', transform: 'translateY(0)' },
+        },
+      },
+      animation: {
+        floaty: 'floaty 3s ease-in-out infinite',
+        'fade-in': 'fadeIn 0.25s ease-out',
       },
     },
   },

@@ -10,6 +10,7 @@ import {
   IconLive,
   IconShield,
   IconStar,
+  IconStiri,
   IconTrophy,
   IconUser,
 } from '../ui/icons';
@@ -26,11 +27,12 @@ interface Item {
 const iteme: Item[] = [
   { eticheta: 'Meciuri', icon: IconCalendar, to: '/', end: true },
   { eticheta: 'Live', icon: IconLive, to: '/live' },
-  { eticheta: 'Calendar', icon: IconCalendar },
-  { eticheta: 'Competiții', icon: IconTrophy },
-  { eticheta: 'Echipe', icon: IconShield },
-  { eticheta: 'Jucători', icon: IconUser },
-  { eticheta: 'Statistici', icon: IconChart },
+  { eticheta: 'Program', icon: IconCalendar, to: '/program' },
+  { eticheta: 'Competiții', icon: IconTrophy, to: '/competitie/39' },
+  { eticheta: 'Echipe', icon: IconShield, to: '/echipe' },
+  { eticheta: 'Jucători', icon: IconUser, to: '/jucatori' },
+  { eticheta: 'Statistici', icon: IconChart, to: '/statistici' },
+  { eticheta: 'Știri', icon: IconStiri },
   { eticheta: 'Favorite', icon: IconStar },
   { eticheta: 'Setări', icon: IconGear },
 ];
@@ -77,7 +79,7 @@ function ElementNav({ item }: { item: Item }) {
 function CardPro() {
   const beneficii = ['Statistici avansate', 'Fără reclame', 'Alerte meciuri', 'Compară jucători'];
   return (
-    <div className="mx-3 mb-4 rounded-xl border border-line bg-card p-4 shadow-card dark:shadow-none">
+    <div className="mx-3 mb-4 rounded-card border border-line bg-primary/5 p-4 dark:bg-primary/10">
       <p className="flex items-center gap-2 text-sm font-bold">
         <IconDiamond width={18} height={18} className="text-primary" />
         <span className="text-primary">golstat</span>
@@ -105,7 +107,7 @@ function CardPro() {
 
 export function Sidebar() {
   return (
-    <aside className="sticky top-16 hidden h-[calc(100vh-4rem)] w-60 shrink-0 flex-col overflow-y-auto border-r border-line bg-card lg:flex">
+    <aside className="sticky top-[72px] hidden h-[calc(100vh-72px)] w-60 shrink-0 flex-col overflow-y-auto border-r border-line bg-card lg:flex">
       <nav className="flex-1 space-y-1 p-3" aria-label="Navigație laterală">
         {iteme.map((item) => (
           <ElementNav key={item.eticheta} item={item} />

@@ -13,6 +13,8 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
+import ro.golstat.api.competitie.CompetitieNotFoundException;
+import ro.golstat.api.jucator.JucatorNotFoundException;
 import ro.golstat.api.matchcenter.MeciNotFoundException;
 import ro.golstat.api.prediction.PredictionNotFoundException;
 import ro.golstat.api.team.EchipaNotFoundException;
@@ -50,6 +52,18 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(EchipaNotFoundException.class)
     public ProblemDetail handleEchipaNotFound(EchipaNotFoundException ex) {
         return problem(HttpStatus.NOT_FOUND, "Echipa inexistenta", ex.getMessage());
+    }
+
+    /** Competitie inexistenta → 404. */
+    @ExceptionHandler(CompetitieNotFoundException.class)
+    public ProblemDetail handleCompetitieNotFound(CompetitieNotFoundException ex) {
+        return problem(HttpStatus.NOT_FOUND, "Competitie inexistenta", ex.getMessage());
+    }
+
+    /** Jucator inexistent → 404. */
+    @ExceptionHandler(JucatorNotFoundException.class)
+    public ProblemDetail handleJucatorNotFound(JucatorNotFoundException ex) {
+        return problem(HttpStatus.NOT_FOUND, "Jucator inexistent", ex.getMessage());
     }
 
     /** Parametru care incalca o constrangere (ex. {@code leagueId} sub 1) → 400. */

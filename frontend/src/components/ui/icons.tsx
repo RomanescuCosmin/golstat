@@ -36,6 +36,41 @@ export function IconLive(props: IconProps) {
   );
 }
 
+export function IconFiltru(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M4 5h16l-6 7v5l-4 2v-7L4 5Z" />
+    </svg>
+  );
+}
+
+export function IconCeas(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M12 7.5V12l3 2" />
+    </svg>
+  );
+}
+
+export function IconStiri(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M4 5h13v14H5a2 2 0 0 1-2-2V6.5" />
+      <path d="M17 8h3v9a2 2 0 0 1-2 2M7 9h6M7 12.5h6M7 16h4" />
+    </svg>
+  );
+}
+
+export function IconClopot(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M18 8a6 6 0 0 0-12 0c0 7-3 8-3 8h18s-3-1-3-8" />
+      <path d="M13.7 20a2 2 0 0 1-3.4 0" />
+    </svg>
+  );
+}
+
 export function IconTrophy(props: IconProps) {
   return (
     <svg {...base(props)}>

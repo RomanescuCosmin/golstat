@@ -7,8 +7,8 @@ import { Badge } from '../components/ui/Badge';
 import { Card } from '../components/ui/Card';
 import { EmptyState } from '../components/ui/EmptyState';
 import { LigaLogo } from '../components/ui/LigaLogo';
-import { Spinner } from '../components/ui/Spinner';
 import { TeamLogo } from '../components/ui/TeamLogo';
+import { useScoreFlash } from '../hooks/useAnimatii';
 import { esteInPlay, useLiveScores } from '../hooks/useLiveScore';
 import { numeEchipa } from '../lib/echipa';
 import { numeLiga } from '../lib/ligi';
@@ -95,8 +95,16 @@ export function LivePage() {
       </p>
 
       {loading && (
-        <div className="flex justify-center py-20">
-          <Spinner size={36} />
+        <div className="space-y-5">
+          {[0, 1].map((i) => (
+            <Card key={i} className="p-5">
+              <div className="animate-pulse space-y-3 motion-reduce:animate-none">
+                <div className="h-4 w-44 rounded bg-ink2/10" />
+                <div className="h-11 rounded-lg bg-ink2/10" />
+                <div className="h-11 rounded-lg bg-ink2/10" />
+              </div>
+            </Card>
+          ))}
         </div>
       )}
 
@@ -150,38 +158,48 @@ function SectiuneLive({ leagueId, nume, meciuri, onOpen }: SectiuneLiveProps) {
 
       <div className="divide-y divide-line">
         {meciuri.map((m) => (
-          <div
-            key={m.fixtureId}
-            role="button"
-            tabIndex={0}
-            onClick={() => onOpen(m.fixtureId)}
-            onKeyDown={(ev) => {
-              if (ev.key === 'Enter' || ev.key === ' ') {
-                ev.preventDefault();
-                onOpen(m.fixtureId);
-              }
-            }}
-            className="grid cursor-pointer grid-cols-[1fr_auto_1fr] items-center gap-3 px-5 py-3 transition hover:bg-bg focus:bg-bg focus:outline-none"
-          >
-            <div className="flex min-w-0 items-center justify-end gap-2.5">
-              <span className="truncate text-right text-sm font-semibold text-ink">{numeEchipa(m.gazde)}</span>
-              <TeamLogo nume={m.gazde.nume} logo={m.gazde.logo} size={28} />
-            </div>
-
-            <div className="flex flex-col items-center gap-0.5 px-3">
-              <span className="text-base font-bold text-accent">
-                {m.golGazde ?? 0} – {m.golOaspeti ?? 0}
-              </span>
-              <Badge variant="live">{minutText(m)}</Badge>
-            </div>
-
-            <div className="flex min-w-0 items-center gap-2.5">
-              <TeamLogo nume={m.oaspeti.nume} logo={m.oaspeti.logo} size={28} />
-              <span className="truncate text-sm font-semibold text-ink">{numeEchipa(m.oaspeti)}</span>
-            </div>
-          </div>
+          <RandMeciLive key={m.fixtureId} meci={m} onOpen={() => onOpen(m.fixtureId)} />
         ))}
       </div>
     </Card>
+  );
+}
+
+function RandMeciLive({ meci: m, onOpen }: { meci: MeciLive; onOpen: () => void }) {
+  const flash = useScoreFlash(`${m.golGazde ?? 0}-${m.golOaspeti ?? 0}`);
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(ev) => {
+        if (ev.key === 'Enter' || ev.key === ' ') {
+          ev.preventDefault();
+          onOpen();
+        }
+      }}
+      className="grid cursor-pointer grid-cols-[1fr_auto_1fr] items-center gap-3 px-5 py-3 transition hover:bg-bg focus:bg-bg focus:outline-none"
+    >
+      <div className="flex min-w-0 items-center justify-end gap-2.5">
+        <span className="truncate text-right text-sm font-semibold text-ink">{numeEchipa(m.gazde)}</span>
+        <TeamLogo nume={m.gazde.nume} logo={m.gazde.logo} size={28} />
+      </div>
+
+      <div className="flex flex-col items-center gap-0.5 px-3">
+        <span
+          className={`text-base font-bold text-accent transition-transform duration-300 motion-reduce:transition-none ${
+            flash ? 'scale-125 animate-pulse' : ''
+          }`}
+        >
+          {m.golGazde ?? 0} – {m.golOaspeti ?? 0}
+        </span>
+        <Badge variant="live">{minutText(m)}</Badge>
+      </div>
+
+      <div className="flex min-w-0 items-center gap-2.5">
+        <TeamLogo nume={m.oaspeti.nume} logo={m.oaspeti.logo} size={28} />
+        <span className="truncate text-sm font-semibold text-ink">{numeEchipa(m.oaspeti)}</span>
+      </div>
+    </div>
   );
 }

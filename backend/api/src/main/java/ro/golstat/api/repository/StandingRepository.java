@@ -11,4 +11,7 @@ public interface StandingRepository extends JpaRepository<Standing, Standing.Pk>
     Optional<Standing> findByLeagueIdAndSeasonYearAndTeamId(Long leagueId, Integer seasonYear, Long teamId);
 
     List<Standing> findByLeagueIdAndSeasonYearOrderByRankAsc(Long leagueId, Integer seasonYear);
+
+    /** Toate clasamentele in care apare echipa (orice liga/sezon) — pentru alegerea sezonului default. */
+    List<Standing> findByTeamId(Long teamId);
 }

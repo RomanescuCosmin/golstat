@@ -133,7 +133,7 @@ public class TeamService {
                 sezoane(teamId),
                 urmatorulMeci(teamId),
                 clasament(teamId, ctx),
-                statBare(teamId, sezonStats, ctx),
+                statBare(teamId, sezonStats, standing, ctx),
                 goluriPeInterval(teamId, ctx),
                 topJucatori(teamId, ctx));
     }
@@ -145,15 +145,28 @@ public class TeamService {
         if (lg == null || sz == null) {
             final Long fLg = lg;
             final Integer fSz = sz;
-            Optional<TeamSeasonStats> best = teamSeasonStats.findByTeamId(teamId).stream()
+            // 1) cel mai recent sezon cu CLASAMENT si meciuri deja jucate — cel mai relevant default
+            //    (un sezon nou poate avea deja un clasament initial cu 0 meciuri jucate → il sarim)
+            Optional<Standing> dinClasament = standings.findByTeamId(teamId).stream()
+                    .filter(s -> fLg == null || fLg.equals(s.getLeagueId()))
+                    .filter(s -> fSz == null || fSz.equals(s.getSeasonYear()))
+                    .filter(s -> s.getSeasonYear() != null)
+                    .filter(s -> s.getPlayedAll() != null && s.getPlayedAll() > 0)
+                    .max(Comparator.comparingInt(Standing::getSeasonYear));
+            // 2) altfel cel mai recent sezon din statisticile de sezon
+            Optional<TeamSeasonStats> dinStats = teamSeasonStats.findByTeamId(teamId).stream()
                     .filter(s -> fLg == null || fLg.equals(s.getLeagueId()))
                     .filter(s -> fSz == null || fSz.equals(s.getSeasonYear()))
                     .filter(s -> s.getSeasonYear() != null)
                     .max(Comparator.comparingInt(TeamSeasonStats::getSeasonYear));
-            if (best.isPresent()) {
-                lg = lg != null ? lg : best.get().getLeagueId();
-                sz = sz != null ? sz : best.get().getSeasonYear();
+            if (dinClasament.isPresent()) {
+                lg = lg != null ? lg : dinClasament.get().getLeagueId();
+                sz = sz != null ? sz : dinClasament.get().getSeasonYear();
+            } else if (dinStats.isPresent()) {
+                lg = lg != null ? lg : dinStats.get().getLeagueId();
+                sz = sz != null ? sz : dinStats.get().getSeasonYear();
             } else {
+                // 3) altfel din ultimul meci terminat
                 List<Fixture> recent = fixtures.findRecentForTeam(
                         teamId, TERMINAL, OffsetDateTime.now(), PageRequest.of(0, 1));
                 if (!recent.isEmpty()) {
@@ -182,37 +195,60 @@ public class TeamService {
                 venue != null ? venue.getCapacity() : null);
     }
 
-    /** Pozitie/puncte din clasament, restul din statisticile de sezon; {@code null} daca lipsesc ambele surse. */
+    /**
+     * Sumarul sezonului: pozitie/puncte din clasament, restul din statisticile de sezon cu FALLBACK pe
+     * clasament (multe sezoane au clasament dar nu {@code team_season_stats}) — asa apar mereu V/E/Î + goluri.
+     */
     private PaginaEchipaDto.Sumar sumar(Standing standing, TeamSeasonStats s) {
         if (standing == null && s == null) {
             return null;
         }
-        Integer marcate = s != null ? s.getGoalsForTotal() : null;
-        Integer primite = s != null ? s.getGoalsAgainstTotal() : null;
+        Integer jucate = coalesce(s != null ? s.getPlayedTotal() : null, standing != null ? standing.getPlayedAll() : null);
+        Integer victorii = coalesce(s != null ? s.getWinsTotal() : null, standing != null ? standing.getWinAll() : null);
+        Integer egaluri = coalesce(s != null ? s.getDrawsTotal() : null, standing != null ? standing.getDrawAll() : null);
+        Integer infrangeri = coalesce(s != null ? s.getLosesTotal() : null, standing != null ? standing.getLoseAll() : null);
+        Integer marcate = coalesce(s != null ? s.getGoalsForTotal() : null, standing != null ? standing.getGoalsForAll() : null);
+        Integer primite = coalesce(s != null ? s.getGoalsAgainstTotal() : null, standing != null ? standing.getGoalsAgainstAll() : null);
+        Integer golaveraj = (marcate != null && primite != null) ? marcate - primite
+                : (standing != null ? standing.getGoalsDiff() : null);
         return new PaginaEchipaDto.Sumar(
                 standing != null ? standing.getRank() : null,
                 standing != null ? standing.getPoints() : null,
-                s != null ? s.getPlayedTotal() : null,
-                s != null ? s.getWinsTotal() : null,
-                s != null ? s.getDrawsTotal() : null,
-                s != null ? s.getLosesTotal() : null,
-                marcate, primite,
-                (marcate != null && primite != null) ? marcate - primite : null);
+                jucate, victorii, egaluri, infrangeri, marcate, primite, golaveraj);
+    }
+
+    private static <T> T coalesce(T a, T b) {
+        return a != null ? a : b;
+    }
+
+    private static Double perGame(Integer total, Integer jucate) {
+        return (total != null && jucate != null && jucate > 0) ? (double) total / jucate : null;
     }
 
     private List<PaginaEchipaDto.MeciForma> rezultate(long teamId, int limita) {
         List<Fixture> recent = fixtures.findRecentForTeam(
                 teamId, TERMINAL, OffsetDateTime.now(), PageRequest.of(0, limita));
         Map<Long, Team> adversari = adversari(recent, teamId);
+        Map<Long, League> ligi = ligiPentru(recent);
         return recent.stream().map(f -> {
             boolean acasa = Objects.equals(f.getHomeTeamId(), teamId);
             Integer marcate = acasa ? f.getGoalsHome() : f.getGoalsAway();
             Integer primite = acasa ? f.getGoalsAway() : f.getGoalsHome();
             Long advId = acasa ? f.getAwayTeamId() : f.getHomeTeamId();
+            League lg = f.getLeagueId() != null ? ligi.get(f.getLeagueId()) : null;
             return new PaginaEchipaDto.MeciForma(
                     f.getId(), f.getKickoff(), acasa, echipa(advId, adversari),
-                    marcate, primite, rezultat(marcate, primite));
+                    marcate, primite, rezultat(marcate, primite),
+                    lg != null ? lg.getName() : null, lg != null ? lg.getLogo() : null, f.getRound());
         }).toList();
+    }
+
+    /** Ligile (nume/logo) pentru un set de meciuri, intr-un singur query. */
+    private Map<Long, League> ligiPentru(List<Fixture> meciuri) {
+        List<Long> ids = meciuri.stream().map(Fixture::getLeagueId)
+                .filter(Objects::nonNull).distinct().toList();
+        return leagues.findAllById(ids).stream()
+                .collect(Collectors.toMap(League::getId, Function.identity()));
     }
 
     /**
@@ -283,7 +319,9 @@ public class TeamService {
         boolean acasa = Objects.equals(f.getHomeTeamId(), teamId);
         Long advId = acasa ? f.getAwayTeamId() : f.getHomeTeamId();
         Map<Long, Team> adversari = adversari(List.of(f), teamId);
-        return new PaginaEchipaDto.MeciScurt(f.getId(), f.getKickoff(), echipa(advId, adversari), acasa);
+        League lg = f.getLeagueId() != null ? leagues.findById(f.getLeagueId()).orElse(null) : null;
+        return new PaginaEchipaDto.MeciScurt(f.getId(), f.getKickoff(), echipa(advId, adversari), acasa,
+                lg != null ? lg.getName() : null, lg != null ? lg.getLogo() : null, f.getRound());
     }
 
     private List<PaginaEchipaDto.RandClasament> clasament(long teamId, Context ctx) {
@@ -299,45 +337,59 @@ public class TeamService {
             return new PaginaEchipaDto.RandClasament(
                     r.getRank(), r.getTeamId() != null ? r.getTeamId() : 0,
                     t != null ? t.getName() : null, t != null ? t.getLogo() : null,
-                    r.getPlayedAll(), r.getPoints(), r.getGoalsDiff(),
+                    r.getPlayedAll(), r.getWinAll(), r.getDrawAll(), r.getLoseAll(),
+                    r.getGoalsDiff(), r.getPoints(),
                     Objects.equals(r.getTeamId(), teamId));
         }).toList();
     }
 
-    /** Goluri/meci + clean sheets + cartonase din statisticile de sezon; suturi/posesie/pase mediate din meciuri (nullable). */
-    private PaginaEchipaDto.StatBare statBare(long teamId, TeamSeasonStats s, Context ctx) {
+    /**
+     * Goluri/meci + clean sheets + cartonase din statisticile de sezon (cu FALLBACK pe clasament pentru
+     * golurile/meci); suturi/posesie/pase mediate din meciuri (nullable).
+     */
+    private PaginaEchipaDto.StatBare statBare(long teamId, TeamSeasonStats s, Standing standing, Context ctx) {
         List<FixtureTeamStats> peMeci = (ctx.leagueId != null && ctx.sezon != null)
                 ? teamStats.findForTeamSeason(teamId, ctx.leagueId, ctx.sezon, TERMINAL)
                 : List.of();
         Double suturi = medie(peMeci, x -> caDouble(x.getShotsTotal()));
         Double posesie = medie(peMeci, x -> x.getBallPossession() != null ? x.getBallPossession().doubleValue() : null);
         Double precizie = medie(peMeci, x -> x.getPassesPercentage() != null ? x.getPassesPercentage().doubleValue() : null);
-        if (s == null && suturi == null && posesie == null && precizie == null) {
+        if (s == null && standing == null && suturi == null && posesie == null && precizie == null) {
             return null;
         }
+        Double marcatePeMeci = s != null ? caDouble(s.getGoalsForAvgTotal())
+                : perGame(standing != null ? standing.getGoalsForAll() : null,
+                          standing != null ? standing.getPlayedAll() : null);
+        Double primitePeMeci = s != null ? caDouble(s.getGoalsAgainstAvgTotal())
+                : perGame(standing != null ? standing.getGoalsAgainstAll() : null,
+                          standing != null ? standing.getPlayedAll() : null);
         return new PaginaEchipaDto.StatBare(
-                s != null ? caDouble(s.getGoalsForAvgTotal()) : null,
-                s != null ? caDouble(s.getGoalsAgainstAvgTotal()) : null,
+                marcatePeMeci, primitePeMeci,
                 s != null ? s.getCleanSheetTotal() : null,
                 s != null ? s.getYellowCardsTotal() : null,
                 s != null ? s.getRedCardsTotal() : null,
                 suturi, posesie, precizie);
     }
 
-    /** Distributia golurilor pe intervale de 15 min; mereu 7 intervale (0 permis), minute null ignorate. */
+    /** Distributia golurilor marcate vs primite pe intervale de 15 min; mereu 7 intervale (0 permis). */
     private List<PaginaEchipaDto.Bucket> goluriPeInterval(long teamId, Context ctx) {
-        int[] cos = new int[INTERVALE.size()];
+        int[] marcate = new int[INTERVALE.size()];
+        int[] primite = new int[INTERVALE.size()];
         if (ctx.leagueId != null && ctx.sezon != null) {
             for (Integer minut : events.goalMinutes(teamId, ctx.leagueId, ctx.sezon, EventType.GOAL, TERMINAL)) {
-                if (minut == null) {
-                    continue;
+                if (minut != null) {
+                    marcate[bucket(minut)]++;
                 }
-                cos[bucket(minut)]++;
+            }
+            for (Integer minut : events.concededMinutes(teamId, ctx.leagueId, ctx.sezon, EventType.GOAL, TERMINAL)) {
+                if (minut != null) {
+                    primite[bucket(minut)]++;
+                }
             }
         }
         List<PaginaEchipaDto.Bucket> rezultat = new ArrayList<>(INTERVALE.size());
         for (int i = 0; i < INTERVALE.size(); i++) {
-            rezultat.add(new PaginaEchipaDto.Bucket(INTERVALE.get(i), cos[i]));
+            rezultat.add(new PaginaEchipaDto.Bucket(INTERVALE.get(i), marcate[i], primite[i]));
         }
         return rezultat;
     }
@@ -357,15 +409,16 @@ public class TeamService {
                 ? playerSeasonStats.findByTeamIdAndLeagueIdAndSeasonYear(teamId, ctx.leagueId, ctx.sezon)
                 : List.of();
         if (stats.isEmpty()) {
-            return new PaginaEchipaDto.TopJucatori(null, null, null, null);
+            return new PaginaEchipaDto.TopJucatori(null, null, null, null, null);
         }
         PlayerSeasonStats golgheter = top(stats, s -> nz(s.getGoalsTotal()));
         PlayerSeasonStats pasator = top(stats, s -> nz(s.getGoalsAssists()));
         PlayerSeasonStats minute = top(stats, s -> nz(s.getMinutes()));
-        PlayerSeasonStats cartonase = top(stats, s -> nz(s.getCardsYellow()) + nz(s.getCardsRed()));
+        PlayerSeasonStats galbene = top(stats, s -> nz(s.getCardsYellow()));
+        PlayerSeasonStats rosii = top(stats, s -> nz(s.getCardsRed()));
 
         Map<Long, Player> jucatori = players.findAllById(
-                        Stream.of(golgheter, pasator, minute, cartonase)
+                        Stream.of(golgheter, pasator, minute, galbene, rosii)
                                 .filter(Objects::nonNull).map(PlayerSeasonStats::getPlayerId)
                                 .filter(Objects::nonNull).distinct().toList())
                 .stream().collect(Collectors.toMap(Player::getId, Function.identity()));
@@ -374,7 +427,8 @@ public class TeamService {
                 jucator(golgheter, s -> nz(s.getGoalsTotal()), jucatori),
                 jucator(pasator, s -> nz(s.getGoalsAssists()), jucatori),
                 jucator(minute, s -> nz(s.getMinutes()), jucatori),
-                jucator(cartonase, s -> nz(s.getCardsYellow()) + nz(s.getCardsRed()), jucatori));
+                jucator(galbene, s -> nz(s.getCardsYellow()), jucatori),
+                jucator(rosii, s -> nz(s.getCardsRed()), jucatori));
     }
 
     private static PlayerSeasonStats top(List<PlayerSeasonStats> stats, ToIntFunction<PlayerSeasonStats> metric) {

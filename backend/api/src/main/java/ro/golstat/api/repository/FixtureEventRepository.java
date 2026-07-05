@@ -21,19 +21,46 @@ public interface FixtureEventRepository extends JpaRepository<FixtureEvent, Long
             """)
     List<FixtureEvent> findTimeline(@Param("fixtureId") long fixtureId);
 
-    /** Minutele golurilor unei echipe pe o liga/sezon, doar din meciuri TERMINALE (pentru distributie). */
+    /**
+     * Minutele golurilor unei echipe pe o liga/sezon, doar din meciuri TERMINALE (pentru distributie).
+     * Golurile din prelungirea reprizei a doua (minut 90 cu timeExtra > 0) primesc 91 ca sa cada in
+     * intervalul "90+"; prelungirea primei reprize (45+X) ramane in intervalul minutului de baza.
+     */
     @Query("""
-            select e.timeElapsed from FixtureEvent e
+            select case when e.timeElapsed >= 90 and coalesce(e.timeExtra, 0) > 0 then 91 else e.timeElapsed end
+            from FixtureEvent e
             join Fixture f on f.id = e.fixtureId
             where e.teamId = :teamId
               and e.type = :goal
               and f.leagueId = :leagueId
               and f.seasonYear = :season
               and f.statusShort in :terminal
+              and e.timeElapsed is not null
             """)
     List<Integer> goalMinutes(@Param("teamId") long teamId,
                               @Param("leagueId") long leagueId,
                               @Param("season") int season,
                               @Param("goal") String goal,
                               @Param("terminal") Collection<String> terminal);
+
+    /**
+     * Minutele golurilor PRIMITE de o echipa (goluri marcate de adversar in meciurile ei), pe liga/sezon,
+     * doar din meciuri TERMINALE — pentru distributia goluri marcate vs primite.
+     */
+    @Query("""
+            select e.timeElapsed + coalesce(e.timeExtra, 0) from FixtureEvent e
+            join Fixture f on f.id = e.fixtureId
+            where (f.homeTeamId = :teamId or f.awayTeamId = :teamId)
+              and e.teamId <> :teamId
+              and e.type = :goal
+              and f.leagueId = :leagueId
+              and f.seasonYear = :season
+              and f.statusShort in :terminal
+              and e.timeElapsed is not null
+            """)
+    List<Integer> concededMinutes(@Param("teamId") long teamId,
+                                  @Param("leagueId") long leagueId,
+                                  @Param("season") int season,
+                                  @Param("goal") String goal,
+                                  @Param("terminal") Collection<String> terminal);
 }

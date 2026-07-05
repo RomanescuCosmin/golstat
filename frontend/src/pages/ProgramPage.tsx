@@ -6,7 +6,7 @@ import { SectiuneProgram } from '../components/program/SectiuneProgram';
 import { Card } from '../components/ui/Card';
 import { EmptyState } from '../components/ui/EmptyState';
 import { ErrorState } from '../components/ui/ErrorState';
-import { Spinner } from '../components/ui/Spinner';
+import { Skeleton, SkeletonRand } from '../components/ui/Skeleton';
 
 export function ProgramPage() {
   const [program, setProgram] = useState<Program | null>(null);
@@ -46,8 +46,19 @@ export function ProgramPage() {
       </div>
 
       {loading && (
-        <div className="flex justify-center py-20">
-          <Spinner size={36} />
+        <div className="space-y-8">
+          {[4, 3, 3].map((randuri, i) => (
+            <div key={i} className="space-y-3">
+              <Skeleton className="h-5 w-48" />
+              <Card>
+                <div className="divide-y divide-line">
+                  {Array.from({ length: randuri }, (_, r) => (
+                    <SkeletonRand key={r} />
+                  ))}
+                </div>
+              </Card>
+            </div>
+          ))}
         </div>
       )}
 
@@ -64,7 +75,7 @@ export function ProgramPage() {
       )}
 
       {!loading && !eroare && zile.length > 0 && (
-        <div className="space-y-8">
+        <div className="animate-fade-in space-y-8">
           {zile.map((zi) => (
             <SectiuneProgram key={zi.data} zi={zi} />
           ))}

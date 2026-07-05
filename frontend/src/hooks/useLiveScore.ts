@@ -58,12 +58,22 @@ export function useLiveScores(fixtureIds: number[]): Record<number, FixtureLive>
   const cheie = fixtureIds.join(',');
 
   useEffect(() => {
-    setScoruri({});
-    if (!cheie) {
+    const ids = cheie ? cheie.split(',').map(Number) : [];
+    // Merge, nu reset: pastram scorurile deja primite pentru id-urile inca prezente,
+    // altfel fiecare schimbare a listei (ex. polling) ar face scorul sa clipeasca.
+    setScoruri((prev) => {
+      const pastrate: Record<number, FixtureLive> = {};
+      for (const id of ids) {
+        if (prev[id] != null) {
+          pastrate[id] = prev[id];
+        }
+      }
+      return pastrate;
+    });
+    if (ids.length === 0) {
       return;
     }
-    const dezabonari = cheie.split(',').map((s) => {
-      const id = Number(s);
+    const dezabonari = ids.map((id) => {
       return subscribeFixture(id, (payload) => {
         if (esteFixtureLive(payload)) {
           setScoruri((prev) => ({ ...prev, [id]: payload }));
