@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getLive } from '../../api/client';
 import type { MeciLive } from '../../api/types';
+import { useFavorite } from '../../hooks/useFavorite';
 import { numeEchipa } from '../../lib/echipa';
 import { LIGI, LIGI_POPULARE, numeLiga } from '../../lib/ligi';
 import { SectiuneRail } from '../layout/SectiuneRail';
@@ -21,6 +22,7 @@ interface RightSidebarProps {
 /** Continutul rail-ului drept al paginii Meciuri: "LIVE ACUM" (real) + "COMPETIȚII POPULARE" (filtru). */
 export function RightSidebar({ ligaSelectata, onAlegeLiga }: RightSidebarProps) {
   const [live, setLive] = useState<MeciLive[]>([]);
+  const fav = useFavorite();
 
   useEffect(() => {
     let anulat = false;
@@ -68,6 +70,33 @@ export function RightSidebar({ ligaSelectata, onAlegeLiga }: RightSidebarProps) 
                     </span>
                   </span>
                 </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </SectiuneRail>
+
+      <SectiuneRail titlu="Echipe favorite">
+        {fav.echipe.length === 0 ? (
+          <p className="px-4 py-4 text-xs text-ink2">
+            Apasă ⭐ lângă o echipă ca s-o urmărești aici.
+          </p>
+        ) : (
+          <ul className="divide-y divide-line">
+            {fav.echipe.map((e) => (
+              <li key={e.id} className="flex items-center gap-3 px-4 py-2.5">
+                <Link to={`/echipa/${e.id}`} className="flex min-w-0 flex-1 items-center gap-3 transition hover:text-primary">
+                  <TeamLogo nume={e.nume} logo={e.logo} size={22} />
+                  <span className="truncate text-sm font-semibold text-ink">{numeEchipa(e)}</span>
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => fav.comuta(e)}
+                  aria-label={`Scoate ${numeEchipa(e)} din favorite`}
+                  className="shrink-0 text-primary transition hover:text-accent"
+                >
+                  <IconStar width={16} height={16} fill="currentColor" />
+                </button>
               </li>
             ))}
           </ul>

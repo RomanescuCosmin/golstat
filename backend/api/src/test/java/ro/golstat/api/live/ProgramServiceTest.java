@@ -8,6 +8,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import ro.golstat.api.entity.Fixture;
 import ro.golstat.api.entity.League;
 import ro.golstat.api.entity.Team;
+import ro.golstat.api.prediction.PredictionService;
 import ro.golstat.api.repository.FixtureRepository;
 import ro.golstat.api.repository.LeagueRepository;
 import ro.golstat.api.repository.TeamRepository;
@@ -27,6 +28,7 @@ class ProgramServiceTest {
     @Mock FixtureRepository fixtures;
     @Mock TeamRepository teams;
     @Mock LeagueRepository leagues;
+    @Mock PredictionService predictions;
     @InjectMocks ProgramService service;
 
     private static Fixture fixture(long id, long leagueId, long home, long away, String kickoff) {

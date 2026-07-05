@@ -40,6 +40,17 @@ public class MatchHistoryService {
                 .toList();
     }
 
+    /**
+     * Ca {@link #lastMatches}, dar FARA rangul adversarului (rang null). Rangul se ia cu un lookup pe
+     * {@code standings} per meci (N+1) si e folosit doar de filtrele pe clasament din piete secundare,
+     * NU de modelul de goluri 1X2 — asa ca il sarim cand imbogatim o zi intreaga (ieftin, acelasi 1X2).
+     */
+    public List<MatchSample> lastMatchesNoRank(long teamId, OffsetDateTime before, int limit) {
+        return fixtures.findRecentForTeam(teamId, TERMINAL, before, PageRequest.of(0, limit)).stream()
+                .map(f -> MatchSampleMapper.toSample(f, teamId, null))
+                .toList();
+    }
+
     private Integer opponentRank(Fixture fixture, long teamId) {
         boolean home = fixture.getHomeTeamId() != null && fixture.getHomeTeamId() == teamId;
         Long opponentId = home ? fixture.getAwayTeamId() : fixture.getHomeTeamId();

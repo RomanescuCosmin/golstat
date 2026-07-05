@@ -2,15 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Design tokens golstat — canale RGB, ca sa mearga /<alpha-value> in Tailwind. */
+/* Design system GolStat — canale RGB, ca sa mearga /<alpha-value> in Tailwind. */
 :root {
-  --gs-bg: 245 246 248; /* #F5F6F8 */
+  --gs-bg: 246 248 252; /* #F6F8FC */
   --gs-card: 255 255 255; /* #FFFFFF */
-  --gs-ink: 26 34 51; /* #1A2233 */
+  --gs-ink: 17 24 39; /* #111827 */
   --gs-ink2: 107 114 128; /* #6B7280 */
-  --gs-line: 232 236 241; /* #E8ECF1 */
-  --gs-primary: 33 81 229; /* #2151E5 */
-  --gs-accent: 226 59 59; /* #E23B3B */
+  --gs-line: 229 231 235; /* #E5E7EB */
+  --gs-primary: 37 99 235; /* #2563EB */
+  --gs-accent: 239 68 68; /* #EF4444 */
   --gs-win: 34 165 91; /* #22A55B */
   --gs-draw: 154 164 178; /* #9AA4B2 */
 }
@@ -21,8 +21,8 @@
   --gs-ink: 230 234 242; /* #E6EAF2 */
   --gs-ink2: 138 147 166; /* #8A93A6 */
   --gs-line: 35 44 61; /* #232C3D */
-  --gs-primary: 74 111 214; /* #4A6FD6 */
-  --gs-accent: 224 85 85; /* #E05555 */
+  --gs-primary: 59 130 246; /* #3B82F6 */
+  --gs-accent: 248 113 113; /* #F87171 */
   --gs-win: 58 168 112; /* #3AA870 */
   --gs-draw: 110 120 137; /* #6E7889 */
 }
@@ -30,10 +30,11 @@
 @layer base {
   html {
     font-family:
-      'Segoe UI',
+      'Inter',
+      'SF Pro Display',
       -apple-system,
       BlinkMacSystemFont,
-      'Inter',
+      'Segoe UI',
       Roboto,
       'Helvetica Neue',
       Arial,

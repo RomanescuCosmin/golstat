@@ -7,7 +7,6 @@ import { ClasamentSnippet } from '../components/echipa/ClasamentSnippet';
 import { DistributieGoluri } from '../components/echipa/DistributieGoluri';
 import { GraficForma } from '../components/echipa/GraficForma';
 import { RezultateRecente } from '../components/echipa/RezultateRecente';
-import { SelectorSezon } from '../components/echipa/SelectorSezon';
 import { StatBareSezon } from '../components/echipa/StatBareSezon';
 import { StatProcente } from '../components/echipa/StatProcente';
 import { TabsEchipa } from '../components/echipa/TabsEchipa';
@@ -15,8 +14,9 @@ import { TopJucatori } from '../components/echipa/TopJucatori';
 import { UrmatorulMeci } from '../components/echipa/UrmatorulMeci';
 import { PageLayout } from '../components/layout/PageLayout';
 import { Card } from '../components/ui/Card';
+import { EmptyState } from '../components/ui/EmptyState';
 import { ErrorState } from '../components/ui/ErrorState';
-import { Spinner } from '../components/ui/Spinner';
+import { Skeleton } from '../components/ui/Skeleton';
 
 export function TeamPage() {
   const { teamId } = useParams<{ teamId: string }>();
@@ -60,16 +60,8 @@ export function TeamPage() {
     };
   }, [id, incercare, sezon]);
 
-  const rightRail =
-    date && !loading && !eroare ? (
-      <>
-        {date.urmatorulMeci && <UrmatorulMeci meci={date.urmatorulMeci} />}
-        {date.clasament.length > 0 && <ClasamentSnippet randuri={date.clasament} teamId={id} compact />}
-      </>
-    ) : undefined;
-
   return (
-    <PageLayout rightRail={rightRail}>
+    <PageLayout>
       <nav className="mb-4 flex items-center gap-1.5 text-sm text-ink2" aria-label="Breadcrumb">
         <Link to="/" className="font-medium hover:text-primary">
           Echipe
@@ -79,8 +71,26 @@ export function TeamPage() {
       </nav>
 
       {loading && (
-        <div className="flex justify-center py-20">
-          <Spinner size={36} />
+        <div className="space-y-5">
+          <Card className="flex flex-wrap items-center gap-5 p-6">
+            <Skeleton className="h-16 w-16 shrink-0 rounded-full" />
+            <div className="min-w-0 flex-1 space-y-2">
+              <Skeleton className="h-7 w-56 max-w-full" />
+              <Skeleton className="h-4 w-36" />
+            </div>
+            <Skeleton className="h-9 w-28 rounded-btn" />
+          </Card>
+          <div className="grid items-start gap-5 lg:grid-cols-2 xl:grid-cols-3">
+            {Array.from({ length: 6 }, (_, i) => (
+              <Card key={i} className="space-y-3 p-5">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-3.5 w-full" />
+                <Skeleton className="h-3.5 w-5/6" />
+                <Skeleton className="h-3.5 w-2/3" />
+                <Skeleton className="h-24 w-full" />
+              </Card>
+            ))}
+          </div>
         </div>
       )}
 
@@ -99,24 +109,34 @@ export function TeamPage() {
       )}
 
       {!loading && !eroare && date && (
-        <div className="space-y-5">
-          <AntetEchipa antet={date.antet} sumar={date.sumar} forma={date.forma} />
+        <div className="animate-fade-in space-y-5">
+          <AntetEchipa
+            antet={date.antet}
+            sumar={date.sumar}
+            forma={date.forma}
+            sezoane={date.sezoane}
+            sezon={sezon ?? date.antet.sezon}
+            onSezon={setSezon}
+          />
 
-          <div className="flex items-center justify-between gap-3">
-            <TabsEchipa />
-            <div className="shrink-0">
-              <SelectorSezon sezoane={date.sezoane} valoare={sezon ?? date.antet.sezon} onChange={setSezon} />
-            </div>
-          </div>
+          <TabsEchipa />
 
-          <div className="grid gap-5 lg:grid-cols-2">
+          <div className="grid items-start gap-5 lg:grid-cols-2 xl:grid-cols-3">
+            {date.urmatorulMeci ? (
+              <UrmatorulMeci meci={date.urmatorulMeci} echipa={{ nume: date.antet.nume, logo: date.antet.logo }} />
+            ) : (
+              <Card className="p-5">
+                <h2 className="text-sm font-extrabold text-ink">Următorul meci</h2>
+                <EmptyState titlu="Niciun meci programat" mesaj="Nu există un meci viitor pentru această echipă." />
+              </Card>
+            )}
             <GraficForma rezultate={date.rezultateRecente} />
+            <StatBareSezon statistici={date.statistici} sumar={date.sumar} />
             <StatProcente statProcente={date.statProcente} />
-            <StatBareSezon statistici={date.statistici} />
+            <ClasamentSnippet randuri={date.clasament} teamId={id} />
             <RezultateRecente rezultate={date.rezultateRecente} />
+            <DistributieGoluri buckets={date.goluriPeInterval} />
           </div>
-
-          <DistributieGoluri buckets={date.goluriPeInterval} />
 
           <TopJucatori top={date.topJucatori} />
         </div>

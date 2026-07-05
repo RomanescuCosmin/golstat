@@ -19,6 +19,7 @@ import ro.golstat.stats.model.MatchSample;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -74,6 +75,32 @@ public class PredictionService {
         return found.stream()
                 .map(f -> predictFixture(f, echipe))
                 .toList();
+    }
+
+    /**
+     * 1X2 (+ goluri) pentru o LISTA de meciuri, orice status — pentru vederea grupata pe zi.
+     * Optimizat sa fie ieftin pe o zi intreaga: istoric FARA rang (evita N+1-ul pe {@code standings},
+     * rangul nu intra in modelul 1X2) si media ligii cache-uita per {@code (liga, sezon)}. Meciurile
+     * fara echipe/kickoff/liga/sezon se sar. {@code echipe} = harta partajata de la apelant (fara N+1 de echipe).
+     */
+    public Map<Long, PredictieMeciDto> predictBatch(List<Fixture> fixturi, Map<Long, Team> echipe) {
+        Map<String, LeagueAverages> avgCache = new HashMap<>();
+        Map<Long, PredictieMeciDto> out = new HashMap<>();
+        for (Fixture f : fixturi) {
+            if (f.getHomeTeamId() == null || f.getAwayTeamId() == null || f.getKickoff() == null
+                    || f.getLeagueId() == null || f.getSeasonYear() == null) {
+                continue;
+            }
+            List<MatchSample> home = history.lastMatchesNoRank(f.getHomeTeamId(), f.getKickoff(), HISTORY_FETCH);
+            List<MatchSample> away = history.lastMatchesNoRank(f.getAwayTeamId(), f.getKickoff(), HISTORY_FETCH);
+            LeagueAverages avg = avgCache.computeIfAbsent(
+                    f.getLeagueId() + ":" + f.getSeasonYear(),
+                    k -> leagueAverages.averages(f.getLeagueId(), f.getSeasonYear()));
+            MatchContext ctx = buildContext(home, away, avg);
+            out.put(f.getId(), PredictieMeciMapper.toDto(f, MatchGoalModel.predict(ctx),
+                    echipe.get(f.getHomeTeamId()), echipe.get(f.getAwayTeamId())));
+        }
+        return out;
     }
 
     /** Un singur query pentru toate echipele meciurilor date (evita N+1). */

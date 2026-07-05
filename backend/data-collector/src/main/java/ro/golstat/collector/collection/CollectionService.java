@@ -82,16 +82,27 @@ public class CollectionService {
         for (TeamDto team : teams) {
             publisher.publish(GolstatConstants.KafkaTopics.TEAMS, String.valueOf(team.id()), team);
         }
-        enrichTeams(teams, leagueId, season);
-
         for (StandingDto standing : provider.standings(leagueId, season)) {
             publisher.publish(GolstatConstants.KafkaTopics.STANDINGS, standingKey(standing), standing);
         }
 
         List<FixtureDto> fixtures = provider.fixtures(leagueId, season, from, to);
+        // Publica INTAI toate meciurile + orarul LIVE + logheaza (ieftin, un singur apel API pentru toata
+        // lista), ca sa avem programul/amicalele/live-ul chiar daca detaliile scumpe de mai jos raman
+        // blocate de cota (enrichment-ul de echipe/jucatori era cel care ardea cota inainte de fixtures).
         for (FixtureDto fixture : fixtures) {
             publisher.publish(GolstatConstants.KafkaTopics.FIXTURES, String.valueOf(fixture.id()), fixture);
+        }
+        List<OffsetDateTime> kickoffs = fixtures.stream()
+                .map(FixtureDto::kickoff)
+                .filter(Objects::nonNull)
+                .toList();
+        liveSchedule.replaceForLeague(leagueId, kickoffs);
+        log.info("Colectat liga {} sezon {}: {} fixtures in fereastra {}..{}",
+                leagueId, season, fixtures.size(), from, to);
 
+        // Abia apoi detaliile per meci (lineups/events/stats) — pot esua fara sa pierdem meciurile deja publicate.
+        for (FixtureDto fixture : fixtures) {
             boolean terminal = TERMINAL.contains(fixture.statusShort());
             // lineup-urile apar si INAINTE de meci (aproape de kickoff), deci le cerem si pentru NS
             if (terminal || GolstatConstants.FixtureStatus.NOT_STARTED.equals(fixture.statusShort())) {
@@ -118,15 +129,9 @@ public class CollectionService {
             publisher.publish(GolstatConstants.KafkaTopics.INJURIES, leagueId + ":" + season, injuries);
         }
 
-        // orarul pentru bucla LIVE: kickoff-urile meciurilor din fereastra (gating-ul poll-ului)
-        List<OffsetDateTime> kickoffs = fixtures.stream()
-                .map(FixtureDto::kickoff)
-                .filter(Objects::nonNull)
-                .toList();
-        liveSchedule.replaceForLeague(leagueId, kickoffs);
-
-        log.info("Colectat liga {} sezon {}: {} fixtures in fereastra {}..{}",
-                leagueId, season, fixtures.size(), from, to);
+        // Imbogatirea echipelor (jucatori + statistici de sezon) LA FINAL — cea mai scumpa la cota;
+        // daca se atinge limita aici, meciurile/orarul live sunt deja colectate mai sus.
+        enrichTeams(teams, leagueId, season);
     }
 
     /**

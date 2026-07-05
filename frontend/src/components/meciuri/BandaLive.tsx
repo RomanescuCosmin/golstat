@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { getLive } from '../../api/client';
 import type { MeciLive } from '../../api/types';
+import { useScoreFlash } from '../../hooks/useAnimatii';
 import { numeEchipa } from '../../lib/echipa';
 import { numeLiga } from '../../lib/ligi';
 import { Badge } from '../ui/Badge';
@@ -90,6 +91,7 @@ function minutText(m: MeciLive): string {
 }
 
 function MiniLive({ meci, onOpen }: { meci: MeciLive; onOpen: () => void }) {
+  const flash = useScoreFlash(`${meci.golGazde ?? 0}-${meci.golOaspeti ?? 0}`);
   return (
     <button
       type="button"
@@ -102,18 +104,36 @@ function MiniLive({ meci, onOpen }: { meci: MeciLive; onOpen: () => void }) {
           {meci.ligaNume ?? (meci.leagueId != null ? numeLiga(meci.leagueId) : '')}
         </span>
       </div>
-      <Rand echipa={numeEchipa(meci.gazde)} logo={meci.gazde.logo} nume={meci.gazde.nume} gol={meci.golGazde ?? 0} />
-      <Rand echipa={numeEchipa(meci.oaspeti)} logo={meci.oaspeti.logo} nume={meci.oaspeti.nume} gol={meci.golOaspeti ?? 0} />
+      <Rand echipa={numeEchipa(meci.gazde)} logo={meci.gazde.logo} nume={meci.gazde.nume} gol={meci.golGazde ?? 0} flash={flash} />
+      <Rand echipa={numeEchipa(meci.oaspeti)} logo={meci.oaspeti.logo} nume={meci.oaspeti.nume} gol={meci.golOaspeti ?? 0} flash={flash} />
     </button>
   );
 }
 
-function Rand({ echipa, logo, nume, gol }: { echipa: string; logo: string | null; nume: string | null; gol: number }) {
+function Rand({
+  echipa,
+  logo,
+  nume,
+  gol,
+  flash,
+}: {
+  echipa: string;
+  logo: string | null;
+  nume: string | null;
+  gol: number;
+  flash: boolean;
+}) {
   return (
     <div className="flex items-center gap-2 py-0.5">
       <TeamLogo nume={nume} logo={logo} size={18} />
       <span className="min-w-0 flex-1 truncate text-xs font-semibold text-ink">{echipa}</span>
-      <span className="text-sm font-bold text-ink">{gol}</span>
+      <span
+        className={`text-sm font-bold transition-[color,transform] duration-300 motion-reduce:transition-none ${
+          flash ? 'scale-125 text-accent' : 'text-ink'
+        }`}
+      >
+        {gol}
+      </span>
     </div>
   );
 }

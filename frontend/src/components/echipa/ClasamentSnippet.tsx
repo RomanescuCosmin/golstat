@@ -1,7 +1,9 @@
+import { useNavigate } from 'react-router-dom';
 import type { RandClasament } from '../../api/types';
 import { Card } from '../ui/Card';
-import { EmptyState } from '../ui/EmptyState';
+import { LigaLogo } from '../ui/LigaLogo';
 import { TeamLogo } from '../ui/TeamLogo';
+import { IconChevronRight } from '../ui/icons';
 
 interface ClasamentSnippetProps {
   randuri: RandClasament[];
@@ -17,56 +19,86 @@ function fereastra(randuri: RandClasament[], teamId: number, span = 2): RandClas
   return randuri.slice(start, start + span * 2 + 1);
 }
 
-/** "Poziție în clasament": tabel compact (#, echipă, MJ, PCT, DG) cu randul echipei evidentiat. */
+/** "Poziție în clasament": tabel (#, echipa, MJ, V, E, Î, DG, PCT) cu randul echipei curente evidentiat. */
 export function ClasamentSnippet({ randuri, teamId, compact = false }: ClasamentSnippetProps) {
+  const navigate = useNavigate();
+
+  if (randuri.length === 0) {
+    return null;
+  }
+
   const afisate = compact ? fereastra(randuri, teamId) : randuri;
 
   return (
     <Card className="p-5">
-      <h2 className="text-base font-bold text-ink">Poziție în clasament</h2>
-      {afisate.length === 0 ? (
-        <EmptyState titlu="Fără clasament" mesaj="Nu există date de clasament pentru această ligă." />
-      ) : (
-        <div className={compact ? '' : 'mt-3 max-h-[26rem] overflow-y-auto'}>
-          <table className="mt-3 w-full text-sm">
-            <thead>
-              <tr className="text-left text-[11px] font-semibold uppercase tracking-wide text-ink2">
-                <th className="w-8 pb-2 font-semibold">#</th>
-                <th className="pb-2 font-semibold">Echipă</th>
-                <th className="w-8 pb-2 text-right font-semibold">MJ</th>
-                <th className="w-10 pb-2 text-right font-semibold">PCT</th>
-                <th className="w-10 pb-2 text-right font-semibold">DG</th>
-              </tr>
-            </thead>
-            <tbody>
-              {afisate.map((r) => {
-                const curenta = r.echipaCurenta || r.teamId === teamId;
-                return (
-                  <tr
-                    key={r.teamId}
-                    className={curenta ? 'bg-primary/10' : undefined}
-                  >
-                    <td className="rounded-l-md py-1.5 pl-1.5 tabular-nums text-ink2">{r.rank ?? '—'}</td>
-                    <td className="py-1.5">
-                      <span className="flex min-w-0 items-center gap-2">
-                        <TeamLogo nume={r.nume} logo={r.logo} size={18} />
-                        <span className={`truncate ${curenta ? 'font-bold text-ink' : 'text-ink'}`}>
-                          {r.nume ?? `#${r.teamId}`}
-                        </span>
-                      </span>
-                    </td>
-                    <td className="py-1.5 text-right tabular-nums text-ink2">{r.jucate ?? '—'}</td>
-                    <td className="py-1.5 text-right font-semibold tabular-nums text-ink">{r.puncte ?? '—'}</td>
-                    <td className="rounded-r-md py-1.5 pr-1.5 text-right tabular-nums text-ink2">
-                      {r.golaveraj != null && r.golaveraj > 0 ? `+${r.golaveraj}` : r.golaveraj ?? '—'}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <h2 className="text-sm font-extrabold text-ink">Poziție în clasament</h2>
+
+      <div className="mt-2.5 flex items-center gap-2">
+        <LigaLogo size={18} nume="Clasament" className="text-ink2" />
+        <span className="text-sm font-bold text-ink">Clasament</span>
+      </div>
+
+      <div className={compact ? 'mt-3' : 'mt-3 max-h-[26rem] overflow-y-auto'}>
+        <table className="w-full table-fixed border-separate border-spacing-y-0.5 text-sm">
+          <thead>
+            <tr className="text-[11px] font-semibold uppercase tracking-wide text-ink2">
+              <th className="w-6 px-1 pb-2 text-left font-semibold">#</th>
+              <th className="px-1 pb-2 text-left font-semibold">Echipa</th>
+              <th className="w-7 px-0.5 pb-2 text-center font-semibold">MJ</th>
+              <th className="w-7 px-0.5 pb-2 text-center font-semibold">V</th>
+              <th className="w-7 px-0.5 pb-2 text-center font-semibold">E</th>
+              <th className="w-7 px-0.5 pb-2 text-center font-semibold">Î</th>
+              <th className="w-9 px-0.5 pb-2 text-center font-semibold">DG</th>
+              <th className="w-9 px-1 pb-2 text-center font-semibold">PCT</th>
+            </tr>
+          </thead>
+          <tbody>
+            {afisate.map((r, i) => {
+              const curenta = r.echipaCurenta || r.teamId === teamId;
+              const golaveraj =
+                r.golaveraj != null && r.golaveraj > 0 ? `+${r.golaveraj}` : r.golaveraj ?? '—';
+              return (
+                <tr
+                  key={r.teamId}
+                  onClick={() => navigate(`/echipa/${r.teamId}`)}
+                  className={`cursor-pointer ${
+                    curenta
+                      ? 'bg-primary/10 font-semibold text-primary'
+                      : `${i % 2 === 1 ? 'bg-bg/70' : ''} text-ink transition duration-200 hover:bg-bg`
+                  }`}
+                >
+                  <td className={`rounded-l-btn px-1 py-2 text-xs tabular-nums ${curenta ? '' : 'text-ink'}`}>
+                    {r.rank ?? '—'}
+                  </td>
+                  <td className="px-1 py-2">
+                    <span className="flex min-w-0 items-center gap-2">
+                      <TeamLogo nume={r.nume} logo={r.logo} size={18} className="shrink-0" />
+                      <span className="truncate">{r.nume ?? `#${r.teamId}`}</span>
+                    </span>
+                  </td>
+                  <td className="px-0.5 py-2 text-center text-xs tabular-nums">{r.jucate ?? '—'}</td>
+                  <td className="px-0.5 py-2 text-center text-xs tabular-nums">{r.victorii ?? '—'}</td>
+                  <td className="px-0.5 py-2 text-center text-xs tabular-nums">{r.egaluri ?? '—'}</td>
+                  <td className="px-0.5 py-2 text-center text-xs tabular-nums">{r.infrangeri ?? '—'}</td>
+                  <td className="px-0.5 py-2 text-center text-xs tabular-nums">{golaveraj}</td>
+                  <td className="rounded-r-btn px-1 py-2 text-center text-xs font-bold tabular-nums">
+                    {r.puncte ?? '—'}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      <button
+        type="button"
+        title="În curând"
+        className="mt-3 flex w-full items-center justify-center gap-1.5 border-t border-line pt-3.5 text-[13px] font-bold text-primary transition duration-200 hover:opacity-70"
+      >
+        Vezi clasamentul complet
+        <IconChevronRight width={15} height={15} strokeWidth={2.4} />
+      </button>
     </Card>
   );
 }

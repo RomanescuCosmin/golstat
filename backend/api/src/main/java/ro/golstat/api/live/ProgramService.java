@@ -5,7 +5,9 @@ import org.springframework.transaction.annotation.Transactional;
 import ro.golstat.api.entity.Fixture;
 import ro.golstat.api.entity.League;
 import ro.golstat.api.entity.Team;
+import ro.golstat.api.prediction.PredictieMeciDto;
 import ro.golstat.api.prediction.PredictieMeciDto.EchipaDto;
+import ro.golstat.api.prediction.PredictionService;
 import ro.golstat.api.repository.FixtureRepository;
 import ro.golstat.api.repository.LeagueRepository;
 import ro.golstat.api.repository.TeamRepository;
@@ -35,11 +37,14 @@ public class ProgramService {
     private final FixtureRepository fixtures;
     private final TeamRepository teams;
     private final LeagueRepository leagues;
+    private final PredictionService predictions;
 
-    public ProgramService(FixtureRepository fixtures, TeamRepository teams, LeagueRepository leagues) {
+    public ProgramService(FixtureRepository fixtures, TeamRepository teams, LeagueRepository leagues,
+                          PredictionService predictions) {
         this.fixtures = fixtures;
         this.teams = teams;
         this.leagues = leagues;
+        this.predictions = predictions;
     }
 
     public ProgramDto program(int zile) {
@@ -77,6 +82,8 @@ public class ProgramService {
 
         Map<Long, Team> echipe = teamsById(found);
         Map<Long, League> ligiById = leaguesById(found);
+        // 1X2 per meci (bara de probabilitate), ieftin: istoric fara rang + medii cache-uite
+        Map<Long, PredictieMeciDto> pred = predictions.predictBatch(found, echipe);
 
         // liga → meciuri, in ordinea de kickoff deja sortata din query
         Map<Long, List<Fixture>> peLiga = new LinkedHashMap<>();
@@ -88,7 +95,7 @@ public class ProgramService {
                 .map(e -> {
                     League lg = e.getKey() != null ? ligiById.get(e.getKey()) : null;
                     List<ProgramZiDto.Meci> meciuri = e.getValue().stream()
-                            .map(f -> meciZi(f, echipe)).toList();
+                            .map(f -> meciZi(f, echipe, pred.get(f.getId()))).toList();
                     return new ProgramZiDto.Liga(
                             e.getKey() != null ? e.getKey() : 0,
                             lg != null ? lg.getName() : null,
@@ -104,7 +111,9 @@ public class ProgramService {
         return new ProgramZiDto(zi, ligi);
     }
 
-    private ProgramZiDto.Meci meciZi(Fixture f, Map<Long, Team> echipe) {
+    private ProgramZiDto.Meci meciZi(Fixture f, Map<Long, Team> echipe, PredictieMeciDto pred) {
+        ProgramZiDto.Predictie1X2 predictie = pred == null ? null
+                : new ProgramZiDto.Predictie1X2(pred.gazde(), pred.egal(), pred.oaspeti());
         return new ProgramZiDto.Meci(
                 f.getId(),
                 f.getKickoff(),
@@ -114,7 +123,9 @@ public class ProgramService {
                 f.getStatusShort(),
                 FixtureStatus.IN_PLAY.contains(f.getStatusShort()),
                 FixtureStatus.TERMINAL.contains(f.getStatusShort()),
-                f.getStatusElapsed());
+                f.getStatusElapsed(),
+                f.getRound(),
+                predictie);
     }
 
     private List<ProgramDto.Liga> ligi(Map<Long, List<Fixture>> peLiga, Map<Long, League> ligiById,

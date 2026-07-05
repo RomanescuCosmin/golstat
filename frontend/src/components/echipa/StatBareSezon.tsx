@@ -1,31 +1,42 @@
-import type { StatBareSezon as StatBareSezonData } from '../../api/types';
+import type { StatBareSezon as StatBareSezonData, SumarSezon } from '../../api/types';
+import { useGrowOnMount } from '../../hooks/useAnimatii';
 import { Card } from '../ui/Card';
 import { EmptyState } from '../ui/EmptyState';
 
-interface Bara {
+const nrScurt = new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 1 });
+const nrPeMeci = new Intl.NumberFormat('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+interface RandBaraProps {
   eticheta: string;
   valoare: number | null;
   /** Maximul fata de care scalam latimea barei. */
   max: number;
   procent?: boolean;
+  /** Bara rosie (ex. goluri primite) in loc de albastru. */
+  accent?: boolean;
+  /** Sublabel discret la dreapta valorii (ex. "2,00 pe meci"). */
+  subEticheta?: string | null;
 }
 
-function formatVal(valoare: number, procent?: boolean): string {
-  return procent ? `${Math.round(valoare)}%` : new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 1 }).format(valoare);
-}
-
-function RandBara({ eticheta, valoare, max, procent }: Bara) {
-  const latime = valoare != null && valoare > 0 ? Math.min((valoare / max) * 100, 100) : 0;
+function RandBara({ eticheta, valoare, max, procent, accent, subEticheta }: RandBaraProps) {
+  const montat = useGrowOnMount();
+  const latime = valoare != null && valoare > 0 && max > 0 ? Math.min((valoare / max) * 100, 100) : 0;
   return (
     <div>
-      <div className="mb-1 flex items-center justify-between">
+      <div className="mb-1.5 flex items-baseline justify-between gap-2">
         <span className="text-sm text-ink2">{eticheta}</span>
-        <span className="text-sm font-semibold tabular-nums text-ink">
-          {valoare == null ? '—' : formatVal(valoare, procent)}
+        <span className="flex items-baseline gap-1.5">
+          <span className="text-sm font-bold tabular-nums text-ink">
+            {valoare == null ? '—' : procent ? `${Math.round(valoare)}%` : nrScurt.format(valoare)}
+          </span>
+          {subEticheta && <span className="text-[11px] tabular-nums text-ink2/70">{subEticheta}</span>}
         </span>
       </div>
-      <div className="h-2 overflow-hidden rounded-full bg-ink2/10 dark:bg-ink2/15">
-        <div className="h-full rounded-full bg-primary" style={{ width: `${latime}%` }} />
+      <div className="h-1.5 overflow-hidden rounded-full bg-bg dark:bg-ink2/15">
+        <div
+          className={`h-full rounded-full transition-[width] duration-500 ease-out motion-reduce:transition-none ${accent ? 'bg-accent' : 'bg-primary'}`}
+          style={{ width: montat ? `${latime}%` : '0%' }}
+        />
       </div>
     </div>
   );
@@ -33,28 +44,50 @@ function RandBara({ eticheta, valoare, max, procent }: Bara) {
 
 interface StatBareSezonProps {
   statistici: StatBareSezonData | null;
+  sumar: SumarSezon | null;
 }
 
-/** "Statistici sezon": bare orizontale mono-culoare pentru mediile echipei + meciuri fara gol primit. */
-export function StatBareSezon({ statistici }: StatBareSezonProps) {
+/** "Statistici sezon": totaluri de goluri + bare orizontale (albastru; roșu la goluri primite). */
+export function StatBareSezon({ statistici, sumar }: StatBareSezonProps) {
+  if (!statistici && !sumar) {
+    return (
+      <Card className="p-5">
+        <h2 className="text-sm font-extrabold text-ink">Statistici sezon</h2>
+        <EmptyState titlu="Fără statistici" mesaj="Nu există date de sezon pentru această echipă." />
+      </Card>
+    );
+  }
+
+  const marcate = sumar?.goluriMarcate ?? null;
+  const primite = sumar?.goluriPrimite ?? null;
+  // Scalam ambele bare de goluri la acelasi maxim, ca sa fie comparabile vizual.
+  const maxGoluri = Math.max(marcate ?? 0, primite ?? 0);
+
   return (
     <Card className="p-5">
-      <h2 className="text-base font-bold text-ink">Statistici sezon</h2>
-      {!statistici ? (
-        <EmptyState titlu="Fără statistici" mesaj="Nu există date de sezon pentru această echipă." />
-      ) : (
-        <div className="mt-4 space-y-3.5">
-          <RandBara eticheta="Goluri marcate / meci" valoare={statistici.goluriMarcatePeMeci} max={3.5} />
-          <RandBara eticheta="Goluri primite / meci" valoare={statistici.goluriPrimitePeMeci} max={3.5} />
-          <RandBara eticheta="Șuturi pe meci" valoare={statistici.suturiPeMeci} max={25} />
-          <RandBara eticheta="Posesie medie" valoare={statistici.posesieMedie} max={100} procent />
-          <RandBara eticheta="Precizie pase" valoare={statistici.preciziePase} max={100} procent />
-          <div className="flex items-center justify-between border-t border-line pt-3">
-            <span className="text-sm text-ink2">Meciuri fără gol primit</span>
-            <span className="text-lg font-extrabold tabular-nums text-ink">{statistici.cleanSheets ?? '—'}</span>
-          </div>
+      <h2 className="text-sm font-extrabold text-ink">Statistici sezon</h2>
+      <div className="mt-4 space-y-4">
+        <RandBara
+          eticheta="Goluri marcate"
+          valoare={marcate}
+          max={maxGoluri}
+          subEticheta={statistici?.goluriMarcatePeMeci != null ? `${nrPeMeci.format(statistici.goluriMarcatePeMeci)} pe meci` : null}
+        />
+        <RandBara
+          eticheta="Goluri primite"
+          valoare={primite}
+          max={maxGoluri}
+          accent
+          subEticheta={statistici?.goluriPrimitePeMeci != null ? `${nrPeMeci.format(statistici.goluriPrimitePeMeci)} pe meci` : null}
+        />
+        <RandBara eticheta="Șuturi pe meci" valoare={statistici?.suturiPeMeci ?? null} max={25} />
+        <RandBara eticheta="Posesie medie" valoare={statistici?.posesieMedie ?? null} max={100} procent />
+        <RandBara eticheta="Pase reușite" valoare={statistici?.preciziePase ?? null} max={100} procent />
+        <div className="flex items-center justify-between border-t border-line pt-3.5">
+          <span className="text-sm text-ink2">Meciuri fără gol primit</span>
+          <span className="text-lg font-extrabold tabular-nums text-primary">{statistici?.cleanSheets ?? '—'}</span>
         </div>
-      )}
+      </div>
     </Card>
   );
 }

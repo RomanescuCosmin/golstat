@@ -22,17 +22,21 @@ export function StatisticiLive({ gazde, oaspeti, statistici }: StatisticiLivePro
   const g = statistici.gazde;
   const o = statistici.oaspeti;
 
+  if (!g && !o) {
+    return null;
+  }
+
   const randuri: Rand[] = [
-    { eticheta: 'Posesie', gazde: g.posesie, oaspeti: o.posesie, procent: true },
-    { eticheta: 'Șuturi', gazde: g.suturiTotal, oaspeti: o.suturiTotal },
-    { eticheta: 'Șuturi pe poartă', gazde: g.suturiPePoarta, oaspeti: o.suturiPePoarta },
-    { eticheta: 'Cornere', gazde: g.cornere, oaspeti: o.cornere },
-    { eticheta: 'Faulturi', gazde: g.faulturi, oaspeti: o.faulturi },
-    { eticheta: 'Cartonașe galbene', gazde: g.galbene, oaspeti: o.galbene },
-    { eticheta: 'Cartonașe roșii', gazde: g.rosii, oaspeti: o.rosii },
-    { eticheta: 'Pase', gazde: g.pase, oaspeti: o.pase },
-    { eticheta: 'Precizie pase', gazde: g.preciziePase, oaspeti: o.preciziePase, procent: true },
-    { eticheta: 'xG', gazde: g.xg, oaspeti: o.xg },
+    { eticheta: 'Posesie', gazde: g?.posesie ?? null, oaspeti: o?.posesie ?? null, procent: true },
+    { eticheta: 'Șuturi', gazde: g?.suturiTotal ?? null, oaspeti: o?.suturiTotal ?? null },
+    { eticheta: 'Șuturi pe poartă', gazde: g?.suturiPePoarta ?? null, oaspeti: o?.suturiPePoarta ?? null },
+    { eticheta: 'Cornere', gazde: g?.cornere ?? null, oaspeti: o?.cornere ?? null },
+    { eticheta: 'Faulturi', gazde: g?.faulturi ?? null, oaspeti: o?.faulturi ?? null },
+    { eticheta: 'Cartonașe galbene', gazde: g?.galbene ?? null, oaspeti: o?.galbene ?? null },
+    { eticheta: 'Cartonașe roșii', gazde: g?.rosii ?? null, oaspeti: o?.rosii ?? null },
+    { eticheta: 'Pase', gazde: g?.pase ?? null, oaspeti: o?.pase ?? null },
+    { eticheta: 'Precizie pase', gazde: g?.preciziePase ?? null, oaspeti: o?.preciziePase ?? null, procent: true },
+    { eticheta: 'xG', gazde: g?.xg ?? null, oaspeti: o?.xg ?? null },
   ].filter((rand) => rand.gazde != null || rand.oaspeti != null);
 
   return (

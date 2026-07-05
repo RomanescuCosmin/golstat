@@ -120,6 +120,14 @@ public interface FixtureRepository extends JpaRepository<Fixture, Long> {
                             @Param("from") OffsetDateTime from,
                             @Param("to") OffsetDateTime to);
 
+    /** Ultimele meciuri dintr-o liga/sezon cu un status dat (ex. TERMINALE) — pentru pagina de competitie. */
+    List<Fixture> findByLeagueIdAndSeasonYearAndStatusShortInOrderByKickoffDesc(
+            Long leagueId, Integer seasonYear, Collection<String> statusShort, Pageable pageable);
+
+    /** Meciurile viitoare ({@code NS}) dintr-o liga/sezon, cele mai apropiate primele. */
+    List<Fixture> findByLeagueIdAndSeasonYearAndStatusShortOrderByKickoffAsc(
+            Long leagueId, Integer seasonYear, String statusShort, Pageable pageable);
+
     /**
      * Media golurilor marcate de o echipa pe o liga/sezon (meciuri TERMINALE), indiferent de locatie.
      * Fallback pentru {@code StatProcent} cand {@code team_season_stats} lipseste. {@code null} fara meciuri.

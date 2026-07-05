@@ -61,7 +61,10 @@ public record PaginaEchipaDto(
             EchipaDto adversar,
             Integer golMarcate,
             Integer golPrimite,
-            String rezultat
+            String rezultat,
+            String liga,
+            String ligaLogo,
+            String runda
     ) {
     }
 
@@ -77,7 +80,10 @@ public record PaginaEchipaDto(
             long fixtureId,
             OffsetDateTime kickoff,
             EchipaDto adversar,
-            boolean acasa
+            boolean acasa,
+            String liga,
+            String ligaLogo,
+            String runda
     ) {
     }
 
@@ -88,8 +94,11 @@ public record PaginaEchipaDto(
             String nume,
             String logo,
             Integer jucate,
-            Integer puncte,
+            Integer victorii,
+            Integer egaluri,
+            Integer infrangeri,
             Integer golaveraj,
+            Integer puncte,
             boolean echipaCurenta
     ) {
     }
@@ -107,12 +116,12 @@ public record PaginaEchipaDto(
     ) {
     }
 
-    /** Numarul de goluri marcate intr-un interval de timp (ex. "1-15", "90+"). */
-    public record Bucket(String interval, int goluri) {
+    /** Golurile marcate si primite intr-un interval de timp (ex. "1-15", "90+"), pentru distributie. */
+    public record Bucket(String interval, int marcate, int primite) {
     }
 
-    /** Cei mai buni jucatori pe cateva categorii; oricare poate lipsi. */
-    public record TopJucatori(Jucator golgheter, Jucator pasator, Jucator minute, Jucator cartonase) {
+    /** Cei mai buni jucatori pe cateva categorii (Top Scorer / Assists / Minute / Galbene / Rosii); oricare poate lipsi. */
+    public record TopJucatori(Jucator golgheter, Jucator pasator, Jucator minute, Jucator galbene, Jucator rosii) {
     }
 
     /** Un jucator din top; {@code valoare} = metrica categoriei (goluri, pase, minute, cartonase). */
