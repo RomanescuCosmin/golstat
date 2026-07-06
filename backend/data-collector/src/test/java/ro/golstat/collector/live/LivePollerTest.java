@@ -39,7 +39,7 @@ class LivePollerTest {
 
     private LivePoller poller(LiveProperties props) {
         CollectionProperties collection = new CollectionProperties(
-                List.of(new LeagueTarget(39, 2025), new LeagueTarget(1, 2026)), 90, 10);
+                List.of(new LeagueTarget(39, 2025, false), new LeagueTarget(1, 2026, false)), 90, 10);
         return new LivePoller(provider, publisher, schedule, props, collection, clock);
     }
 

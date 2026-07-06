@@ -55,6 +55,15 @@ public interface DataProvider {
         return List.of();
     }
 
+    /**
+     * Meciurile cu id-urile date, stare curenta (fara cache). Pentru „finalizarea" meciurilor care tocmai
+     * au iesit din {@code live=all}: le luam scorul/statusul final (FT) o singura data, altfel ar ramane
+     * inghetate la ultimul snapshot live. Max ~20 id-uri per apel la sursa.
+     */
+    default List<FixtureDto> fixturesByIds(java.util.Collection<Long> fixtureIds) {
+        return List.of();
+    }
+
     /** Clasamentul unei ligi/sezon. */
     List<StandingDto> standings(long leagueId, int season);
 
