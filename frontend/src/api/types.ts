@@ -251,12 +251,16 @@ export interface MeciCentral {
   evenimente: EvenimentMeci[];
 }
 
-/** Oglinda `ro.golstat.api.team.RezultatCautareDto` — un rezultat din cautarea de echipe. */
+/** Tipul unui rezultat din cautarea globala. */
+export type TipRezultat = 'ECHIPA' | 'LIGA' | 'JUCATOR';
+
+/** Oglinda `ro.golstat.api.cautare.RezultatCautareDto` — un rezultat din cautarea globala. */
 export interface RezultatCautare {
-  teamId: number;
+  tip: TipRezultat;
+  id: number;
   nume: string | null;
-  logo: string | null;
-  tara: string | null;
+  imagine: string | null;
+  subtitlu: string | null;
   nationala: boolean;
 }
 

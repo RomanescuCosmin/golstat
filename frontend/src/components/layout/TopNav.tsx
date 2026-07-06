@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom';
 import { MingeGolStat } from '../ui/MingeGolStat';
 import { ThemeToggle } from '../ui/ThemeToggle';
 import { IconClopot } from '../ui/icons';
-import { CautareEchipe } from './CautareEchipe';
+import { Cautare } from './Cautare';
 
 function Logo() {
   // Marca GolStat (aceeasi peste tot: navbar, favicon, spinner, splash) + wordmark.
@@ -65,7 +65,7 @@ export function TopNav() {
         </nav>
 
         <div className="ml-auto flex items-center gap-2 lg:gap-3">
-          <CautareEchipe />
+          <Cautare />
 
           <ThemeToggle />
 
