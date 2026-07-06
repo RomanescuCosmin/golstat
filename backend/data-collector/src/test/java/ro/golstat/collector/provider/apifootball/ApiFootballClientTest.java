@@ -118,4 +118,15 @@ class ApiFootballClientTest {
                 .filter(k -> k.startsWith("golstat:af:cache:")).findFirst().orElseThrow();
         assertEquals(Duration.ofHours(24), store.ttls.get(cacheKey));
     }
+
+    @Test
+    void detecteazaDoarLimitaPeMinut() {
+        assertTrue(ApiFootballClient.esteRateLimitPeMinut(
+                "{\"response\":[],\"errors\":{\"rateLimit\":\"Too many requests...\"}}"));
+        assertFalse(ApiFootballClient.esteRateLimitPeMinut(
+                "{\"response\":[],\"errors\":{\"token\":\"invalid\"}}"));
+        assertFalse(ApiFootballClient.esteRateLimitPeMinut(
+                "{\"response\":[{\"fixture\":{\"id\":1}}]}"));
+        assertFalse(ApiFootballClient.esteRateLimitPeMinut(null));
+    }
 }
