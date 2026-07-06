@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { BandaZile } from './BandaZile';
-import { SelectorLiga, type OptiuneLiga } from './SelectorLiga';
+import { CaruselCompetitii } from './CaruselCompetitii';
 import { IconCeas, IconFiltru, IconLive, IconStar } from '../ui/icons';
 
 export interface StareFiltre {
@@ -14,27 +14,20 @@ interface FiltreMeciuriProps {
   onData: (dataISO: string) => void;
   liga: number | null;
   onLiga: (leagueId: number | null) => void;
-  optiuniLigi: OptiuneLiga[];
   filtre: StareFiltre;
   onFiltre: (filtre: StareFiltre) => void;
 }
 
 /**
- * Bara de filtre a paginii Meciuri: selector de zi + competitie, buton „Filtre" (reset) si
- * comutatoare Live / Favorite / Începe curând. Stil pastila, doar accente albastru/rosu.
+ * Antetul paginii Meciuri, pe trei randuri (ca in mockup): comutatoarele Filtre / Live /
+ * Favorite / Începe curând sus, caruselul de zile dedesubt, apoi caruselul cu toate competitiile.
  */
-export function FiltreMeciuri({ dataISO, onData, liga, onLiga, optiuniLigi, filtre, onFiltre }: FiltreMeciuriProps) {
+export function FiltreMeciuri({ dataISO, onData, liga, onLiga, filtre, onFiltre }: FiltreMeciuriProps) {
   const active = filtre.live || filtre.favorite || filtre.curand;
 
   return (
-    <div className="mb-5 flex flex-wrap items-center gap-2.5">
-      <BandaZile selectata={dataISO} onSelect={onData} />
-
-      <div className="min-w-[12rem]">
-        <SelectorLiga leagueId={liga} onChange={onLiga} optiuni={optiuniLigi} />
-      </div>
-
-      <div className="ml-auto flex flex-wrap items-center gap-2">
+    <div className="mb-5 space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
           onClick={() => onFiltre({ live: false, favorite: false, curand: false })}
@@ -74,6 +67,10 @@ export function FiltreMeciuri({ dataISO, onData, liga, onLiga, optiuniLigi, filt
           Începe curând
         </Toggle>
       </div>
+
+      <BandaZile selectata={dataISO} onSelect={onData} />
+
+      <CaruselCompetitii selectata={liga} onAlege={onLiga} />
     </div>
   );
 }

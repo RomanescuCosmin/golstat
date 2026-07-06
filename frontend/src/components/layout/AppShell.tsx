@@ -8,7 +8,19 @@ import { Sidebar } from './Sidebar';
  */
 export function AppShell() {
   return (
-    <div className="min-h-screen bg-bg text-ink">
+    // fundalul plat vine de pe <body> (bg-bg); aici punem doar decorul fix, sub tot continutul
+    <div className="min-h-screen text-ink">
+      {/* Decor global: stadionul nocturn, fix sub continut; se topeste in culoarea fundalului spre baza. */}
+      <div aria-hidden className="pointer-events-none fixed inset-0 -z-10">
+        <img
+          src="/stadion-fundal.jpg"
+          alt=""
+          className="h-full w-full object-cover object-top opacity-[0.65] dark:opacity-[0.55]"
+        />
+        {/* Valul de estompare sta jos (70% pe light): imaginea ramane curata, fara umbre albe pe mijloc. */}
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-bg/10 via-70% to-bg dark:from-bg/10 dark:via-bg/45 dark:via-50%" />
+      </div>
+
       <TopNav />
       <div className="flex">
         <Sidebar />
