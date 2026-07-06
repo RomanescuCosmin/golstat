@@ -4,11 +4,11 @@
 
 /* Design system GolStat — canale RGB, ca sa mearga /<alpha-value> in Tailwind. */
 :root {
-  --gs-bg: 246 248 252; /* #F6F8FC */
+  --gs-bg: 243 246 251; /* #F3F6FB — gri-albastrui rece, pereche de light a fundalului dark */
   --gs-card: 255 255 255; /* #FFFFFF */
-  --gs-ink: 17 24 39; /* #111827 */
-  --gs-ink2: 107 114 128; /* #6B7280 */
-  --gs-line: 229 231 235; /* #E5E7EB */
+  --gs-ink: 15 23 42; /* #0F172A */
+  --gs-ink2: 100 112 133; /* #647085 */
+  --gs-line: 226 231 240; /* #E2E7F0 */
   --gs-primary: 37 99 235; /* #2563EB */
   --gs-accent: 239 68 68; /* #EF4444 */
   --gs-win: 34 165 91; /* #22A55B */
@@ -16,11 +16,12 @@
 }
 
 .dark {
-  --gs-bg: 15 20 32; /* #0F1420 */
-  --gs-card: 24 31 46; /* #181F2E */
-  --gs-ink: 230 234 242; /* #E6EAF2 */
-  --gs-ink2: 138 147 166; /* #8A93A6 */
-  --gs-line: 35 44 61; /* #232C3D */
+  /* Paleta dark dupa mockup: fundal aproape negru cu tenta de albastru, carduri abia ridicate. */
+  --gs-bg: 7 10 18; /* #070A12 */
+  --gs-card: 16 21 32; /* #101520 */
+  --gs-ink: 232 236 245; /* #E8ECF5 */
+  --gs-ink2: 139 148 167; /* #8B94A7 */
+  --gs-line: 31 39 56; /* #1F2738 */
   --gs-primary: 59 130 246; /* #3B82F6 */
   --gs-accent: 248 113 113; /* #F87171 */
   --gs-win: 58 168 112; /* #3AA870 */
@@ -43,5 +44,17 @@
 
   body {
     @apply bg-bg text-ink antialiased;
+  }
+}
+
+@layer components {
+  /* Tenta de culoare a cardurilor din caruselul live; fiecare card seteaza --tinta: "R G B". */
+  .card-live-tinta {
+    background-image: linear-gradient(150deg, rgb(var(--tinta) / 0.09) 0%, rgb(var(--tinta) / 0.03) 45%, transparent 70%);
+  }
+  .dark .card-live-tinta {
+    background-image:
+      radial-gradient(120% 90% at 100% 110%, rgb(var(--tinta) / 0.12) 0%, transparent 55%),
+      linear-gradient(155deg, rgb(var(--tinta) / 0.3) 0%, rgb(var(--tinta) / 0.08) 42%, transparent 72%);
   }
 }
