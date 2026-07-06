@@ -16,6 +16,17 @@ export function ListaRezerve({ titlu, rezerve }: ListaRezerveProps) {
         <ul className="space-y-1">
           {rezerve.map((j, i) => (
             <li key={j.id ?? i} className="flex items-center gap-2 text-sm text-ink">
+              {j.foto != null && (
+                <img
+                  src={j.foto}
+                  alt=""
+                  loading="lazy"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                  }}
+                  className="h-6 w-6 shrink-0 rounded-full border border-line bg-card object-cover"
+                />
+              )}
               <span className="w-6 shrink-0 text-right font-semibold tabular-nums text-ink2">
                 {j.numar ?? '–'}
               </span>

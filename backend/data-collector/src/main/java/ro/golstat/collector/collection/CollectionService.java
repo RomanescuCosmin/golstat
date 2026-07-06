@@ -116,8 +116,9 @@ public class CollectionService {
         // Abia apoi detaliile per meci (lineups/events/stats) — pot esua fara sa pierdem meciurile deja publicate.
         for (FixtureDto fixture : fixtures) {
             boolean terminal = TERMINAL.contains(fixture.statusShort());
-            // lineup-urile apar si INAINTE de meci (aproape de kickoff), deci le cerem si pentru NS
-            if (terminal || GolstatConstants.FixtureStatus.NOT_STARTED.equals(fixture.statusShort())) {
+            // lineup-urile PRE-meci le aduce LineupPrematchPoller (TTL 0, fereastra de kickoff);
+            // aici le cerem doar pentru meciurile terminate, unde raspunsul e stabil si cache-uibil
+            if (terminal) {
                 List<FixtureLineupDto> lineups = provider.fixtureLineups(fixture.id());
                 if (!lineups.isEmpty()) {
                     publisher.publish(GolstatConstants.KafkaTopics.FIXTURE_LINEUPS, String.valueOf(fixture.id()), lineups);

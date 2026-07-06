@@ -25,7 +25,19 @@ export function EchipaDeStart({ echipe, gazde, oaspeti }: EchipaDeStartProps) {
 
   return (
     <Card className="p-5">
-      <h2 className="text-base font-bold text-ink">Echipă de start</h2>
+      <div className="flex items-center gap-2">
+        <h2 className="text-base font-bold text-ink">
+          {echipe.probabila ? 'Echipe probabile' : 'Echipă de start'}
+        </h2>
+        {echipe.probabila && (
+          <span
+            title="Formațiile nu au fost încă anunțate; afișăm ultimul unsprezece de start al fiecărei echipe."
+            className="rounded-full bg-draw/15 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-draw"
+          >
+            estimat
+          </span>
+        )}
+      </div>
 
       {!areTitulari ? (
         <EmptyState titlu="Fără formații" mesaj="Formațiile de start nu au fost încă anunțate." />

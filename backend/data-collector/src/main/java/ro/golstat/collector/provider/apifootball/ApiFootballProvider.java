@@ -80,6 +80,16 @@ public class ApiFootballProvider implements DataProvider {
     }
 
     @Override
+    public List<FixtureLineupDto> upcomingFixtureLineups(long fixtureId) {
+        // pre-meci raspunsul e GOL pana la anunt → TTL 0 (fara cache: cheia e comuna cu
+        // fixtureLineups, iar un gol cache-uit 24h ar ascunde anuntul); throttling la apelant
+        return client.get(GolstatConstants.ApiFootball.FIXTURES_LINEUPS, Map.of("fixture", fixtureId),
+                        LineupItem.class, Duration.ZERO).stream()
+                .map(l -> ApiFootballMapper.toFixtureLineup(l, fixtureId))
+                .toList();
+    }
+
+    @Override
     public List<InjuryDto> injuries(long leagueId, int season) {
         // lista de indisponibili se schimba de la o zi la alta → TTL scurt
         Map<String, Object> params = Map.of("league", leagueId, "season", season);

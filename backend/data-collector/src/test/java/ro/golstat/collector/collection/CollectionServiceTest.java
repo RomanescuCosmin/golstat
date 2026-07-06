@@ -175,15 +175,16 @@ class CollectionServiceTest {
     }
 
     @Test
-    void lineupsRequestedForTerminalAndNotStarted_publishedAsBatchPerFixture() {
+    void lineupsRequestedOnlyForTerminal_publishedAsBatchPerFixture() {
         StatusProvider provider = new StatusProvider();
         RecordingPublisher pub = new RecordingPublisher();
         new CollectionService(provider, pub, new LiveSchedule())
                 .collectGoalsData(1, 2026, LocalDate.of(2026, 6, 1), LocalDate.of(2026, 7, 31));
 
-        // lineup-urile se cer si pentru NS (apar aproape de kickoff), nu doar pentru FT
-        assertEquals(List.of(200L, 201L), provider.lineupsAskedFor);
-        assertEquals(2, pub.countOn(GolstatConstants.KafkaTopics.FIXTURE_LINEUPS));
+        // pre-meci (NS) formatiile le aduce LineupPrematchPoller cu TTL 0; aici doar terminate,
+        // ca raspunsul gol de dinaintea anuntului sa nu ramana in cache-ul istoric
+        assertEquals(List.of(200L), provider.lineupsAskedFor);
+        assertEquals(1, pub.countOn(GolstatConstants.KafkaTopics.FIXTURE_LINEUPS));
         RecordingPublisher.Message msg = pub.first(GolstatConstants.KafkaTopics.FIXTURE_LINEUPS);
         assertEquals("200", msg.key());
         List<?> batch = assertInstanceOf(List.class, msg.payload());   // lot: ambele formatii intr-un mesaj

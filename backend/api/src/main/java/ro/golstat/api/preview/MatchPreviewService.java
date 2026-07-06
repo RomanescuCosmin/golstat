@@ -13,6 +13,7 @@ import ro.golstat.api.prediction.PredictieMeciDto;
 import ro.golstat.api.prediction.PredictieMeciDto.EchipaDto;
 import ro.golstat.api.prediction.PredictionNotFoundException;
 import ro.golstat.api.prediction.PredictionService;
+import ro.golstat.api.preview.StatisticiAvansateBuilder.FerestreEchipa;
 import ro.golstat.api.repository.FixtureLineupPlayerRepository;
 import ro.golstat.api.repository.FixtureLineupRepository;
 import ro.golstat.api.repository.FixtureRepository;
@@ -22,14 +23,14 @@ import ro.golstat.api.repository.TeamRepository;
 import ro.golstat.api.stats.CountLeagueAverageService;
 import ro.golstat.api.stats.CountLeagueAverages;
 import ro.golstat.api.stats.IstoricCounturi;
+import ro.golstat.api.stats.LeagueAverageService;
+import ro.golstat.api.stats.LeagueAverages;
 import ro.golstat.api.stats.MatchHistoryService;
 import ro.golstat.api.stats.RefereeService;
 import ro.golstat.api.stats.StatsHistoryService;
 import ro.golstat.common.GolstatConstants;
-import ro.golstat.stats.cards.CardMarket;
-import ro.golstat.stats.counts.EventLineBlend;
-import ro.golstat.stats.market.OverUnder;
-import ro.golstat.stats.model.EventCountSample;
+import ro.golstat.stats.form.MatchWindow;
+import ro.golstat.stats.model.MatchLocation;
 import ro.golstat.stats.model.MatchSample;
 
 import java.time.LocalDate;
@@ -45,22 +46,21 @@ import java.util.stream.Stream;
 
 /**
  * Previzualizarea unui meci VIITOR pentru pagina de meci: predictia de goluri
- * ({@link PredictionService}) + forma ultimelor meciuri per echipa (fara filtru de locatie,
- * ca badge-urile V/E/I) + intalnirile directe + pietele numarabile (cornere/faulturi/cartonase,
- * pe totalul meciului, fereastra combinata a ambelor echipe) + statisticile cheie.
+ * ({@link PredictionService}) + forma ultimelor {@value #FEREASTRA} meciuri per echipa (pe locatia
+ * din meci si generala) + intalnirile directe + analiza pe piete pe aceleasi ferestre
+ * ({@link StatisticiAvansateBuilder}) + statisticile cheie + echipa de start.
  */
 @Service
 public class MatchPreviewService {
 
-    /** Fereastra din care calculam mediile de goluri pe meci. */
-    static final int FEREASTRA_MEDII = 10;
-    /** Cate meciuri afisam ca badge-uri V/E/I. */
-    static final int FEREASTRA_FORMA = 5;
+    /** Fereastra de analiza: ultimele N meciuri (pe locatie, respectiv generale). */
+    static final int FEREASTRA = 7;
+    /** Cate meciuri tragem din istoric, ca sa ramana destule dupa filtrul de locatie. */
+    static final int HISTORY_FETCH = 40;
+    /** Pe cate meciuri (cu statistici) se calculeaza mediile din statisticile cheie. */
+    static final int FEREASTRA_STATISTICI = 10;
     /** Cate intalniri directe afisam. */
     static final int H2H_LIMIT = 5;
-    /** Dispersiile Negative Binomial calibrate in stats-engine (vezi EventLineBlendTest / CardMarketTest). */
-    static final double DISPERSIE_FAULTURI = 30;
-    static final double DISPERSIE_CARTONASE = 8;
     /** Raportarile de indisponibili mai vechi de atat (fata de kickoff) nu mai descriu meciul curent. */
     static final int INDISPONIBILI_ZILE = 30;
 
@@ -75,6 +75,7 @@ public class MatchPreviewService {
     private final MatchHistoryService history;
     private final StatsHistoryService statsHistory;
     private final CountLeagueAverageService countAverages;
+    private final LeagueAverageService leagueAverages;
     private final RefereeService referees;
     private final TeamRepository teams;
     private final FixtureLineupRepository lineups;
@@ -84,8 +85,8 @@ public class MatchPreviewService {
 
     public MatchPreviewService(PredictionService predictions, FixtureRepository fixtures,
                                MatchHistoryService history, StatsHistoryService statsHistory,
-                               CountLeagueAverageService countAverages, RefereeService referees,
-                               TeamRepository teams,
+                               CountLeagueAverageService countAverages, LeagueAverageService leagueAverages,
+                               RefereeService referees, TeamRepository teams,
                                FixtureLineupRepository lineups, FixtureLineupPlayerRepository lineupPlayers,
                                InjuryRepository injuries, PlayerRepository players) {
         this.predictions = predictions;
@@ -93,6 +94,7 @@ public class MatchPreviewService {
         this.history = history;
         this.statsHistory = statsHistory;
         this.countAverages = countAverages;
+        this.leagueAverages = leagueAverages;
         this.referees = referees;
         this.teams = teams;
         this.lineups = lineups;
@@ -108,65 +110,156 @@ public class MatchPreviewService {
         Fixture meci = fixtures.findById(fixtureId)
                 .orElseThrow(() -> new PredictionNotFoundException(fixtureId));
 
-        FormaEchipaDto formaGazde =
-                forma(history.lastMatches(meci.getHomeTeamId(), meci.getKickoff(), FEREASTRA_MEDII));
-        FormaEchipaDto formaOaspeti =
-                forma(history.lastMatches(meci.getAwayTeamId(), meci.getKickoff(), FEREASTRA_MEDII));
-
+        List<MatchSample> istoricGazde =
+                history.lastMatches(meci.getHomeTeamId(), meci.getKickoff(), HISTORY_FETCH);
+        List<MatchSample> istoricOaspeti =
+                history.lastMatches(meci.getAwayTeamId(), meci.getKickoff(), HISTORY_FETCH);
         IstoricCounturi counturiGazde =
-                statsHistory.istoric(meci.getHomeTeamId(), meci.getKickoff(), FEREASTRA_MEDII);
+                statsHistory.istoric(meci.getHomeTeamId(), meci.getKickoff(), HISTORY_FETCH);
         IstoricCounturi counturiOaspeti =
-                statsHistory.istoric(meci.getAwayTeamId(), meci.getKickoff(), FEREASTRA_MEDII);
-        CountLeagueAverages mediiLiga = countAverages.averages(meci.getLeagueId(), meci.getSeasonYear());
-        double factorArbitru = referees.factor(meci.getReferee(), mediiLiga.cartonasePeMeci());
+                statsHistory.istoric(meci.getAwayTeamId(), meci.getKickoff(), HISTORY_FETCH);
+        CountLeagueAverages mediiCounturi = countAverages.averages(meci.getLeagueId(), meci.getSeasonYear());
+        LeagueAverages mediiGoluri = leagueAverages.averages(meci.getLeagueId(), meci.getSeasonYear());
+        double factorArbitru = referees.factor(meci.getReferee(), mediiCounturi.cartonasePeMeci());
 
-        return new PrevizualizareMeciDto(predictie, formaGazde, formaOaspeti, intalniriDirecte(meci),
-                cornere(counturiGazde, counturiOaspeti, mediiLiga),
-                faulturi(counturiGazde, counturiOaspeti, mediiLiga),
-                cartonase(counturiGazde, counturiOaspeti, mediiLiga, factorArbitru),
+        StatisticiAvansateDto statistici = StatisticiAvansateBuilder.build(
+                ferestre(istoricGazde, counturiGazde, MatchLocation.HOME),
+                ferestre(istoricOaspeti, counturiOaspeti, MatchLocation.AWAY),
+                mediiCounturi, mediiGoluri.mediaLigaGazde() + mediiGoluri.mediaLigaOaspeti(),
+                factorArbitru, egalModel(predictie));
+
+        return new PrevizualizareMeciDto(predictie,
+                forma(istoricGazde, MatchLocation.HOME),
+                forma(istoricOaspeti, MatchLocation.AWAY),
+                intalniriDirecte(meci),
+                statistici,
                 new StatisticiCheieDto(statisticiEchipa(counturiGazde.statisticiEchipa()),
                         statisticiEchipa(counturiOaspeti.statisticiEchipa())),
                 echipeDeStart(meci));
     }
 
-    /** {@code null} cat timp nu avem lineup pentru AMBELE echipe (sursa le anunta impreuna). */
+    /** Ferestrele unei echipe pentru analiza pe piete: ultimele {@value #FEREASTRA}, locatie + general. */
+    private static FerestreEchipa ferestre(List<MatchSample> istoric, IstoricCounturi counturi,
+                                           MatchLocation locatie) {
+        return new FerestreEchipa(
+                MatchWindow.lastN(istoric, FEREASTRA, locatie),
+                MatchWindow.lastN(istoric, FEREASTRA),
+                MatchWindow.lastN(counturi.cornere(), FEREASTRA, locatie),
+                MatchWindow.lastN(counturi.cornere(), FEREASTRA),
+                MatchWindow.lastN(counturi.faulturi(), FEREASTRA, locatie),
+                MatchWindow.lastN(counturi.faulturi(), FEREASTRA),
+                MatchWindow.lastN(counturi.cartonase(), FEREASTRA, locatie),
+                MatchWindow.lastN(counturi.cartonase(), FEREASTRA),
+                MatchWindow.lastN(counturi.suturi(), FEREASTRA, locatie),
+                MatchWindow.lastN(counturi.suturi(), FEREASTRA),
+                MatchWindow.lastN(counturi.suturiPePoarta(), FEREASTRA, locatie),
+                MatchWindow.lastN(counturi.suturiPePoarta(), FEREASTRA));
+    }
+
+    /** P(egal la final) 0..1 din modelul de goluri al meciului; null cand predictia nu o are. */
+    private static Double egalModel(PredictieMeciDto predictie) {
+        return predictie.egal() != null ? predictie.egal().procent() / 100.0 : null;
+    }
+
+    static FormaEchipaDto forma(List<MatchSample> istoric, MatchLocation locatie) {
+        return new FormaEchipaDto(
+                fereastraForma(MatchWindow.lastN(istoric, FEREASTRA, locatie)),
+                fereastraForma(MatchWindow.lastN(istoric, FEREASTRA)));
+    }
+
+    private static FormaEchipaDto.FereastraFormaDto fereastraForma(List<MatchSample> fereastra) {
+        List<FormaMeciDto> meciuri = fereastra.stream()
+                .map(MatchPreviewService::formaMeci)
+                .toList();
+        double marcate = fereastra.stream().mapToInt(MatchSample::goalsFor).average().orElse(0.0);
+        double primite = fereastra.stream().mapToInt(MatchSample::goalsAgainst).average().orElse(0.0);
+        return new FormaEchipaDto.FereastraFormaDto(meciuri, rotunjit(marcate), rotunjit(primite));
+    }
+
+    private static FormaMeciDto formaMeci(MatchSample s) {
+        String rezultat = s.goalsFor() > s.goalsAgainst() ? "V"
+                : s.goalsFor() == s.goalsAgainst() ? "E" : "I";
+        return new FormaMeciDto(s.date(), s.home(), s.goalsFor(), s.goalsAgainst(), rezultat);
+    }
+
+    /**
+     * Formatia anuntata a meciului; cand lipseste (meci viitor), echipa PROBABILA — ultimul
+     * unsprezece de start al echipei ({@code probabila = true}). {@code null} doar cand nici
+     * macar o formatie anterioara nu exista pentru una din echipe.
+     */
     private EchipaDeStartDto echipeDeStart(Fixture meci) {
-        Map<Long, FixtureLineup> perEchipa = lineups.findByFixtureId(meci.getId()).stream()
+        Map<Long, FixtureLineup> anuntate = lineups.findByFixtureId(meci.getId()).stream()
                 .filter(l -> l.getTeamId() != null)
                 .collect(Collectors.toMap(FixtureLineup::getTeamId, Function.identity()));
-        FixtureLineup gazde = perEchipa.get(meci.getHomeTeamId());
-        FixtureLineup oaspeti = perEchipa.get(meci.getAwayTeamId());
+        LineupEchipa gazde = lineupEchipa(meci, meci.getHomeTeamId(), anuntate);
+        LineupEchipa oaspeti = lineupEchipa(meci, meci.getAwayTeamId(), anuntate);
         if (gazde == null || oaspeti == null) {
             return null;
         }
-        Map<Long, List<FixtureLineupPlayer>> jucatori = lineupPlayers.findByFixtureId(meci.getId()).stream()
-                .filter(p -> p.getTeamId() != null)
-                .collect(Collectors.groupingBy(FixtureLineupPlayer::getTeamId));
+        Map<Long, String> fotografii = fotografii(gazde.jucatori(), oaspeti.jucatori());
         Map<Long, List<EchipaDeStartDto.IndisponibilDto>> indisponibili = indisponibili(meci);
         return new EchipaDeStartDto(
-                echipaLineup(gazde, jucatori.getOrDefault(meci.getHomeTeamId(), List.of()),
+                echipaLineup(gazde, fotografii,
                         indisponibili.getOrDefault(meci.getHomeTeamId(), List.of())),
-                echipaLineup(oaspeti, jucatori.getOrDefault(meci.getAwayTeamId(), List.of()),
+                echipaLineup(oaspeti, fotografii,
                         indisponibili.getOrDefault(meci.getAwayTeamId(), List.of())),
-                meci.getReferee());
+                meci.getReferee(),
+                gazde.probabila() || oaspeti.probabila());
     }
 
-    private static EchipaDeStartDto.EchipaLineupDto echipaLineup(FixtureLineup lineup,
-                                                                 List<FixtureLineupPlayer> jucatori,
+    /** Formatia unei echipe cu jucatorii ei; {@code probabila} = luata din meciul anterior. */
+    private record LineupEchipa(FixtureLineup lineup, List<FixtureLineupPlayer> jucatori,
+                                boolean probabila) {
+    }
+
+    private LineupEchipa lineupEchipa(Fixture meci, Long teamId, Map<Long, FixtureLineup> anuntate) {
+        if (teamId == null) {
+            return null;
+        }
+        FixtureLineup anuntata = anuntate.get(teamId);
+        if (anuntata != null) {
+            return new LineupEchipa(anuntata,
+                    lineupPlayers.findByFixtureIdAndTeamId(meci.getId(), teamId), false);
+        }
+        return lineups.findRecentForTeam(teamId, TERMINAL, meci.getKickoff(), PageRequest.of(0, 1))
+                .stream()
+                .findFirst()
+                .map(anterior -> new LineupEchipa(anterior,
+                        lineupPlayers.findByFixtureIdAndTeamId(anterior.getFixtureId(), teamId), true))
+                .orElse(null);
+    }
+
+    /** Pozele de profil ale jucatorilor din ambele formatii (id → URL); jucatorii fara poza lipsesc. */
+    private Map<Long, String> fotografii(List<FixtureLineupPlayer> gazde,
+                                         List<FixtureLineupPlayer> oaspeti) {
+        List<Long> ids = Stream.concat(gazde.stream(), oaspeti.stream())
+                .map(FixtureLineupPlayer::getPlayerId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        return players.findAllById(ids).stream()
+                .filter(p -> p.getPhoto() != null)
+                .collect(Collectors.toMap(Player::getId, Player::getPhoto));
+    }
+
+    private static EchipaDeStartDto.EchipaLineupDto echipaLineup(LineupEchipa echipa,
+                                                                 Map<Long, String> fotografii,
                                                                  List<EchipaDeStartDto.IndisponibilDto> indisponibili) {
         return new EchipaDeStartDto.EchipaLineupDto(
-                lineup.getFormation(),
-                jucatoriDto(jucatori, false),
-                jucatoriDto(jucatori, true),
+                echipa.lineup().getFormation(),
+                jucatoriDto(echipa.jucatori(), false, fotografii),
+                jucatoriDto(echipa.jucatori(), true, fotografii),
                 indisponibili);
     }
 
     private static List<EchipaDeStartDto.JucatorDto> jucatoriDto(List<FixtureLineupPlayer> jucatori,
-                                                                 boolean rezerve) {
+                                                                 boolean rezerve,
+                                                                 Map<Long, String> fotografii) {
         return jucatori.stream()
                 .filter(p -> Boolean.TRUE.equals(p.getIsSubstitute()) == rezerve)
                 .map(p -> new EchipaDeStartDto.JucatorDto(p.getPlayerId(), p.getPlayerName(),
-                        p.getNumber(), p.getPosition(), p.getGrid()))
+                        p.getNumber(), p.getPosition(), p.getGrid(),
+                        p.getPlayerId() != null ? fotografii.get(p.getPlayerId()) : null))
                 .toList();
     }
 
@@ -223,36 +316,14 @@ public class MatchPreviewService {
         return "ACCIDENTAT";
     }
 
-    private static List<OverUnder> cornere(IstoricCounturi gazde, IstoricCounturi oaspeti,
-                                           CountLeagueAverages liga) {
-        return EventLineBlend.poisson(concat(gazde.cornere(), oaspeti.cornere()),
-                liga.cornerePeMeci(), EventLineBlend.STANDARD_CORNER_LINES).lines();
-    }
-
-    private static List<OverUnder> faulturi(IstoricCounturi gazde, IstoricCounturi oaspeti,
-                                            CountLeagueAverages liga) {
-        return EventLineBlend.overDispersed(concat(gazde.faulturi(), oaspeti.faulturi()),
-                liga.faulturiPeMeci(), DISPERSIE_FAULTURI, EventLineBlend.STANDARD_FOUL_LINES).lines();
-    }
-
-    private static List<OverUnder> cartonase(IstoricCounturi gazde, IstoricCounturi oaspeti,
-                                             CountLeagueAverages liga, double factorArbitru) {
-        return CardMarket.of(concat(gazde.cartonase(), oaspeti.cartonase()),
-                liga.cartonasePeMeci(), factorArbitru, DISPERSIE_CARTONASE,
-                CardMarket.STANDARD_LINES).lines();
-    }
-
-    private static List<EventCountSample> concat(List<EventCountSample> a, List<EventCountSample> b) {
-        return Stream.concat(a.stream(), b.stream()).toList();
-    }
-
     static StatisticiCheieDto.StatisticiEchipaDto statisticiEchipa(List<FixtureTeamStats> randuri) {
+        List<FixtureTeamStats> fereastra = randuri.stream().limit(FEREASTRA_STATISTICI).toList();
         return new StatisticiCheieDto.StatisticiEchipaDto(
-                medie(randuri, s -> s.getBallPossession() != null ? s.getBallPossession().doubleValue() : null),
-                medie(randuri, s -> caDouble(s.getShotsTotal())),
-                medie(randuri, s -> caDouble(s.getShotsOnGoal())),
-                medie(randuri, s -> caDouble(s.getCornerKicks())),
-                medie(randuri, s -> caDouble(StatsHistoryService.totalCartonase(s))));
+                medie(fereastra, s -> s.getBallPossession() != null ? s.getBallPossession().doubleValue() : null),
+                medie(fereastra, s -> caDouble(s.getShotsTotal())),
+                medie(fereastra, s -> caDouble(s.getShotsOnGoal())),
+                medie(fereastra, s -> caDouble(s.getCornerKicks())),
+                medie(fereastra, s -> caDouble(StatsHistoryService.totalCartonase(s))));
     }
 
     /** Media campului peste randurile cu valoare; {@code null} = fara date (nu 0). */
@@ -266,22 +337,6 @@ public class MatchPreviewService {
 
     private static Double caDouble(Integer v) {
         return v != null ? v.doubleValue() : null;
-    }
-
-    static FormaEchipaDto forma(List<MatchSample> istoric) {
-        List<FormaMeciDto> meciuri = istoric.stream()
-                .limit(FEREASTRA_FORMA)
-                .map(MatchPreviewService::formaMeci)
-                .toList();
-        double marcate = istoric.stream().mapToInt(MatchSample::goalsFor).average().orElse(0.0);
-        double primite = istoric.stream().mapToInt(MatchSample::goalsAgainst).average().orElse(0.0);
-        return new FormaEchipaDto(meciuri, rotunjit(marcate), rotunjit(primite));
-    }
-
-    private static FormaMeciDto formaMeci(MatchSample s) {
-        String rezultat = s.goalsFor() > s.goalsAgainst() ? "V"
-                : s.goalsFor() == s.goalsAgainst() ? "E" : "I";
-        return new FormaMeciDto(s.date(), s.home(), s.goalsFor(), s.goalsAgainst(), rezultat);
     }
 
     private List<IntalnireDirectaDto> intalniriDirecte(Fixture meci) {

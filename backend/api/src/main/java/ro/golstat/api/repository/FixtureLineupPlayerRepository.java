@@ -12,6 +12,8 @@ public interface FixtureLineupPlayerRepository extends JpaRepository<FixtureLine
 
     List<FixtureLineupPlayer> findByFixtureId(Long fixtureId);
 
+    List<FixtureLineupPlayer> findByFixtureIdAndTeamId(Long fixtureId, Long teamId);
+
     /** Bulk delete (executat imediat), ca INSERT-urile replace-ului sa vina garantat DUPA. */
     @Modifying
     @Query("delete from FixtureLineupPlayer p where p.fixtureId = :fixtureId")

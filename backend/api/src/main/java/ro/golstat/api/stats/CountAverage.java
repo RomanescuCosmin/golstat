@@ -12,4 +12,8 @@ public interface CountAverage {
     Double getAvgFaulturi();
 
     Double getAvgCartonase();
+
+    Double getAvgSuturi();
+
+    Double getAvgSuturiPePoarta();
 }

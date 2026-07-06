@@ -34,7 +34,7 @@ class LivePollerTest {
     private final MutableClock clock = new MutableClock(NOW);
 
     private LivePoller poller() {
-        return poller(new LiveProperties(true, 15000, 180, 15, 120000, List.of()));
+        return poller(new LiveProperties(true, 15000, 180, 15, 120000, List.of(), 70));
     }
 
     private LivePoller poller(LiveProperties props) {
@@ -99,7 +99,7 @@ class LivePollerTest {
         provider.live = List.of(live(100, 39), live(200, 1));
         provider.stats = List.of(teamStats(0, 1L));
 
-        poller(new LiveProperties(true, 15000, 180, 15, 120000, List.of(39L))).poll();
+        poller(new LiveProperties(true, 15000, 180, 15, 120000, List.of(39L), 70)).poll();
 
         assertEquals(List.of(100L), provider.statsAskedFor, "doar liga 39 e in allowlist-ul de statistici");
     }

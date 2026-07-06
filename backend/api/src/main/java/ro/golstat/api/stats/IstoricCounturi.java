@@ -14,10 +14,12 @@ public record IstoricCounturi(
         List<EventCountSample> cornere,
         List<EventCountSample> faulturi,
         List<EventCountSample> cartonase,
+        List<EventCountSample> suturi,
+        List<EventCountSample> suturiPePoarta,
         List<FixtureTeamStats> statisticiEchipa
 ) {
 
     public static IstoricCounturi gol() {
-        return new IstoricCounturi(List.of(), List.of(), List.of(), List.of());
+        return new IstoricCounturi(List.of(), List.of(), List.of(), List.of(), List.of(), List.of());
     }
 }

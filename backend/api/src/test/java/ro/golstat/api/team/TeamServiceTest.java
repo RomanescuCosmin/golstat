@@ -282,6 +282,8 @@ class TeamServiceTest {
             public Double getAvgCornere() { return cornere; }
             public Double getAvgFaulturi() { return faulturi; }
             public Double getAvgCartonase() { return cartonase; }
+            public Double getAvgSuturi() { return null; }
+            public Double getAvgSuturiPePoarta() { return null; }
         };
     }
 
