@@ -95,22 +95,6 @@ public class TeamService {
         this.lineups = lineups;
     }
 
-    private static final int LIMITA_CAUTARE = 10;
-    private static final int MIN_CARACTERE_CAUTARE = 2;
-
-    /** Cautare echipe dupa nume; sub {@value #MIN_CARACTERE_CAUTARE} caractere → lista goala. */
-    public List<RezultatCautareDto> cauta(String q) {
-        String termen = q != null ? q.strip().toLowerCase() : "";
-        if (termen.length() < MIN_CARACTERE_CAUTARE) {
-            return List.of();
-        }
-        return teams.search(termen, PageRequest.of(0, LIMITA_CAUTARE)).stream()
-                .map(t -> new RezultatCautareDto(
-                        t.getId(), t.getName(), t.getLogo(), t.getCountryName(),
-                        Boolean.TRUE.equals(t.getIsNational())))
-                .toList();
-    }
-
     public PaginaEchipaDto pagina(long teamId, Long leagueId, Integer sezon) {
         Team echipa = teams.findById(teamId)
                 .orElseThrow(() -> new EchipaNotFoundException(teamId));

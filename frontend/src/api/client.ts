@@ -82,9 +82,9 @@ export function getMatchCenter(fixtureId: number): Promise<MeciCentral> {
   return request<MeciCentral>(`/v1/meciuri/${fixtureId}`);
 }
 
-/** Cautare echipe dupa nume (min 2 caractere); `signal` anuleaza cererile stale. */
-export function cautaEchipe(q: string, signal?: AbortSignal): Promise<RezultatCautare[]> {
-  return request<RezultatCautare[]>(`/v1/echipe/cauta?q=${encodeURIComponent(q)}`, signal);
+/** Cautare globala (echipe, campionate, jucatori; min 2 caractere); `signal` anuleaza cererile stale. */
+export function cauta(q: string, signal?: AbortSignal): Promise<RezultatCautare[]> {
+  return request<RezultatCautare[]>(`/v1/cauta?q=${encodeURIComponent(q)}`, signal);
 }
 
 /** Pagina unei echipe: antet, sumar sezon, forma, clasament, statistici, top jucatori. */

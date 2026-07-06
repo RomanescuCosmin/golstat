@@ -89,33 +89,6 @@ class TeamServiceTest {
     }
 
     @Test
-    void cauta_subDouaCaractere_returneazaGol() {
-        List<RezultatCautareDto> r = service.cauta("m");
-
-        assertTrue(r.isEmpty());
-        org.mockito.Mockito.verifyNoInteractions(teams);
-    }
-
-    @Test
-    void cauta_mapeazaSiTrimiteTermenLowercase() {
-        Team club = team(50L, "Manchester City");
-        club.setIsNational(false);
-        Team nat = team(768L, "Romania");
-        nat.setIsNational(true);
-        nat.setCountryName("Romania");
-        when(teams.search(eq("man"), any())).thenReturn(List.of(club, nat));
-
-        List<RezultatCautareDto> r = service.cauta("  MAN ");
-
-        assertEquals(2, r.size());
-        assertEquals(50L, r.get(0).teamId());
-        assertEquals("Manchester City", r.get(0).nume());
-        assertEquals("England", r.get(0).tara());
-        assertTrue(!r.get(0).nationala());
-        assertTrue(r.get(1).nationala());
-    }
-
-    @Test
     void pagina_echipaInexistenta_arunca404() {
         when(teams.findById(999L)).thenReturn(Optional.empty());
 
