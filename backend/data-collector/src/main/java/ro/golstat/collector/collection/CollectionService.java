@@ -68,6 +68,10 @@ public class CollectionService {
     }
 
     public void collectGoalsData(long leagueId, int season, LocalDate from, LocalDate to) {
+        collectGoalsData(leagueId, season, from, to, false);
+    }
+
+    public void collectGoalsData(long leagueId, int season, LocalDate from, LocalDate to, boolean doarFixtures) {
         // Catalog intai: fixtures/standings au FK spre venue/league/season/team.
         for (VenueDto venue : provider.venues()) {
             publisher.publish(GolstatConstants.KafkaTopics.VENUES, String.valueOf(venue.id()), venue);
@@ -82,8 +86,10 @@ public class CollectionService {
         for (TeamDto team : teams) {
             publisher.publish(GolstatConstants.KafkaTopics.TEAMS, String.valueOf(team.id()), team);
         }
-        for (StandingDto standing : provider.standings(leagueId, season)) {
-            publisher.publish(GolstatConstants.KafkaTopics.STANDINGS, standingKey(standing), standing);
+        if (!doarFixtures) {
+            for (StandingDto standing : provider.standings(leagueId, season)) {
+                publisher.publish(GolstatConstants.KafkaTopics.STANDINGS, standingKey(standing), standing);
+            }
         }
 
         List<FixtureDto> fixtures = provider.fixtures(leagueId, season, from, to);
@@ -100,6 +106,12 @@ public class CollectionService {
         liveSchedule.replaceForLeague(leagueId, kickoffs);
         log.info("Colectat liga {} sezon {}: {} fixtures in fereastra {}..{}",
                 leagueId, season, fixtures.size(), from, to);
+
+        if (doarFixtures) {
+            // Competitie „doar meciuri" (ex. amicale): oprim aici — fara detalii per-meci si fara
+            // imbogatire de echipe, ca sa nu ardem cota API pe mii de meciuri care ne intereseaza doar ca scor.
+            return;
+        }
 
         // Abia apoi detaliile per meci (lineups/events/stats) — pot esua fara sa pierdem meciurile deja publicate.
         for (FixtureDto fixture : fixtures) {

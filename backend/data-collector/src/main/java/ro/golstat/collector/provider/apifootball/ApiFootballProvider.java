@@ -89,6 +89,20 @@ public class ApiFootballProvider implements DataProvider {
     }
 
     @Override
+    public List<FixtureDto> fixturesByIds(java.util.Collection<Long> fixtureIds) {
+        if (fixtureIds == null || fixtureIds.isEmpty()) {
+            return List.of();
+        }
+        // API-Football: ids=id1-id2-... (max 20). Stare curenta → fara cache (TTL 0).
+        String ids = fixtureIds.stream().limit(20).map(String::valueOf)
+                .collect(java.util.stream.Collectors.joining("-"));
+        return client.get(GolstatConstants.ApiFootball.FIXTURES, Map.of("ids", ids),
+                        FixtureItem.class, Duration.ZERO).stream()
+                .map(ApiFootballMapper::toFixture)
+                .toList();
+    }
+
+    @Override
     public List<FixtureLiveDto> liveFixtures() {
         // `live=all` → toate meciurile live din lume intr-un singur request; ttl=0 = fara cache.
         // Evenimentele vin INLINE (gratis) → le pastram in FixtureLiveDto.

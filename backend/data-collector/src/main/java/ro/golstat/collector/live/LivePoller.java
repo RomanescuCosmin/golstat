@@ -52,6 +52,8 @@ public class LivePoller {
     private final Set<Long> statsLeagues;
     /** Ultimul moment cand am cerut statistici per meci; curatat cand meciul nu mai e live. */
     private final Map<Long, Instant> ultimulFetchStats = new HashMap<>();
+    /** Meciurile urmarite live la poll-ul anterior; ce iese din set = tocmai s-a terminat → il finalizam (FT). */
+    private final Set<Long> liveAnterior = new HashSet<>();
 
     public LivePoller(DataProvider provider, EventPublisher publisher, LiveSchedule schedule,
                       LiveProperties props, CollectionProperties collection, Clock clock) {
@@ -72,6 +74,7 @@ public class LivePoller {
                 Duration.ofMinutes(props.windowBeforeMinutes()),
                 Duration.ofMinutes(props.windowAfterMinutes()));
         if (!inMatchWindow) {
+            liveAnterior.clear();   // in afara ferestrei nu mai urmarim nimic
             return;   // niciun meci urmarit in desfasurare → nu ardem un request
         }
 
@@ -104,6 +107,21 @@ public class LivePoller {
                     ultimulFetchStats.put(f.id(), now);
                 }
             }
+            // Meciurile care erau live si acum nu mai sunt = tocmai s-au terminat: le luam starea finala
+            // (FT + scor final) o data, altfel ar ramane inghetate in DB la ultimul snapshot „live".
+            Set<Long> tocmaiTerminate = new HashSet<>(liveAnterior);
+            tocmaiTerminate.removeAll(liveTracked);
+            if (!tocmaiTerminate.isEmpty()) {
+                for (FixtureDto f : provider.fixturesByIds(tocmaiTerminate)) {
+                    if (f != null && f.id() != null) {
+                        publisher.publish(GolstatConstants.KafkaTopics.FIXTURES, String.valueOf(f.id()), f);
+                    }
+                }
+                log.debug("Live: {} meciuri finalizate (FT)", tocmaiTerminate.size());
+            }
+            liveAnterior.clear();
+            liveAnterior.addAll(liveTracked);
+
             // meciurile care nu mai sunt live nu mai au nevoie de intrare in harta de throttling
             ultimulFetchStats.keySet().removeIf(id -> !liveTracked.contains(id));
             log.debug("Live: {} meciuri in desfasurare, {} urmarite publicate", live.size(), published);

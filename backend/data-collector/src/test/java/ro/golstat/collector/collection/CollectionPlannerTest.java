@@ -31,7 +31,7 @@ class CollectionPlannerTest {
         }
 
         @Override
-        public void collectGoalsData(long leagueId, int season, LocalDate from, LocalDate to) {
+        public void collectGoalsData(long leagueId, int season, LocalDate from, LocalDate to, boolean doarFixtures) {
             if (quotaOnLeague != null && quotaOnLeague == leagueId) {
                 throw new ApiFootballQuotaExceededException("/fixtures");
             }
@@ -54,7 +54,7 @@ class CollectionPlannerTest {
     @Test
     void iteratesEveryLeague_withRollingWindowFromClock() {
         RecordingCollectionService svc = new RecordingCollectionService();
-        planner(svc, new LeagueTarget(1, 2026), new LeagueTarget(39, 2025)).collect();
+        planner(svc, new LeagueTarget(1, 2026, false), new LeagueTarget(39, 2025, false)).collect();
 
         assertEquals(List.of(1L, 39L), leagueIds(svc));
         RecordingCollectionService.Call first = svc.calls.get(0);
@@ -66,7 +66,7 @@ class CollectionPlannerTest {
     void quotaOnFirstLeague_stopsWholeCycle_withoutThrowing() {
         RecordingCollectionService svc = new RecordingCollectionService();
         svc.quotaOnLeague = 1L;
-        planner(svc, new LeagueTarget(1, 2026), new LeagueTarget(39, 2025)).collect();
+        planner(svc, new LeagueTarget(1, 2026, false), new LeagueTarget(39, 2025, false)).collect();
         assertTrue(svc.calls.isEmpty(), "cota la prima liga → a doua nu se mai apeleaza");
     }
 
@@ -74,7 +74,7 @@ class CollectionPlannerTest {
     void quotaOnSecondLeague_keepsFirst() {
         RecordingCollectionService svc = new RecordingCollectionService();
         svc.quotaOnLeague = 39L;
-        planner(svc, new LeagueTarget(1, 2026), new LeagueTarget(39, 2025)).collect();
+        planner(svc, new LeagueTarget(1, 2026, false), new LeagueTarget(39, 2025, false)).collect();
         assertEquals(List.of(1L), leagueIds(svc));
     }
 
