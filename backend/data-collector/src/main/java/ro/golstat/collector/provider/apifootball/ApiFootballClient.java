@@ -3,6 +3,7 @@ package ro.golstat.collector.provider.apifootball;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JavaType;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -125,7 +126,7 @@ public class ApiFootballClient {
         Duration backoff = BACKOFF_INITIAL;
         for (int incercare = 1; ; incercare++) {
             try {
-                return http.get()
+                String body = http.get()
                         .uri(builder -> {
                             builder.path(path);
                             params.forEach(builder::queryParam);
@@ -133,6 +134,17 @@ public class ApiFootballClient {
                         })
                         .retrieve()
                         .body(String.class);
+                // API-Football raporteaza limita pe-minut ca 200 + errors.rateLimit (nu 429).
+                // O tratam la fel ca 429: backoff + retry acelasi apel; dupa MAX, lasam body-ul
+                // sa urce si deserialize() sa arunce eroarea normala.
+                if (esteRateLimitPeMinut(body) && incercare <= MAX_RETRIES_429) {
+                    log.warn("API-Football limita pe-minut (200+rateLimit) la {}; astept {}s si reincerc ({}/{})",
+                            path, backoff.toSeconds(), incercare, MAX_RETRIES_429);
+                    dormi(backoff);
+                    backoff = backoff.multipliedBy(2).compareTo(BACKOFF_MAX) > 0 ? BACKOFF_MAX : backoff.multipliedBy(2);
+                    continue;
+                }
+                return body;
             } catch (HttpClientErrorException.TooManyRequests e) {
                 if (incercare > MAX_RETRIES_429) {
                     throw e;
@@ -142,6 +154,23 @@ public class ApiFootballClient {
                 dormi(backoff);
                 backoff = backoff.multipliedBy(2).compareTo(BACKOFF_MAX) > 0 ? BACKOFF_MAX : backoff.multipliedBy(2);
             }
+        }
+    }
+
+    /**
+     * API-Football raporteaza depasirea limitei PE MINUT ca 200 cu {@code errors.rateLimit}
+     * (distinct de limita zilnica, care are alta cheie si NU trebuie reincercata la nesfarsit).
+     * Fast-path pe substring ca sa nu parsam fiecare raspuns valid.
+     */
+    static boolean esteRateLimitPeMinut(String body) {
+        if (body == null || !body.contains("rateLimit")) {
+            return false;
+        }
+        try {
+            JsonNode errors = JSON.readTree(body).path("errors");
+            return errors.has("rateLimit");
+        } catch (JsonProcessingException e) {
+            return false;
         }
     }
 
