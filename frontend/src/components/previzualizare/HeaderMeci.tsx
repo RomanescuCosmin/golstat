@@ -41,6 +41,13 @@ export function HeaderMeci({ predictie }: HeaderMeciProps) {
                 {live.goalsHome ?? 0} – {live.goalsAway ?? 0}
               </span>
             </>
+          ) : predictie.rezultat ? (
+            <>
+              <Badge variant="neutral">Terminat</Badge>
+              <span className="mt-1 text-3xl font-extrabold text-ink sm:text-4xl">
+                {predictie.rezultat.goluriGazde} – {predictie.rezultat.goluriOaspeti}
+              </span>
+            </>
           ) : (
             <>
               <span className="text-sm font-medium text-ink2">{formatData(kickoff)}</span>

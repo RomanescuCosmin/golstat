@@ -16,7 +16,9 @@ public record PaginaCompetitieDto(
         List<Jucator> golgheteri,
         List<Jucator> pasatori,
         List<Meci> rezultate,
-        List<Meci> urmatoare
+        List<Meci> urmatoare,
+        List<Grupa> grupe,
+        List<FazaEliminatorie> eliminatorii
 ) {
     /** Identitatea competitiei + contextul de sezon. */
     public record Antet(long leagueId, String nume, String tara, String logo, Integer sezon, List<Integer> sezoane) {
@@ -26,7 +28,15 @@ public record PaginaCompetitieDto(
     public record Jucator(Long playerId, String nume, String foto, EchipaDto echipa, int valoare) {
     }
 
-    /** Un meci al competitiei (rezultat sau program). */
+    /** O grupa a unei competitii cu format de grupe (ex. Campionatul Mondial): numele grupei + clasamentul ei. */
+    public record Grupa(String nume, List<RandClasament> randuri) {
+    }
+
+    /** O faza eliminatorie (ex. „Optimi", „Sferturi") cu meciurile ei, fazele in ordinea progresiei. */
+    public record FazaEliminatorie(String runda, List<Meci> meciuri) {
+    }
+
+    /** Un meci al competitiei (rezultat sau program). {@code runda} = eticheta API-Football a etapei. */
     public record Meci(
             long fixtureId,
             OffsetDateTime kickoff,
@@ -36,7 +46,8 @@ public record PaginaCompetitieDto(
             Integer golOaspeti,
             String status,
             boolean inDesfasurare,
-            boolean terminat
+            boolean terminat,
+            String runda
     ) {
     }
 }

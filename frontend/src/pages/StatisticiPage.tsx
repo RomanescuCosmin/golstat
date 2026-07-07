@@ -31,7 +31,9 @@ function etichetaSezon(sezon: number | null): string | null {
 
 /** Celulă numerică cu bară proporțională față de maximul coloanei — comparație vizuală rapidă. */
 function CelulaMedie({ valoare, maxim, accent }: { valoare: number | null; maxim: number; accent: boolean }) {
-  const procent = valoare != null && maxim > 0 ? Math.max(4, Math.round((valoare / maxim) * 100)) : 0;
+  // minimul de 4% face vizibile valorile mici, dar 0 ramane 0 — fara umplere falsa
+  const procent =
+    valoare != null && valoare > 0 && maxim > 0 ? Math.max(4, Math.round((valoare / maxim) * 100)) : 0;
   return (
     <td className="px-4 py-3.5 text-center align-middle">
       <span className="text-sm font-semibold tabular-nums text-ink">{formatMedie(valoare)}</span>

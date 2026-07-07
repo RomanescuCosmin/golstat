@@ -3,6 +3,8 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ApiError, getCompetitie } from '../api/client';
 import type { JucatorTop, MeciCompetitie, PaginaCompetitie } from '../api/types';
 import { ClasamentSnippet } from '../components/echipa/ClasamentSnippet';
+import { GrupeCompetitie } from '../components/competitie/GrupeCompetitie';
+import { SchemaEliminatorie } from '../components/competitie/SchemaEliminatorie';
 import { SelectorSezon } from '../components/echipa/SelectorSezon';
 import { PageLayout } from '../components/layout/PageLayout';
 import { SelectorLiga } from '../components/meciuri/SelectorLiga';
@@ -263,7 +265,9 @@ export function CompetitiePage() {
 
           <div className="grid items-start gap-5 lg:grid-cols-3">
             <div className="min-w-0 lg:col-span-2">
-              {date.clasament.length > 0 ? (
+              {date.grupe.length > 0 ? (
+                <GrupeCompetitie grupe={date.grupe} />
+              ) : date.clasament.length > 0 ? (
                 <ClasamentSnippet randuri={date.clasament} teamId={-1} />
               ) : (
                 <Card>
@@ -279,6 +283,8 @@ export function CompetitiePage() {
               <TopCompetitie titlu="Pase decisive" jucatori={date.pasatori} />
             </div>
           </div>
+
+          {date.eliminatorii.length > 0 && <SchemaEliminatorie faze={date.eliminatorii} />}
 
           <div className="grid items-start gap-5 lg:grid-cols-2">
             <CardMeciuri

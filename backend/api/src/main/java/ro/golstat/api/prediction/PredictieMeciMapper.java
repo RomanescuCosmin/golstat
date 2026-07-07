@@ -5,6 +5,8 @@ import ro.golstat.api.entity.Team;
 import ro.golstat.api.prediction.PredictieMeciDto.EchipaDto;
 import ro.golstat.api.prediction.PredictieMeciDto.LinieGolDto;
 import ro.golstat.api.prediction.PredictieMeciDto.ProcentCota;
+import ro.golstat.api.prediction.PredictieMeciDto.RezultatDto;
+import ro.golstat.common.GolstatConstants;
 import ro.golstat.stats.match.MatchPrediction;
 import ro.golstat.stats.odds.Odds;
 
@@ -26,7 +28,27 @@ public final class PredictieMeciMapper {
                 round2(p.lambdaGazde()), round2(p.lambdaOaspeti()),
                 procentCota(p.sansaGazde()), procentCota(p.sansaEgal()), procentCota(p.sansaOaspeti()),
                 linii, procentCota(p.btts()),
-                p.esantionGazde(), p.esantionOaspeti());
+                p.esantionGazde(), p.esantionOaspeti(), rezultat(f));
+    }
+
+    /**
+     * Scorul real doar la meciuri terminale (FT/AET/PEN), pentru validarea predictiei; {@code null}
+     * altfel. Prefera scoreFt (90 min, exclude prelungirile) ca sa fie comparabil cu modelul.
+     */
+    private static RezultatDto rezultat(Fixture f) {
+        if (f.getStatusShort() == null || !GolstatConstants.FixtureStatus.TERMINAL.contains(f.getStatusShort())) {
+            return null;
+        }
+        Integer gazde = scor90(f.getScoreFtHome(), f.getGoalsHome());
+        Integer oaspeti = scor90(f.getScoreFtAway(), f.getGoalsAway());
+        if (gazde == null || oaspeti == null) {
+            return null;
+        }
+        return new RezultatDto(gazde, oaspeti, f.getStatusShort());
+    }
+
+    private static Integer scor90(Integer scoreFt, Integer goals) {
+        return scoreFt != null ? scoreFt : goals;
     }
 
     private static EchipaDto echipa(long id, Team team) {

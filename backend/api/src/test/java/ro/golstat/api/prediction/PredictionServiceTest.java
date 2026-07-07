@@ -23,6 +23,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -136,10 +137,41 @@ class PredictionServiceTest {
     }
 
     @Test
-    void predict_nonNsFixture_isEmpty() {
+    void predict_finishedFixture_attachesRealResultAt90Min() {
         Fixture finished = nsFixture();
         finished.setStatusShort(GolstatConstants.FixtureStatus.FINISHED);
+        finished.setGoalsHome(3);
+        finished.setGoalsAway(1);
+        finished.setScoreFtHome(2);
+        finished.setScoreFtAway(1);
         when(fixtures.findById(100L)).thenReturn(Optional.of(finished));
+        when(teams.findAllById(List.of(10L, 20L))).thenReturn(List.of(
+                team(10L, "FC Gazde", "http://logo/10.png"), team(20L, "FC Oaspeti", "http://logo/20.png")));
+        when(history.lastMatches(anyLong(), any(), anyInt())).thenReturn(List.of());
+        when(leagueAverages.averages(39L, 2025)).thenReturn(new LeagueAverages(1.6, 1.2));
+
+        PredictieMeciDto dto = service.predict(100L).orElseThrow();
+
+        // prefera scoreFt (90 min), nu goals (care ar include prelungirile)
+        assertEquals(new PredictieMeciDto.RezultatDto(2, 1, GolstatConstants.FixtureStatus.FINISHED),
+                dto.rezultat());
+    }
+
+    @Test
+    void predict_nsFixture_hasNoResult() {
+        when(fixtures.findById(100L)).thenReturn(Optional.of(nsFixture()));
+        when(teams.findAllById(List.of(10L, 20L))).thenReturn(List.of());
+        when(history.lastMatches(anyLong(), any(), anyInt())).thenReturn(List.of());
+        when(leagueAverages.averages(39L, 2025)).thenReturn(new LeagueAverages(1.6, 1.2));
+
+        assertNull(service.predict(100L).orElseThrow().rezultat());
+    }
+
+    @Test
+    void predict_inPlayFixture_isEmpty() {
+        Fixture live = nsFixture();
+        live.setStatusShort(GolstatConstants.FixtureStatus.SECOND_HALF);
+        when(fixtures.findById(100L)).thenReturn(Optional.of(live));
 
         assertFalse(service.predict(100L).isPresent());
     }

@@ -7,6 +7,7 @@ import ro.golstat.api.preview.StatisticiAvansateDto.LinieDto;
 import ro.golstat.api.preview.StatisticiAvansateDto.MediiEchipaDto;
 import ro.golstat.api.preview.StatisticiAvansateDto.PiataDto;
 import ro.golstat.api.preview.StatisticiAvansateDto.ReprizeDto;
+import ro.golstat.api.preview.StatisticiAvansateDto.RezultatDto;
 import ro.golstat.api.stats.CountLeagueAverages;
 import ro.golstat.stats.cards.CardMarket;
 import ro.golstat.stats.counts.EventLineBlend;
@@ -66,10 +67,13 @@ final class StatisticiAvansateBuilder {
     private StatisticiAvansateBuilder() {
     }
 
-    /** {@code egalFinalModel} = P(egal) 0..1 din modelul de goluri al meciului; null daca lipseste. */
+    /**
+     * {@code egalFinalModel} = P(egal) 0..1 din modelul de goluri al meciului; null daca lipseste.
+     * {@code rezultat} = totalurile reale ale meciului (doar la meciuri terminate), pentru hit/miss.
+     */
     static StatisticiAvansateDto build(FerestreEchipa gazde, FerestreEchipa oaspeti,
                                        CountLeagueAverages mediiCounturi, double mediaGoluriLiga,
-                                       double factorArbitru, Double egalFinalModel) {
+                                       double factorArbitru, Double egalFinalModel, RezultatDto rezultat) {
         GoalLineStats modelGoluri = GoalLineBlend.of(
                 concat(gazde.goluriLocatie(), oaspeti.goluriLocatie()), mediaGoluriLiga, LINII_GOLURI);
         return new StatisticiAvansateDto(
@@ -101,7 +105,8 @@ final class StatisticiAvansateBuilder {
                                 concat(gazde.suturiPePoartaLocatie(), oaspeti.suturiPePoartaLocatie()),
                                 mediiCounturi.suturiPePoartaPeMeci(), LINII_SUTURI_POARTA)),
                 egaluri(gazde.goluriLocatie(), oaspeti.goluriLocatie(), egalFinalModel),
-                reprize(gazde.goluriLocatie(), oaspeti.goluriLocatie()));
+                reprize(gazde.goluriLocatie(), oaspeti.goluriLocatie()),
+                rezultat);
     }
 
     private static PiataDto goluri(FerestreEchipa gazde, FerestreEchipa oaspeti, GoalLineStats model) {

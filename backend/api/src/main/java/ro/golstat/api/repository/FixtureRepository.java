@@ -128,6 +128,9 @@ public interface FixtureRepository extends JpaRepository<Fixture, Long> {
     List<Fixture> findByLeagueIdAndSeasonYearAndStatusShortOrderByKickoffAsc(
             Long leagueId, Integer seasonYear, String statusShort, Pageable pageable);
 
+    /** Toate meciurile unei ligi/sezon (orice status), cronologic — pentru schema fazelor eliminatorii. */
+    List<Fixture> findByLeagueIdAndSeasonYearOrderByKickoffAsc(Long leagueId, Integer seasonYear);
+
     /**
      * Media golurilor marcate de o echipa pe o liga/sezon (meciuri TERMINALE), indiferent de locatie.
      * Fallback pentru {@code StatProcent} cand {@code team_season_stats} lipseste. {@code null} fara meciuri.

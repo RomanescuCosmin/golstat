@@ -21,7 +21,11 @@ import ro.golstat.api.repository.TeamRepository;
 import ro.golstat.api.team.PaginaEchipaDto.RandClasament;
 import ro.golstat.common.GolstatConstants.FixtureStatus;
 
+import java.time.OffsetDateTime;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
@@ -64,13 +68,17 @@ public class CompetitieService {
                 .map(Season::getYear).filter(Objects::nonNull).distinct().toList();
         Integer sezon = rezolvaSezon(leagueId, sezonParam, sezoane);
 
+        List<PaginaCompetitieDto.Grupa> grupe = grupe(leagueId, sezon);
         return new PaginaCompetitieDto(
                 new PaginaCompetitieDto.Antet(leagueId, liga.getName(), liga.getCountryName(), liga.getLogo(), sezon, sezoane),
                 clasament(leagueId, sezon),
                 topJucatori(leagueId, sezon, s -> nz(s.getGoalsTotal()), true),
                 topJucatori(leagueId, sezon, s -> nz(s.getGoalsAssists()), false),
                 rezultate(leagueId, sezon),
-                program(leagueId, sezon));
+                program(leagueId, sezon),
+                grupe,
+                // fazele eliminatorii au sens doar la competitiile cu grupe (CM) — altfel „runda" e etapa de campionat
+                eliminatorii(leagueId, sezon, !grupe.isEmpty()));
     }
 
     /** Sezonul cerut, altfel cel mai recent sezon cu meciuri jucate (clasament cu played>0), altfel cel mai recent. */
@@ -94,14 +102,72 @@ public class CompetitieService {
         }
         List<Standing> randuri = standings.findByLeagueIdAndSeasonYearOrderByRankAsc(leagueId, sezon);
         Map<Long, Team> echipe = echipeById(randuri.stream().map(Standing::getTeamId));
-        return randuri.stream().map(r -> {
-            Team t = echipe.get(r.getTeamId());
-            return new RandClasament(
-                    r.getRank(), r.getTeamId() != null ? r.getTeamId() : 0,
-                    t != null ? t.getName() : null, t != null ? t.getLogo() : null,
-                    r.getPlayedAll(), r.getWinAll(), r.getDrawAll(), r.getLoseAll(),
-                    r.getGoalsDiff(), r.getPoints(), false);
-        }).toList();
+        return randuri.stream().map(r -> randClasament(r, echipe)).toList();
+    }
+
+    /**
+     * Clasamentul spart pe grupe (ex. Campionatul Mondial). Gol pentru o liga obisnuita: cerem cel putin
+     * 2 grupe distincte, altfel numele de grup (cand exista) e chiar numele ligii → nu e format de grupe.
+     */
+    private List<PaginaCompetitieDto.Grupa> grupe(long leagueId, Integer sezon) {
+        if (sezon == null) {
+            return List.of();
+        }
+        List<Standing> randuri = standings.findByLeagueIdAndSeasonYearOrderByRankAsc(leagueId, sezon);
+        // randurile vin ordonate global pe rank → in fiecare grupa raman ordonate pe rank
+        LinkedHashMap<String, List<Standing>> peGrupa = randuri.stream()
+                .filter(s -> s.getGroupName() != null && !s.getGroupName().isBlank())
+                .collect(Collectors.groupingBy(Standing::getGroupName, LinkedHashMap::new, Collectors.toList()));
+        if (peGrupa.size() < 2) {
+            return List.of();
+        }
+        Map<Long, Team> echipe = echipeById(randuri.stream().map(Standing::getTeamId));
+        return peGrupa.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .map(e -> new PaginaCompetitieDto.Grupa(e.getKey(),
+                        e.getValue().stream().map(r -> randClasament(r, echipe)).toList()))
+                .toList();
+    }
+
+    /**
+     * Fazele eliminatorii (tot ce nu e etapa de grupe), grupate pe runda si ordonate cronologic —
+     * optimile inaintea sferturilor etc. Se calculeaza doar cand competitia are grupe ({@code areGrupe}).
+     */
+    private List<PaginaCompetitieDto.FazaEliminatorie> eliminatorii(long leagueId, Integer sezon, boolean areGrupe) {
+        if (sezon == null || !areGrupe) {
+            return List.of();
+        }
+        List<Fixture> toate = fixtures.findByLeagueIdAndSeasonYearOrderByKickoffAsc(leagueId, sezon);
+        Map<String, List<Fixture>> peRunda = toate.stream()
+                .filter(f -> f.getRound() != null && !f.getRound().toLowerCase(Locale.ROOT).contains("group"))
+                .collect(Collectors.groupingBy(Fixture::getRound, LinkedHashMap::new, Collectors.toList()));
+        if (peRunda.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, Team> echipe = echipeById(peRunda.values().stream().flatMap(List::stream)
+                .flatMap(f -> Stream.of(f.getHomeTeamId(), f.getAwayTeamId())));
+        return peRunda.entrySet().stream()
+                .sorted(Comparator.comparing(e -> minKickoff(e.getValue()),
+                        Comparator.nullsLast(Comparator.naturalOrder())))
+                .map(e -> new PaginaCompetitieDto.FazaEliminatorie(e.getKey(),
+                        e.getValue().stream()
+                                .sorted(Comparator.comparing(Fixture::getKickoff,
+                                        Comparator.nullsLast(Comparator.naturalOrder())))
+                                .map(f -> meci(f, echipe)).toList()))
+                .toList();
+    }
+
+    private static OffsetDateTime minKickoff(List<Fixture> fixturi) {
+        return fixturi.stream().map(Fixture::getKickoff).filter(Objects::nonNull).min(Comparator.naturalOrder()).orElse(null);
+    }
+
+    private static RandClasament randClasament(Standing r, Map<Long, Team> echipe) {
+        Team t = echipe.get(r.getTeamId());
+        return new RandClasament(
+                r.getRank(), r.getTeamId() != null ? r.getTeamId() : 0,
+                t != null ? t.getName() : null, t != null ? t.getLogo() : null,
+                r.getPlayedAll(), r.getWinAll(), r.getDrawAll(), r.getLoseAll(),
+                r.getGoalsDiff(), r.getPoints(), false);
     }
 
     private List<PaginaCompetitieDto.Jucator> topJucatori(long leagueId, Integer sezon,
@@ -148,13 +214,18 @@ public class CompetitieService {
     private List<PaginaCompetitieDto.Meci> meciuri(List<Fixture> found) {
         Map<Long, Team> echipe = echipeById(found.stream()
                 .flatMap(f -> Stream.of(f.getHomeTeamId(), f.getAwayTeamId())));
-        return found.stream().map(f -> new PaginaCompetitieDto.Meci(
+        return found.stream().map(f -> meci(f, echipe)).toList();
+    }
+
+    private static PaginaCompetitieDto.Meci meci(Fixture f, Map<Long, Team> echipe) {
+        return new PaginaCompetitieDto.Meci(
                 f.getId(), f.getKickoff(),
                 echipa(f.getHomeTeamId(), echipe.get(f.getHomeTeamId())),
                 echipa(f.getAwayTeamId(), echipe.get(f.getAwayTeamId())),
                 f.getGoalsHome(), f.getGoalsAway(), f.getStatusShort(),
                 FixtureStatus.IN_PLAY.contains(f.getStatusShort()),
-                FixtureStatus.TERMINAL.contains(f.getStatusShort()))).toList();
+                FixtureStatus.TERMINAL.contains(f.getStatusShort()),
+                f.getRound());
     }
 
     private Map<Long, Team> echipeById(Stream<Long> ids) {
