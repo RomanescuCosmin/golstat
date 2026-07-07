@@ -14,7 +14,7 @@ interface RezultatMatchCenter {
 
 /**
  * Detaliul unui meci pentru Match Center: fetch initial + push-uri live pe WebSocket.
- * Cat timp meciul e in desfasurare, re-interogheaza REST-ul la 25s pentru statistici si
+ * Cat timp meciul e in desfasurare, re-interogheaza REST-ul la 15s pentru statistici si
  * cronologie (WS transporta doar scor/minut). Polling-ul se opreste cand meciul nu mai e in joc.
  */
 export function useMatchCenter(fixtureId: string | undefined): RezultatMatchCenter {

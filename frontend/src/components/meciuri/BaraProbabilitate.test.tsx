@@ -48,4 +48,27 @@ describe('BaraProbabilitate (1X2)', () => {
     const suma = procenteAfisate(container).reduce((a, b) => a + b, 0);
     expect(suma).toBeLessThanOrEqual(100);
   });
+
+  test('procente nevalide (NaN): nu afiseaza niciodata "NaN%"', () => {
+    const { container } = render(<BaraProbabilitate predictie={predictie(NaN, NaN, NaN)} />);
+    expect(container.textContent).not.toContain('NaN');
+    for (const seg of container.querySelectorAll<HTMLElement>('.h-2 > div')) {
+      expect(seg.style.width).toMatch(/^\d+%$/);
+    }
+  });
+
+  test('suma bruta peste 100 (date corupte): normalizata la exact 100, pastrand ordinea', () => {
+    // 50 + 40 + 30 = 120 — fara normalizare bara ar depasi 100%
+    const { container } = render(<BaraProbabilitate predictie={predictie(50, 40, 30)} />);
+    const [g, e, o] = procenteAfisate(container);
+    expect(g + e + o).toBe(100);
+    expect(g).toBeGreaterThan(e);
+    expect(e).toBeGreaterThan(o);
+  });
+
+  test('toate procentele 0: bara goala cu "0%", fara impartire la zero', () => {
+    const { container } = render(<BaraProbabilitate predictie={predictie(0, 0, 0)} />);
+    expect(procenteAfisate(container)).toEqual([0, 0, 0]);
+    expect(container.textContent).not.toContain('NaN');
+  });
 });

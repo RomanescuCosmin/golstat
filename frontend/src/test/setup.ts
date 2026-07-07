@@ -18,4 +18,19 @@ Object.defineProperty(window, 'matchMedia', {
   }),
 });
 
-afterEach(() => cleanup());
+// jsdom nu implementeaza ResizeObserver (folosit de caruselul live) si nici scroll-urile programatice.
+class ResizeObserverStub {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+globalThis.ResizeObserver ??= ResizeObserverStub as unknown as typeof ResizeObserver;
+
+Element.prototype.scrollTo ??= () => {};
+Element.prototype.scrollBy ??= () => {};
+Element.prototype.scrollIntoView ??= () => {};
+
+afterEach(() => {
+  cleanup();
+  localStorage.clear();
+});

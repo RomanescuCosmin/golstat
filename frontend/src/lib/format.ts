@@ -2,14 +2,21 @@ const dataLunga = new Intl.DateTimeFormat('ro-RO', { day: 'numeric', month: 'lon
 const dataScurta = new Intl.DateTimeFormat('ro-RO', { day: '2-digit', month: '2-digit', year: 'numeric' });
 const oraMinut = new Intl.DateTimeFormat('ro-RO', { hour: '2-digit', minute: '2-digit' });
 
+// "YYYY-MM-DD" e parsat de `new Date` ca miezul noptii UTC — in fusuri negative ziua ar sari
+// inapoi la afisare. LocalDate-urile se construiesc deci pe componente, in fusul local.
+function dataDinISO(iso: string): Date {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : new Date(iso);
+}
+
 /** "3 iulie 2026" dintr-un ISO (OffsetDateTime sau LocalDate). */
 export function formatData(iso: string): string {
-  return dataLunga.format(new Date(iso));
+  return dataLunga.format(dataDinISO(iso));
 }
 
 /** "03.07.2026" dintr-un ISO. */
 export function formatDataScurta(iso: string): string {
-  return dataScurta.format(new Date(iso));
+  return dataScurta.format(dataDinISO(iso));
 }
 
 /** "22:00" dintr-un ISO cu ora. */
