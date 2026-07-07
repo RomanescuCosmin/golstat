@@ -17,9 +17,9 @@ export function formatOra(iso: string): string {
   return oraMinut.format(new Date(iso));
 }
 
-/** Procent 0..100 → "62%". */
+/** Procent 0..100 → "62%"; "—" pentru valori nevalide (nu afisam niciodata "NaN%"). */
 export function formatProcent(procent: number): string {
-  return `${Math.round(procent)}%`;
+  return Number.isFinite(procent) ? `${Math.round(procent)}%` : '—';
 }
 
 /** Fractie 0..1 (OverUnder) → "62%". */

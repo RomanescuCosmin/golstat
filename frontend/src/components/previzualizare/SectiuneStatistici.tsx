@@ -48,19 +48,21 @@ function RezultatBadge({
  * și frecvențele empirice per echipă (banda de 7 puncte), plus legenda explicită.
  */
 
-/** Bară de probabilitate custom: umplere gradient + marker la 50%. */
-function BaraProbabilitate({ rata }: { rata: number }) {
+/** Bară de probabilitate custom: umplere gradient + marker la 50%. Fără istoric rămâne goală. */
+function BaraProbabilitate({ rata, areIstoric = true }: { rata: number; areIstoric?: boolean }) {
   const montat = useGrowOnMount();
-  const procent = Math.max(0, Math.min(100, rata * 100));
+  const procent = Number.isFinite(rata) ? Math.max(0, Math.min(100, rata * 100)) : 0;
   const puternica = procent >= 50;
   return (
     <div className="relative h-3 flex-1 overflow-hidden rounded-full bg-ink2/10 dark:bg-ink2/15">
-      <div
-        className={`h-full rounded-full bg-gradient-to-r transition-[width] duration-700 ease-out motion-reduce:transition-none ${
-          puternica ? 'from-primary/60 to-primary' : 'from-draw/60 to-draw'
-        }`}
-        style={{ width: montat ? `${procent}%` : '0%' }}
-      />
+      {areIstoric && (
+        <div
+          className={`h-full rounded-full bg-gradient-to-r transition-[width] duration-700 ease-out motion-reduce:transition-none ${
+            puternica ? 'from-primary/60 to-primary' : 'from-draw/60 to-draw'
+          }`}
+          style={{ width: montat ? `${procent}%` : '0%' }}
+        />
+      )}
       <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-ink2/30" aria-hidden />
     </div>
   );
@@ -121,11 +123,12 @@ function RandLinie({
   etichetaDa?: string;
   etichetaNu?: string;
 }) {
+  const areIstoric = gazdeLocatie.total > 0 || oaspetiLocatie.total > 0;
   return (
     <div className="border-b border-line py-3 last:border-b-0 last:pb-0">
       <div className="flex items-center gap-3">
         <span className="w-24 shrink-0 text-sm font-semibold text-ink">{eticheta}</span>
-        <BaraProbabilitate rata={rata} />
+        <BaraProbabilitate rata={rata} areIstoric={areIstoric} />
         <span
           className={`w-12 shrink-0 text-right text-base font-extrabold tabular-nums ${
             rata >= 0.5 ? 'text-primary' : 'text-draw'
@@ -256,11 +259,12 @@ function CardPiata({
 
 /** Rândul GG din cardul de goluri, cu legenda marcat/primit. */
 function RandGg({ gg, echipe, actual }: { gg: GgDto; echipe: ContextEchipe; actual?: boolean | null }) {
+  const areIstoric = gg.gazdeMarcat.total > 0 || gg.oaspetiMarcat.total > 0;
   return (
     <div className="pt-3">
       <div className="flex items-center gap-3">
         <span className="w-24 shrink-0 text-sm font-semibold text-ink">GG (ambele)</span>
-        <BaraProbabilitate rata={gg.probabilitate} />
+        <BaraProbabilitate rata={gg.probabilitate} areIstoric={areIstoric} />
         <span
           className={`w-12 shrink-0 text-right text-base font-extrabold tabular-nums ${
             gg.probabilitate >= 0.5 ? 'text-primary' : 'text-draw'

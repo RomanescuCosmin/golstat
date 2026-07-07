@@ -22,8 +22,9 @@ export function RandMeciPremium({ meci }: { meci: MeciZiGrupat }) {
   const navigate = useNavigate();
   const fav = useFavorite();
 
+  // la un meci in desfasurare scorul e prin definitie 0-0 chiar daca golurile nu-s inca colectate
   const scor =
-    meci.golGazde != null || meci.golOaspeti != null
+    meci.golGazde != null || meci.golOaspeti != null || meci.inDesfasurare
       ? `${meci.golGazde ?? 0} – ${meci.golOaspeti ?? 0}`
       : '–';
 
