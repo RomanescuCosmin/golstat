@@ -40,7 +40,7 @@ class PredictionControllerTest {
                 OffsetDateTime.parse("2025-08-16T14:00:00Z"),
                 1.6, 1.2,
                 new ProcentCota(45.0, 2.22), new ProcentCota(27.0, 3.70), new ProcentCota(28.0, 3.57),
-                List.of(linie), new ProcentCota(52.0, 1.92), 8, 6);
+                List.of(linie), new ProcentCota(52.0, 1.92), 8, 6, null);
     }
 
     @Test

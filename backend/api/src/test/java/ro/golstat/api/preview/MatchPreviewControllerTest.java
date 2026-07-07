@@ -40,7 +40,7 @@ class MatchPreviewControllerTest {
         PredictieMeciDto predictie = new PredictieMeciDto(100L, gazde, oaspeti,
                 OffsetDateTime.parse("2025-08-16T14:00:00Z"), 1.6, 1.2,
                 new ProcentCota(45.0, 2.22), new ProcentCota(27.0, 3.70), new ProcentCota(28.0, 3.57),
-                List.of(), new ProcentCota(52.0, 1.92), 8, 6);
+                List.of(), new ProcentCota(52.0, 1.92), 8, 6, null);
         FormaEchipaDto formaGazde = new FormaEchipaDto(
                 new FereastraFormaDto(
                         List.of(new FormaMeciDto(LocalDate.of(2025, 5, 6), true, 2, 1, "V")), 1.33, 1.17),
@@ -81,7 +81,8 @@ class MatchPreviewControllerTest {
                         new FrecventaDto(2, 7), new FrecventaDto(1, 7)),
                 new ReprizeDto(0.72, 0.81,
                         new FrecventaDto(5, 7), new FrecventaDto(4, 7),
-                        new FrecventaDto(6, 7), new FrecventaDto(5, 7)));
+                        new FrecventaDto(6, 7), new FrecventaDto(5, 7)),
+                null);
         StatisticiCheieDto statisticiCheie = new StatisticiCheieDto(
                 new StatisticiEchipaDto(55.0, 12.4, 5.1, 6.2, 2.1),
                 new StatisticiEchipaDto(null, null, null, null, null));

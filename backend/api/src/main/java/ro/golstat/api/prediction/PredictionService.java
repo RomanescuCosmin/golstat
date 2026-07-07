@@ -28,9 +28,10 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * Produce predictia unui meci VIITOR (status {@code NS}): construieste forma pe locatie a celor
- * doua echipe ({@link MatchHistoryService}) + media ligii ({@link LeagueAverageService}), le duce in
- * {@link MatchGoalModel} si mapeaza rezultatul in DTO.
+ * Produce predictia unui meci viitor ({@code NS}) sau terminat ({@code FT}/{@code AET}/{@code PEN}):
+ * construieste forma pe locatie a celor doua echipe ({@link MatchHistoryService}) + media ligii
+ * ({@link LeagueAverageService}), le duce in {@link MatchGoalModel} si mapeaza rezultatul in DTO. La
+ * meciuri terminate mapper-ul ataseaza si scorul real, pentru validarea predictiei.
  *
  * <p>Fallback teren neutru / esantion mic (ex. Campionatul Mondial): daca oricare fereastra pe
  * locatie e sub {@link #MIN_LOCATION}, se folosesc ferestrele fara filtru de locatie si media ligii
@@ -59,11 +60,25 @@ public class PredictionService {
         this.leagueAverages = leagueAverages;
     }
 
-    /** Predictia unui meci dupa id; goala daca meciul nu exista sau nu e viitor ({@code NS}). */
+    /**
+     * Predictia unui meci dupa id; goala daca meciul nu exista sau e in desfasurare. Se produce pentru
+     * meciuri viitoare ({@code NS}) si pentru cele terminate ({@code FT}/{@code AET}/{@code PEN}) — la
+     * cele terminate predictia se compara cu rezultatul real (validarea modelului). Istoricul foloseste
+     * doar meciuri dinainte de kickoff, deci predictia retrospectiva e identica cu cea pre-meci.
+     */
     public Optional<PredictieMeciDto> predict(long fixtureId) {
         return fixtures.findById(fixtureId)
-                .filter(f -> GolstatConstants.FixtureStatus.NOT_STARTED.equals(f.getStatusShort()))
+                .filter(f -> arePredictie(f.getStatusShort()))
                 .map(f -> predictFixture(f, teamsById(List.of(f))));
+    }
+
+    /** Meciurile viitoare ({@code NS}) si cele terminate au predictie; cele in desfasurare nu (rezultat partial). */
+    private static boolean arePredictie(String statusShort) {
+        if (statusShort == null) {
+            return false;
+        }
+        return GolstatConstants.FixtureStatus.NOT_STARTED.equals(statusShort)
+                || GolstatConstants.FixtureStatus.TERMINAL.contains(statusShort);
     }
 
     /** Predictiile meciurilor viitoare ({@code NS}) ale unei ligi intr-o zi. */

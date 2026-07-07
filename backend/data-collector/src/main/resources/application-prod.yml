@@ -1,40 +1,40 @@
 golstat:
   collection:
     # Sezonul CURENT (2026 = 2026-2027 + evenimentele verii 2026: World Cup, amicale, preliminarii UEFA).
-    # Fereastra: cateva zile in urma (meciuri deja jucate: World Cup din iunie, amicale) + program inainte.
+    # Fereastra: cateva zile in urma (meciuri deja jucate) + program inainte.
     # zile-in-urma acopera si catch-up-ul dupa ce laptopul a fost oprit (upsert idempotent la ingest).
     zile-in-urma: 60
     zile-inainte: 30
+    # ORDINEA CONTEAZA: colectorul merge de sus in jos si se opreste elegant cand se atinge cota
+    # (reia la ciclul urmator). Deci punem intai ce conteaza cel mai mult, iar la coada ce e scump
+    # si putin valoros. Amicalele (667) au 2300+ meciuri → ULTIMELE si cu `doar-fixtures` (doar scoruri,
+    # fara jucatori/statistici per meci), altfel ard singure toata cota.
     leagues:
-      # --- Competitii ACTIVE ACUM (colectate primele ca sa apara imediat) ---
+      # --- TIER 1: prioritare (World Cup + cupe europene + top-5 prime ligi) ---
       - { league-id: 1,   season: 2026 }   # Campionat Mondial (World Cup 2026)
-      - { league-id: 667, season: 2026 }   # Amicale cluburi
       - { league-id: 2,   season: 2026 }   # Champions League
       - { league-id: 3,   season: 2026 }   # Europa League
       - { league-id: 848, season: 2026 }   # Conference League
-      # --- Campionate: Anglia (1-2-3) ---
-      - { league-id: 39,  season: 2026 }   # Premier League
-      - { league-id: 40,  season: 2026 }   # Championship
-      - { league-id: 41,  season: 2026 }   # League One
-      # --- Italia (1-2) ---
-      - { league-id: 135, season: 2026 }   # Serie A
-      - { league-id: 136, season: 2026 }   # Serie B
-      # --- Germania (1-2) ---
-      - { league-id: 78,  season: 2026 }   # Bundesliga
-      - { league-id: 79,  season: 2026 }   # 2. Bundesliga
-      # --- Spania (1-2) ---
-      - { league-id: 140, season: 2026 }   # La Liga
-      - { league-id: 141, season: 2026 }   # Segunda Division
-      # --- Franta (1-2) ---
-      - { league-id: 61,  season: 2026 }   # Ligue 1
-      - { league-id: 62,  season: 2026 }   # Ligue 2
-      # --- Olanda (1-2) ---
-      - { league-id: 88,  season: 2026 }   # Eredivisie
-      - { league-id: 89,  season: 2026 }   # Eerste Divisie
-      # --- Prima liga: Belgia, Turcia, Suedia, Danemarca, Norvegia, Romania ---
+      - { league-id: 39,  season: 2026 }   # Anglia - Premier League
+      - { league-id: 140, season: 2026 }   # Spania - La Liga
+      - { league-id: 135, season: 2026 }   # Italia - Serie A
+      - { league-id: 78,  season: 2026 }   # Germania - Bundesliga
+      - { league-id: 61,  season: 2026 }   # Franta - Ligue 1
+      # --- TIER 2: alte prime ligi ---
+      - { league-id: 88,  season: 2026 }   # Olanda - Eredivisie
       - { league-id: 144, season: 2026 }   # Belgia - Jupiler Pro League
       - { league-id: 203, season: 2026 }   # Turcia - Super Lig
-      - { league-id: 113, season: 2026 }   # Suedia - Allsvenskan  (an calendaristic, sezon 2026 in desfasurare)
+      - { league-id: 113, season: 2026 }   # Suedia - Allsvenskan (an calendaristic)
       - { league-id: 119, season: 2026 }   # Danemarca - Superliga
-      - { league-id: 103, season: 2026 }   # Norvegia - Eliteserien (an calendaristic, sezon 2026 in desfasurare)
+      - { league-id: 103, season: 2026 }   # Norvegia - Eliteserien (an calendaristic)
       - { league-id: 283, season: 2026 }   # Romania - Liga I
+      # --- TIER 3: divizii secunde (multe meciuri → dupa primele ligi) ---
+      - { league-id: 40,  season: 2026 }   # Anglia - Championship
+      - { league-id: 41,  season: 2026 }   # Anglia - League One
+      - { league-id: 136, season: 2026 }   # Italia - Serie B
+      - { league-id: 79,  season: 2026 }   # Germania - 2. Bundesliga
+      - { league-id: 141, season: 2026 }   # Spania - Segunda Division
+      - { league-id: 62,  season: 2026 }   # Franta - Ligue 2
+      - { league-id: 89,  season: 2026 }   # Olanda - Eerste Divisie
+      # --- TIER 4: amicale ULTIMELE + doar scoruri (fara imbogatirea scumpa pe 2300 de meciuri) ---
+      - { league-id: 667, season: 2026, doar-fixtures: true }   # Amicale cluburi

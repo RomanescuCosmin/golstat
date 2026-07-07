@@ -25,6 +25,16 @@ export interface LinieGolDto {
   sub: ProcentCota;
 }
 
+/**
+ * Scorul real la 90 min al unui meci terminat, pentru validarea predictiei; `null` la meciuri
+ * viitoare. `statusShort`: "FT" / "AET" / "PEN".
+ */
+export interface RezultatMeciDto {
+  goluriGazde: number;
+  goluriOaspeti: number;
+  statusShort: string;
+}
+
 /** Oglinda `ro.golstat.api.prediction.PredictieMeciDto`. */
 export interface PredictieMeciDto {
   fixtureId: number;
@@ -41,6 +51,8 @@ export interface PredictieMeciDto {
   btts: ProcentCota;
   esantionGazde: number;
   esantionOaspeti: number;
+  /** Scorul real la 90 min; `null` la meciuri viitoare (NS). */
+  rezultat: RezultatMeciDto | null;
 }
 
 /**
@@ -236,6 +248,25 @@ export interface ReprizeDto {
   repriza2Oaspeti: FrecventaDto;
 }
 
+/**
+ * Totalurile reale ale meciului pe fiecare piata, pentru a marca hit/miss fata de partea favorizata
+ * de model; `null` la meciuri viitoare. Golurile sunt la 90 min; campurile de repriza sunt `null`
+ * cand scorul la pauza lipseste; totalurile de count sunt `null` cand meciul n-are statistici.
+ */
+export interface RezultatStatisticiDto {
+  totalGoluri: number;
+  ambeleMarcheaza: boolean;
+  egalFinal: boolean;
+  egalPauza: boolean | null;
+  golRepriza1: boolean | null;
+  golRepriza2: boolean | null;
+  totalCornere: number | null;
+  totalFaulturi: number | null;
+  totalCartonase: number | null;
+  totalSuturi: number | null;
+  totalSuturiPePoarta: number | null;
+}
+
 /** Oglinda `ro.golstat.api.preview.StatisticiAvansateDto`. */
 export interface StatisticiAvansateDto {
   goluri: PiataStatDto;
@@ -248,6 +279,8 @@ export interface StatisticiAvansateDto {
   /** `null` cand niciuna dintre echipe nu are istoric. */
   egaluri: EgaluriDto | null;
   reprize: ReprizeDto | null;
+  /** Totalurile reale ale meciului; `null` la meciuri viitoare. */
+  rezultat: RezultatStatisticiDto | null;
 }
 
 /** Oglinda `ro.golstat.api.preview.PrevizualizareMeciDto`. */
@@ -575,6 +608,20 @@ export interface MeciCompetitie {
   status: string | null;
   inDesfasurare: boolean;
   terminat: boolean;
+  /** Eticheta etapei (ex. „Round of 16", „Final") — folosita la schema fazelor eliminatorii. */
+  runda: string | null;
+}
+
+/** O grupa dintr-o competitie cu format de grupe (ex. Cupa Mondiala): numele grupei + clasamentul ei. */
+export interface GrupaClasament {
+  nume: string;
+  randuri: RandClasament[];
+}
+
+/** O faza eliminatorie (ex. „Optimi", „Sferturi") cu meciurile ei; fazele vin in ordinea progresiei. */
+export interface FazaEliminatorie {
+  runda: string;
+  meciuri: MeciCompetitie[];
 }
 
 /** Antetul unei competiții. */
@@ -595,6 +642,10 @@ export interface PaginaCompetitie {
   pasatori: JucatorTop[];
   rezultate: MeciCompetitie[];
   urmatoare: MeciCompetitie[];
+  /** Clasamentul spart pe grupe (gol la ligile obisnuite; populat la Cupa Mondiala). */
+  grupe: GrupaClasament[];
+  /** Schema fazelor eliminatorii (gol la ligile obisnuite; populat la Cupa Mondiala). */
+  eliminatorii: FazaEliminatorie[];
 }
 
 /* ─────────────────────────── Statistici (ligi) ─────────────────────────── */

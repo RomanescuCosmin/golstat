@@ -20,7 +20,8 @@ public record StatisticiAvansateDto(
         PiataDto suturi,
         PiataDto suturiPePoarta,
         EgaluriDto egaluri,
-        ReprizeDto reprize
+        ReprizeDto reprize,
+        RezultatDto rezultat
 ) {
 
     /** O piata cu linii Over/Under si mediile fiecarei echipe pe ferestrele ei. */
@@ -83,6 +84,27 @@ public record StatisticiAvansateDto(
             FrecventaDto repriza1Oaspeti,
             FrecventaDto repriza2Gazde,
             FrecventaDto repriza2Oaspeti
+    ) {
+    }
+
+    /**
+     * Totalurile reale ale meciului pe fiecare piata, pentru a marca hit/miss fata de partea favorizata
+     * de model. {@code null} la meciuri viitoare. Golurile sunt la 90 min (comparabile cu modelul);
+     * campurile de repriza sunt {@code Boolean} nule cand scorul la pauza lipseste, iar totalurile de
+     * count sunt {@code Integer} nule cand meciul n-are statistici colectate (ex. amicale internationale).
+     */
+    public record RezultatDto(
+            int totalGoluri,
+            boolean ambeleMarcheaza,
+            boolean egalFinal,
+            Boolean egalPauza,
+            Boolean golRepriza1,
+            Boolean golRepriza2,
+            Integer totalCornere,
+            Integer totalFaulturi,
+            Integer totalCartonase,
+            Integer totalSuturi,
+            Integer totalSuturiPePoarta
     ) {
     }
 }

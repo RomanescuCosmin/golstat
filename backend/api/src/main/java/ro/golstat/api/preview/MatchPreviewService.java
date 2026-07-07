@@ -17,6 +17,7 @@ import ro.golstat.api.preview.StatisticiAvansateBuilder.FerestreEchipa;
 import ro.golstat.api.repository.FixtureLineupPlayerRepository;
 import ro.golstat.api.repository.FixtureLineupRepository;
 import ro.golstat.api.repository.FixtureRepository;
+import ro.golstat.api.repository.FixtureTeamStatsRepository;
 import ro.golstat.api.repository.InjuryRepository;
 import ro.golstat.api.repository.PlayerRepository;
 import ro.golstat.api.repository.TeamRepository;
@@ -82,13 +83,15 @@ public class MatchPreviewService {
     private final FixtureLineupPlayerRepository lineupPlayers;
     private final InjuryRepository injuries;
     private final PlayerRepository players;
+    private final FixtureTeamStatsRepository teamStats;
 
     public MatchPreviewService(PredictionService predictions, FixtureRepository fixtures,
                                MatchHistoryService history, StatsHistoryService statsHistory,
                                CountLeagueAverageService countAverages, LeagueAverageService leagueAverages,
                                RefereeService referees, TeamRepository teams,
                                FixtureLineupRepository lineups, FixtureLineupPlayerRepository lineupPlayers,
-                               InjuryRepository injuries, PlayerRepository players) {
+                               InjuryRepository injuries, PlayerRepository players,
+                               FixtureTeamStatsRepository teamStats) {
         this.predictions = predictions;
         this.fixtures = fixtures;
         this.history = history;
@@ -101,6 +104,7 @@ public class MatchPreviewService {
         this.lineupPlayers = lineupPlayers;
         this.injuries = injuries;
         this.players = players;
+        this.teamStats = teamStats;
     }
 
     /** Previzualizarea unui meci dupa id; {@link PredictionNotFoundException} daca nu are predictie. */
@@ -126,7 +130,7 @@ public class MatchPreviewService {
                 ferestre(istoricGazde, counturiGazde, MatchLocation.HOME),
                 ferestre(istoricOaspeti, counturiOaspeti, MatchLocation.AWAY),
                 mediiCounturi, mediiGoluri.mediaLigaGazde() + mediiGoluri.mediaLigaOaspeti(),
-                factorArbitru, egalModel(predictie));
+                factorArbitru, egalModel(predictie), rezultatStatistici(meci));
 
         return new PrevizualizareMeciDto(predictie,
                 forma(istoricGazde, MatchLocation.HOME),
@@ -159,6 +163,64 @@ public class MatchPreviewService {
     /** P(egal la final) 0..1 din modelul de goluri al meciului; null cand predictia nu o are. */
     private static Double egalModel(PredictieMeciDto predictie) {
         return predictie.egal() != null ? predictie.egal().procent() / 100.0 : null;
+    }
+
+    /**
+     * Totalurile reale ale meciului pentru marcarea hit/miss; {@code null} la meciuri ne-terminale.
+     * Golurile la 90 min (prefera scoreFt, exclude prelungirile); reprizele din scorul la pauza
+     * ({@code null} cand lipseste); count-urile sumate din fixture_team_stats ale acestui meci
+     * ({@code null} cand meciul n-are statistici colectate — ex. amicale internationale).
+     */
+    private StatisticiAvansateDto.RezultatDto rezultatStatistici(Fixture meci) {
+        if (meci.getStatusShort() == null
+                || !GolstatConstants.FixtureStatus.TERMINAL.contains(meci.getStatusShort())) {
+            return null;
+        }
+        Integer gazde90 = scorFinal(meci.getScoreFtHome(), meci.getGoalsHome());
+        Integer oaspeti90 = scorFinal(meci.getScoreFtAway(), meci.getGoalsAway());
+        if (gazde90 == null || oaspeti90 == null) {
+            return null;
+        }
+        int totalGoluri = gazde90 + oaspeti90;
+        boolean ambeleMarcheaza = gazde90 > 0 && oaspeti90 > 0;
+        boolean egalFinal = gazde90.equals(oaspeti90);
+
+        Boolean egalPauza = null;
+        Boolean golRepriza1 = null;
+        Boolean golRepriza2 = null;
+        Integer htGazde = meci.getScoreHtHome();
+        Integer htOaspeti = meci.getScoreHtAway();
+        if (htGazde != null && htOaspeti != null) {
+            int golPauza = htGazde + htOaspeti;
+            egalPauza = htGazde.equals(htOaspeti);
+            golRepriza1 = golPauza > 0;
+            golRepriza2 = totalGoluri - golPauza > 0;
+        }
+
+        Map<Long, FixtureTeamStats> perEchipa = teamStats.findByFixtureIdIn(List.of(meci.getId())).stream()
+                .filter(s -> s.getTeamId() != null)
+                .collect(Collectors.toMap(FixtureTeamStats::getTeamId, Function.identity(), (a, b) -> a));
+        FixtureTeamStats gazdeStats = perEchipa.get(meci.getHomeTeamId());
+        FixtureTeamStats oaspetiStats = perEchipa.get(meci.getAwayTeamId());
+
+        return new StatisticiAvansateDto.RezultatDto(
+                totalGoluri, ambeleMarcheaza, egalFinal, egalPauza, golRepriza1, golRepriza2,
+                totalCount(gazdeStats, oaspetiStats, FixtureTeamStats::getCornerKicks),
+                totalCount(gazdeStats, oaspetiStats, FixtureTeamStats::getFouls),
+                totalCount(gazdeStats, oaspetiStats, StatsHistoryService::totalCartonase),
+                totalCount(gazdeStats, oaspetiStats, FixtureTeamStats::getShotsTotal),
+                totalCount(gazdeStats, oaspetiStats, FixtureTeamStats::getShotsOnGoal));
+    }
+
+    /** Suma unei statistici pe ambele echipe; {@code null} daca lipseste pe oricare parte. */
+    private static Integer totalCount(FixtureTeamStats gazde, FixtureTeamStats oaspeti,
+                                      Function<FixtureTeamStats, Integer> camp) {
+        if (gazde == null || oaspeti == null) {
+            return null;
+        }
+        Integer a = camp.apply(gazde);
+        Integer b = camp.apply(oaspeti);
+        return a != null && b != null ? a + b : null;
     }
 
     static FormaEchipaDto forma(List<MatchSample> istoric, MatchLocation locatie) {

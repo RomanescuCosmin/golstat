@@ -21,6 +21,7 @@ import ro.golstat.api.preview.StatisticiAvansateDto.FrecventaDto;
 import ro.golstat.api.repository.FixtureLineupPlayerRepository;
 import ro.golstat.api.repository.FixtureLineupRepository;
 import ro.golstat.api.repository.FixtureRepository;
+import ro.golstat.api.repository.FixtureTeamStatsRepository;
 import ro.golstat.api.repository.InjuryRepository;
 import ro.golstat.api.repository.PlayerRepository;
 import ro.golstat.api.repository.TeamRepository;
@@ -32,6 +33,7 @@ import ro.golstat.api.stats.LeagueAverages;
 import ro.golstat.api.stats.MatchHistoryService;
 import ro.golstat.api.stats.RefereeService;
 import ro.golstat.api.stats.StatsHistoryService;
+import ro.golstat.common.GolstatConstants;
 import ro.golstat.stats.cards.RefereeFactor;
 import ro.golstat.stats.goals.HalfMarkets;
 import ro.golstat.stats.math.NegativeBinomial;
@@ -76,6 +78,7 @@ class MatchPreviewServiceTest {
     @Mock FixtureLineupPlayerRepository lineupPlayers;
     @Mock InjuryRepository injuries;
     @Mock PlayerRepository players;
+    @Mock FixtureTeamStatsRepository teamStats;
     @InjectMocks MatchPreviewService service;
 
     private static MatchSample sample(int day, boolean home, int gf, int ga) {
@@ -148,7 +151,7 @@ class MatchPreviewServiceTest {
         return new PredictieMeciDto(100L,
                 new EchipaDto(10L, "FC Gazde", "http://logo/10.png"),
                 new EchipaDto(20L, "FC Oaspeti", "http://logo/20.png"),
-                KICKOFF, 1.6, 1.2, null, egal, null, List.of(), null, 8, 6);
+                KICKOFF, 1.6, 1.2, null, egal, null, List.of(), null, 8, 6, null);
     }
 
     private void stubHappyPath() {
@@ -267,6 +270,8 @@ class MatchPreviewServiceTest {
         // fara istoric → sectiunile pe reprize lipsesc
         assertNull(statistici.egaluri());
         assertNull(statistici.reprize());
+        // meci viitor (NS) → fara rezultat real
+        assertNull(statistici.rezultat());
         // fara statistici → toate mediile null ("fara date")
         assertEquals(new StatisticiCheieDto.StatisticiEchipaDto(null, null, null, null, null),
                 dto.statisticiCheie().gazde());
@@ -432,6 +437,77 @@ class MatchPreviewServiceTest {
         when(predictions.predict(999L)).thenReturn(Optional.empty());
 
         assertThrows(PredictionNotFoundException.class, () -> service.previzualizare(999L));
+    }
+
+    @Test
+    void previzualizare_meciTerminat_populeazaRezultatRealPePiete() {
+        when(predictions.predict(100L)).thenReturn(Optional.of(predictie()));
+        Fixture meci = nsFixture();
+        meci.setStatusShort(GolstatConstants.FixtureStatus.FINISHED);
+        meci.setScoreFtHome(2);
+        meci.setScoreFtAway(1);
+        meci.setScoreHtHome(1);
+        meci.setScoreHtAway(0);
+        when(fixtures.findById(100L)).thenReturn(Optional.of(meci));
+        when(statsHistory.istoric(anyLong(), any(), anyInt())).thenReturn(IstoricCounturi.gol());
+        when(countAverages.averages(any(), any())).thenReturn(new CountLeagueAverages(10.0, 24.0, 4.0, 25.0, 9.0));
+        when(leagueAverages.averages(anyLong(), anyInt())).thenReturn(new LeagueAverages(1.5, 1.1));
+        when(referees.factor(any(), anyDouble())).thenReturn(RefereeFactor.NEUTRAL);
+        when(history.lastMatches(anyLong(), any(), anyInt())).thenReturn(List.of());
+        when(fixtures.findHeadToHead(anyLong(), anyLong(), any(), any(), any())).thenReturn(List.of());
+        when(teams.findAllById(any())).thenReturn(List.of());
+        // statisticile reale ale meciului: gazde 6 cornere / oaspeti 4 → total 10; cartonase 2+0 si 1+1 → 4
+        FixtureTeamStats gazde = randStatistici(60, 14, 6, 6, 2, 0);
+        gazde.setTeamId(10L);
+        gazde.setFixtureId(100L);
+        gazde.setFouls(11);
+        FixtureTeamStats oaspeti = randStatistici(40, 8, 3, 4, 1, 1);
+        oaspeti.setTeamId(20L);
+        oaspeti.setFixtureId(100L);
+        oaspeti.setFouls(13);
+        when(teamStats.findByFixtureIdIn(List.of(100L))).thenReturn(List.of(gazde, oaspeti));
+
+        StatisticiAvansateDto.RezultatDto rezultat = service.previzualizare(100L).statistici().rezultat();
+
+        assertEquals(3, rezultat.totalGoluri());
+        assertTrue(rezultat.ambeleMarcheaza());
+        assertFalse(rezultat.egalFinal());
+        assertFalse(rezultat.egalPauza());
+        assertTrue(rezultat.golRepriza1());   // 1-0 la pauza
+        assertTrue(rezultat.golRepriza2());   // 2-1 final → gol in repriza 2
+        assertEquals(10, rezultat.totalCornere());
+        assertEquals(24, rezultat.totalFaulturi());
+        assertEquals(4, rezultat.totalCartonase());
+        assertEquals(22, rezultat.totalSuturi());
+        assertEquals(9, rezultat.totalSuturiPePoarta());
+    }
+
+    @Test
+    void previzualizare_meciTerminatFaraStatistici_totaluriCountNull() {
+        when(predictions.predict(100L)).thenReturn(Optional.of(predictie()));
+        Fixture meci = nsFixture();
+        meci.setStatusShort(GolstatConstants.FixtureStatus.FINISHED);
+        meci.setScoreFtHome(0);
+        meci.setScoreFtAway(0);
+        meci.setScoreHtHome(0);
+        meci.setScoreHtAway(0);
+        when(fixtures.findById(100L)).thenReturn(Optional.of(meci));
+        when(statsHistory.istoric(anyLong(), any(), anyInt())).thenReturn(IstoricCounturi.gol());
+        when(countAverages.averages(any(), any())).thenReturn(new CountLeagueAverages(10.0, 24.0, 4.0, 25.0, 9.0));
+        when(leagueAverages.averages(anyLong(), anyInt())).thenReturn(new LeagueAverages(1.5, 1.1));
+        when(referees.factor(any(), anyDouble())).thenReturn(RefereeFactor.NEUTRAL);
+        when(history.lastMatches(anyLong(), any(), anyInt())).thenReturn(List.of());
+        when(fixtures.findHeadToHead(anyLong(), anyLong(), any(), any(), any())).thenReturn(List.of());
+        when(teams.findAllById(any())).thenReturn(List.of());
+        when(teamStats.findByFixtureIdIn(List.of(100L))).thenReturn(List.of());
+
+        StatisticiAvansateDto.RezultatDto rezultat = service.previzualizare(100L).statistici().rezultat();
+
+        assertEquals(0, rezultat.totalGoluri());
+        assertFalse(rezultat.ambeleMarcheaza());
+        assertTrue(rezultat.egalFinal());
+        assertNull(rezultat.totalCornere());
+        assertNull(rezultat.totalCartonase());
     }
 
     private static FixtureLineup lineup(long teamId, String formatie, Long coachId) {
