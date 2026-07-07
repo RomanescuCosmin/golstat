@@ -22,8 +22,16 @@ interface StatisticiCheieProps {
 /** Barele comparative albastru (gazde) vs rosu (oaspeti), cu eticheta pe centru. */
 export function StatisticiCheie({ gazde, oaspeti, statistici, formaGazde, formaOaspeti }: StatisticiCheieProps) {
   const randuri: Rand[] = [
-    { eticheta: 'Goluri marcate', gazde: formaGazde.goluriMarcatePeMeci, oaspeti: formaOaspeti.goluriMarcatePeMeci },
-    { eticheta: 'Goluri primite', gazde: formaGazde.goluriPrimitePeMeci, oaspeti: formaOaspeti.goluriPrimitePeMeci },
+    {
+      eticheta: 'Goluri marcate',
+      gazde: formaGazde.locatie.goluriMarcatePeMeci,
+      oaspeti: formaOaspeti.locatie.goluriMarcatePeMeci,
+    },
+    {
+      eticheta: 'Goluri primite',
+      gazde: formaGazde.locatie.goluriPrimitePeMeci,
+      oaspeti: formaOaspeti.locatie.goluriPrimitePeMeci,
+    },
     { eticheta: 'Posesie medie', gazde: statistici.gazde.posesieMedie, oaspeti: statistici.oaspeti.posesieMedie, procent: true },
     { eticheta: 'Șuturi pe meci', gazde: statistici.gazde.suturiPeMeci, oaspeti: statistici.oaspeti.suturiPeMeci },
     { eticheta: 'Șuturi pe poartă', gazde: statistici.gazde.suturiPePoarta, oaspeti: statistici.oaspeti.suturiPePoarta },

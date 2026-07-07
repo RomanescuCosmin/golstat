@@ -53,6 +53,8 @@ public class StatsHistoryService {
         List<EventCountSample> cornere = new ArrayList<>();
         List<EventCountSample> faulturi = new ArrayList<>();
         List<EventCountSample> cartonase = new ArrayList<>();
+        List<EventCountSample> suturi = new ArrayList<>();
+        List<EventCountSample> suturiPePoarta = new ArrayList<>();
         List<FixtureTeamStats> proprii = new ArrayList<>();
         for (Fixture f : meciuri) {
             boolean home = f.getHomeTeamId() != null && f.getHomeTeamId() == teamId;
@@ -68,9 +70,11 @@ public class StatsHistoryService {
             adauga(cornere, data, home, ale.getCornerKicks(), aleAdversarului.getCornerKicks());
             adauga(faulturi, data, home, ale.getFouls(), aleAdversarului.getFouls());
             adauga(cartonase, data, home, totalCartonase(ale), totalCartonase(aleAdversarului));
+            adauga(suturi, data, home, ale.getShotsTotal(), aleAdversarului.getShotsTotal());
+            adauga(suturiPePoarta, data, home, ale.getShotsOnGoal(), aleAdversarului.getShotsOnGoal());
         }
         return new IstoricCounturi(List.copyOf(cornere), List.copyOf(faulturi), List.copyOf(cartonase),
-                List.copyOf(proprii));
+                List.copyOf(suturi), List.copyOf(suturiPePoarta), List.copyOf(proprii));
     }
 
     /** Galbene + rosii; {@code null} doar cand ambele lipsesc (rosii lipsa langa galbene = 0). */

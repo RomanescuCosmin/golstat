@@ -92,6 +92,26 @@ class StatsHistoryServiceTest {
     }
 
     @Test
+    void suturi_mapateDinShotsTotalSiOnGoal() {
+        when(fixtures.findRecentForTeam(anyLong(), any(), any(), any()))
+                .thenReturn(List.of(fixture(100, 1, 2)));
+        FixtureTeamStats ale = stats(100, 1, 7, 12, 2, 0);
+        ale.setShotsTotal(14);
+        ale.setShotsOnGoal(6);
+        FixtureTeamStats adversar = stats(100, 2, 4, 15, 3, 1);
+        adversar.setShotsTotal(9);
+        adversar.setShotsOnGoal(3);
+        when(teamStats.findByFixtureIdIn(any())).thenReturn(List.of(ale, adversar));
+
+        IstoricCounturi istoric = service.istoric(1, OffsetDateTime.now(), 10);
+
+        assertEquals(14, istoric.suturi().get(0).countFor());
+        assertEquals(9, istoric.suturi().get(0).countAgainst());
+        assertEquals(6, istoric.suturiPePoarta().get(0).countFor());
+        assertEquals(3, istoric.suturiPePoarta().get(0).countAgainst());
+    }
+
+    @Test
     void meciFaraStatistici_esteSarit() {
         when(fixtures.findRecentForTeam(anyLong(), any(), any(), any()))
                 .thenReturn(List.of(fixture(100, 1, 2), fixture(101, 1, 3)));

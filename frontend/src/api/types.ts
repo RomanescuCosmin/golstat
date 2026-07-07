@@ -63,11 +63,20 @@ export interface FormaMeciDto {
   rezultat: 'V' | 'E' | 'I';
 }
 
-/** Forma recenta a unei echipe: ultimele meciuri (cele mai recente primele) + medii de goluri. */
-export interface FormaEchipaDto {
+/** O fereastra de forma: ultimele meciuri (cele mai recente primele) + medii de goluri. */
+export interface FereastraFormaDto {
   meciuri: FormaMeciDto[];
   goluriMarcatePeMeci: number;
   goluriPrimitePeMeci: number;
+}
+
+/**
+ * Forma recenta a unei echipe pe doua ferestre de cate 7: `locatie` = pe locatia din meciul
+ * previzualizat (gazdele acasa, oaspetii in deplasare), `general` = indiferent de locatie.
+ */
+export interface FormaEchipaDto {
+  locatie: FereastraFormaDto;
+  general: FereastraFormaDto;
 }
 
 /** O intalnire directa din trecut; gazdele/oaspetii sunt cei ai meciului ISTORIC. */
@@ -136,6 +145,8 @@ export interface JucatorLineupDto {
   numar: number | null;
   pozitie: string | null;
   grid: string | null;
+  /** URL-ul fotografiei de profil; null cand nu exista (fallback la cercul cu numar). */
+  foto: string | null;
 }
 
 /** Un jucator indisponibil; `detaliu` = motivul brut din sursa (ex. "Knee Injury"). */
@@ -159,6 +170,84 @@ export interface EchipaDeStartDto {
   gazde: EchipaLineupDto;
   oaspeti: EchipaLineupDto;
   arbitru: string | null;
+  /** true = echipa PROBABILA (ultimul unsprezece), nu formatia anuntata a meciului. */
+  probabila: boolean;
+}
+
+/* ──────────────── Statistici avansate (analiza pe piete, ferestre de 7) ──────────────── */
+
+/** "In `reusite` din `total` meciuri" — materia prima a legendei; `total` 0 = fara date. */
+export interface FrecventaDto {
+  reusite: number;
+  total: number;
+}
+
+/** Mediile pe meci ale unei echipe pe piata; `proprie*` = doar echipa, `total*` = ambele parti. */
+export interface MediiEchipaDto {
+  proprieLocatie: number | null;
+  totalLocatie: number | null;
+  proprieGeneral: number | null;
+  totalGeneral: number | null;
+}
+
+/** O linie x.5: probabilitatea MODELATA (0..1) pe meci + frecventele empirice per fereastra. */
+export interface LinieStatDto {
+  linie: number;
+  probabilitate: number;
+  gazdeLocatie: FrecventaDto;
+  gazdeGeneral: FrecventaDto;
+  oaspetiLocatie: FrecventaDto;
+  oaspetiGeneral: FrecventaDto;
+}
+
+/** O piata cu linii Over/Under si mediile fiecarei echipe. */
+export interface PiataStatDto {
+  linii: LinieStatDto[];
+  gazde: MediiEchipaDto;
+  oaspeti: MediiEchipaDto;
+}
+
+/** GG (ambele marcheaza): probabilitate modelata + marcat/primit pe ferestrele de locatie. */
+export interface GgDto {
+  probabilitate: number;
+  gazdeMarcat: FrecventaDto;
+  gazdePrimit: FrecventaDto;
+  oaspetiMarcat: FrecventaDto;
+  oaspetiPrimit: FrecventaDto;
+}
+
+/** Egal la pauza / final (rate 0..1) + frecventele fiecarei echipe pe fereastra de locatie. */
+export interface EgaluriDto {
+  egalPauza: number;
+  egalFinal: number;
+  pauzaGazde: FrecventaDto;
+  pauzaOaspeti: FrecventaDto;
+  finalGazde: FrecventaDto;
+  finalOaspeti: FrecventaDto;
+}
+
+/** Se marcheaza in repriza 1 / 2 (rate 0..1) + frecventele empirice. */
+export interface ReprizeDto {
+  golRepriza1: number;
+  golRepriza2: number;
+  repriza1Gazde: FrecventaDto;
+  repriza1Oaspeti: FrecventaDto;
+  repriza2Gazde: FrecventaDto;
+  repriza2Oaspeti: FrecventaDto;
+}
+
+/** Oglinda `ro.golstat.api.preview.StatisticiAvansateDto`. */
+export interface StatisticiAvansateDto {
+  goluri: PiataStatDto;
+  gg: GgDto;
+  cornere: PiataStatDto;
+  faulturi: PiataStatDto;
+  cartonase: PiataStatDto;
+  suturi: PiataStatDto;
+  suturiPePoarta: PiataStatDto;
+  /** `null` cand niciuna dintre echipe nu are istoric. */
+  egaluri: EgaluriDto | null;
+  reprize: ReprizeDto | null;
 }
 
 /** Oglinda `ro.golstat.api.preview.PrevizualizareMeciDto`. */
@@ -167,11 +256,9 @@ export interface PrevizualizareMeciDto {
   formaGazde: FormaEchipaDto;
   formaOaspeti: FormaEchipaDto;
   intalniriDirecte: IntalnireDirectaDto[];
-  cornere: OverUnder[];
-  faulturi: OverUnder[];
-  cartonase: OverUnder[];
+  statistici: StatisticiAvansateDto;
   statisticiCheie: StatisticiCheieDto;
-  /** `null` pana se anunta formatiile, aproape de meci. */
+  /** `null` pana exista macar o formatie per echipa. */
   echipeDeStart: EchipaDeStartDto | null;
 }
 

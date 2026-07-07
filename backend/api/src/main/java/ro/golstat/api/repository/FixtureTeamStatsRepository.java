@@ -29,14 +29,16 @@ public interface FixtureTeamStatsRepository extends JpaRepository<FixtureTeamSta
                                              @Param("terminal") Collection<String> terminal);
 
     /**
-     * Mediile PE ECHIPA de cornere/faulturi/cartonase pe o liga/sezon, doar din meciuri TERMINALE
-     * cu statistici colectate. Rosiile lipsa langa galbene inseamna 0 (coalesce). Fara randuri →
-     * toate getter-ele {@code null}.
+     * Mediile PE ECHIPA de cornere/faulturi/cartonase/suturi pe o liga/sezon, doar din meciuri
+     * TERMINALE cu statistici colectate. Rosiile lipsa langa galbene inseamna 0 (coalesce).
+     * Fara randuri → toate getter-ele {@code null}.
      */
     @Query("""
             select avg(s.cornerKicks) as avgCornere,
                    avg(s.fouls) as avgFaulturi,
-                   avg(coalesce(s.yellowCards, 0) + coalesce(s.redCards, 0)) as avgCartonase
+                   avg(coalesce(s.yellowCards, 0) + coalesce(s.redCards, 0)) as avgCartonase,
+                   avg(s.shotsTotal) as avgSuturi,
+                   avg(s.shotsOnGoal) as avgSuturiPePoarta
             from FixtureTeamStats s
             join Fixture f on f.id = s.fixtureId
             where f.leagueId = :leagueId

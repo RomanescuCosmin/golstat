@@ -40,6 +40,16 @@ public interface DataProvider {
     /** Formatiile unui meci (startXI + rezerve + antrenor per echipa); apar aproape de kickoff. */
     List<FixtureLineupDto> fixtureLineups(long fixtureId);
 
+    /**
+     * Formatiile PROBABILE/anuntate ale unui meci VIITOR, cerute aproape de kickoff. Semantic e
+     * acelasi endpoint ca {@link #fixtureLineups}, dar implementarea NU trebuie sa cache-uiasca
+     * raspunsul gol pe termen lung: inainte de meci raspunsul e gol pana la anuntarea echipelor,
+     * iar un gol inghetat in cache ar ascunde anuntul.
+     */
+    default List<FixtureLineupDto> upcomingFixtureLineups(long fixtureId) {
+        return fixtureLineups(fixtureId);
+    }
+
     /** Jucatorii indisponibili (accidentati/suspendati/incerti) dintr-o liga/sezon. */
     List<InjuryDto> injuries(long leagueId, int season);
 

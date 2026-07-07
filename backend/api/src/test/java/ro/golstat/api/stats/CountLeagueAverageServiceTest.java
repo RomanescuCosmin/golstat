@@ -23,6 +23,11 @@ class CountLeagueAverageServiceTest {
     @InjectMocks CountLeagueAverageService service;
 
     private static CountAverage avg(Double cornere, Double faulturi, Double cartonase) {
+        return avg(cornere, faulturi, cartonase, null, null);
+    }
+
+    private static CountAverage avg(Double cornere, Double faulturi, Double cartonase,
+                                    Double suturi, Double suturiPePoarta) {
         return new CountAverage() {
             @Override
             public Double getAvgCornere() {
@@ -38,18 +43,30 @@ class CountLeagueAverageServiceTest {
             public Double getAvgCartonase() {
                 return cartonase;
             }
+
+            @Override
+            public Double getAvgSuturi() {
+                return suturi;
+            }
+
+            @Override
+            public Double getAvgSuturiPePoarta() {
+                return suturiPePoarta;
+            }
         };
     }
 
     @Test
     void dubleazaMediaPeEchipa_inTotalPeMeci() {
-        when(teamStats.avgCounts(anyLong(), anyInt(), any())).thenReturn(avg(5.1, 12.3, 2.2));
+        when(teamStats.avgCounts(anyLong(), anyInt(), any())).thenReturn(avg(5.1, 12.3, 2.2, 12.7, 4.6));
 
         CountLeagueAverages a = service.averages(39L, 2025);
 
         assertEquals(10.2, a.cornerePeMeci(), EPS);
         assertEquals(24.6, a.faulturiPeMeci(), EPS);
         assertEquals(4.4, a.cartonasePeMeci(), EPS);
+        assertEquals(25.4, a.suturiPeMeci(), EPS);
+        assertEquals(9.2, a.suturiPePoartaPeMeci(), EPS);
     }
 
     @Test
@@ -61,6 +78,8 @@ class CountLeagueAverageServiceTest {
         assertEquals(CountLeagueAverageService.DEFAULT_CORNERE, a.cornerePeMeci(), EPS);
         assertEquals(CountLeagueAverageService.DEFAULT_FAULTURI, a.faulturiPeMeci(), EPS);
         assertEquals(CountLeagueAverageService.DEFAULT_CARTONASE, a.cartonasePeMeci(), EPS);
+        assertEquals(CountLeagueAverageService.DEFAULT_SUTURI, a.suturiPeMeci(), EPS);
+        assertEquals(CountLeagueAverageService.DEFAULT_SUTURI_POARTA, a.suturiPePoartaPeMeci(), EPS);
     }
 
     @Test

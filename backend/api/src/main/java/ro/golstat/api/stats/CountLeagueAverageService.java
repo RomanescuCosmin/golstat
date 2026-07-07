@@ -24,6 +24,8 @@ public class CountLeagueAverageService {
     static final double DEFAULT_CORNERE = 10.0;
     static final double DEFAULT_FAULTURI = 24.0;
     static final double DEFAULT_CARTONASE = 4.0;
+    static final double DEFAULT_SUTURI = 25.0;
+    static final double DEFAULT_SUTURI_POARTA = 9.0;
 
     private final FixtureTeamStatsRepository teamStats;
 
@@ -33,13 +35,16 @@ public class CountLeagueAverageService {
 
     public CountLeagueAverages averages(Long leagueId, Integer season) {
         if (leagueId == null || season == null) {
-            return new CountLeagueAverages(DEFAULT_CORNERE, DEFAULT_FAULTURI, DEFAULT_CARTONASE);
+            return new CountLeagueAverages(DEFAULT_CORNERE, DEFAULT_FAULTURI, DEFAULT_CARTONASE,
+                    DEFAULT_SUTURI, DEFAULT_SUTURI_POARTA);
         }
         CountAverage agg = teamStats.avgCounts(leagueId, season, TERMINAL);
         return new CountLeagueAverages(
                 total(agg != null ? agg.getAvgCornere() : null, DEFAULT_CORNERE),
                 total(agg != null ? agg.getAvgFaulturi() : null, DEFAULT_FAULTURI),
-                total(agg != null ? agg.getAvgCartonase() : null, DEFAULT_CARTONASE));
+                total(agg != null ? agg.getAvgCartonase() : null, DEFAULT_CARTONASE),
+                total(agg != null ? agg.getAvgSuturi() : null, DEFAULT_SUTURI),
+                total(agg != null ? agg.getAvgSuturiPePoarta() : null, DEFAULT_SUTURI_POARTA));
     }
 
     private static double total(Double perEchipa, double fallback) {

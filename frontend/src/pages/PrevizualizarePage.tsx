@@ -2,14 +2,12 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ApiError, getPrevizualizare } from '../api/client';
 import type { PrevizualizareMeciDto } from '../api/types';
-import { AmbeleMarcheaza } from '../components/previzualizare/AmbeleMarcheaza';
 import { FormaEchipe } from '../components/previzualizare/FormaEchipe';
 import { HeaderMeci } from '../components/previzualizare/HeaderMeci';
 import { IntalniriDirecte } from '../components/previzualizare/IntalniriDirecte';
-import { PesteSubGoluri } from '../components/previzualizare/PesteSubGoluri';
 import { ProbabilitateRezultat } from '../components/previzualizare/ProbabilitateRezultat';
+import { SectiuneStatistici } from '../components/previzualizare/SectiuneStatistici';
 import { StatisticiCheie } from '../components/previzualizare/StatisticiCheie';
-import { TotalOverUnder } from '../components/previzualizare/TotalOverUnder';
 import { EchipaDeStart } from '../components/lineup/EchipaDeStart';
 import { PageLayout } from '../components/layout/PageLayout';
 import { Card } from '../components/ui/Card';
@@ -99,14 +97,11 @@ export function PrevizualizarePage() {
 
           <ProbabilitateRezultat predictie={date.predictie} />
 
-          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-[1.7fr_1fr_1fr_1fr]">
-            <div className="md:col-span-2 xl:col-span-1">
-              <PesteSubGoluri linii={date.predictie.linii} />
-            </div>
-            <AmbeleMarcheaza btts={date.predictie.btts} />
-            <TotalOverUnder titlu="Total cornere" linii={date.cornere} preferate={[8.5, 9.5, 10.5]} />
-            <TotalOverUnder titlu="Total cartonașe" linii={date.cartonase} preferate={[3.5, 4.5, 5.5]} />
-          </div>
+          <SectiuneStatistici
+            statistici={date.statistici}
+            gazde={date.predictie.echipaGazde}
+            oaspeti={date.predictie.echipaOaspeti}
+          />
 
           <StatisticiCheie
             gazde={date.predictie.echipaGazde}

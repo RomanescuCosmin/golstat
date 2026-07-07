@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { JucatorLineupDto } from '../../api/types';
 import { IconUser } from '../ui/icons';
 
@@ -48,14 +49,26 @@ function pozitioneaza(titulari: JucatorLineupDto[], gazde: boolean): JucatorPozi
 
 function Jucator({ pozitie }: { pozitie: JucatorPozitionat }) {
   const { jucator, x, y } = pozitie;
+  const [fotoEsuata, setFotoEsuata] = useState(false);
+  const areFoto = jucator.foto != null && !fotoEsuata;
   return (
     <div
       className="absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1"
       style={{ left: `${x}%`, top: `${y}%` }}
     >
-      <span className="flex h-8 w-8 items-center justify-center rounded-full border border-white/60 bg-primary text-xs font-bold text-white shadow-card">
-        {jucator.numar ?? <IconUser width={16} height={16} className="text-white" />}
-      </span>
+      {areFoto ? (
+        <img
+          src={jucator.foto ?? undefined}
+          alt={jucator.nume ?? 'Jucător'}
+          loading="lazy"
+          onError={() => setFotoEsuata(true)}
+          className="h-9 w-9 rounded-full border-2 border-white/70 bg-card object-cover shadow-card"
+        />
+      ) : (
+        <span className="flex h-8 w-8 items-center justify-center rounded-full border border-white/60 bg-primary text-xs font-bold text-white shadow-card">
+          {jucator.numar ?? <IconUser width={16} height={16} className="text-white" />}
+        </span>
+      )}
       <span className="max-w-[5.5rem] truncate rounded bg-card/80 px-1 text-[10px] font-semibold text-ink">
         {jucator.numar != null ? `${jucator.numar} ` : ''}
         {jucator.nume ?? '—'}

@@ -30,7 +30,10 @@ public class LeagueAverageService {
         this.fixtures = fixtures;
     }
 
-    public LeagueAverages averages(long leagueId, int season) {
+    public LeagueAverages averages(Long leagueId, Integer season) {
+        if (leagueId == null || season == null) {
+            return new LeagueAverages(DEFAULT_GAZDE, DEFAULT_OASPETI);
+        }
         GoalAverage agg = fixtures.avgGoals(leagueId, season, TERMINAL);
         double gazde = value(agg != null ? agg.getAvgGazde() : null, DEFAULT_GAZDE);
         double oaspeti = value(agg != null ? agg.getAvgOaspeti() : null, DEFAULT_OASPETI);
