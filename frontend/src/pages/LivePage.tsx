@@ -67,14 +67,14 @@ export function LivePage() {
     [live, scoruri],
   );
 
-  // Grupare pe competitie, pastrand ordinea din endpoint (cronologica).
+  // Grupare pe competitie, pastrand ordinea din endpoint (cronologica). Meciurile fara liga
+  // in DB se strang sub cheia null, nu sub un id fals (altfel titlul ar fi "Liga #0").
   const peLiga = useMemo(() => {
-    const map = new Map<number, MeciLive[]>();
+    const map = new Map<number | null, MeciLive[]>();
     for (const m of afisate) {
-      const key = m.leagueId ?? 0;
-      const lista = map.get(key) ?? [];
+      const lista = map.get(m.leagueId) ?? [];
       lista.push(m);
-      map.set(key, lista);
+      map.set(m.leagueId, lista);
     }
     return [...map.entries()];
   }, [afisate]);
@@ -121,9 +121,9 @@ export function LivePage() {
         <div className="space-y-5">
           {peLiga.map(([leagueId, meciuri]) => (
             <SectiuneLive
-              key={leagueId}
+              key={leagueId ?? 'fara-liga'}
               leagueId={leagueId}
-              nume={meciuri[0]?.ligaNume ?? numeLiga(leagueId)}
+              nume={meciuri[0]?.ligaNume ?? (leagueId != null ? numeLiga(leagueId) : 'Alte competiții')}
               meciuri={meciuri}
               onOpen={(id) => navigate(`/meci/${id}/centru`)}
             />
@@ -140,7 +140,7 @@ function minutText(m: MeciLive): string {
 }
 
 interface SectiuneLiveProps {
-  leagueId: number;
+  leagueId: number | null;
   nume: string;
   meciuri: MeciLive[];
   onOpen: (fixtureId: number) => void;
@@ -151,7 +151,7 @@ function SectiuneLive({ leagueId, nume, meciuri, onOpen }: SectiuneLiveProps) {
     <Card>
       <div className="flex items-center gap-3 border-b border-line px-5 py-3">
         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 dark:bg-primary/20">
-          <LigaLogo id={leagueId} nume={nume} size={20} />
+          <LigaLogo id={leagueId ?? undefined} nume={nume} size={20} />
         </span>
         <p className="truncate text-sm font-extrabold text-ink">{nume}</p>
       </div>

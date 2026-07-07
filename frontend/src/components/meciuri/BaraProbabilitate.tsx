@@ -3,9 +3,17 @@ import { useGrowOnMount } from '../../hooks/useAnimatii';
 
 /**
  * Rotunjire cu "rest maxim": intregii insumeaza mereu 100, altfel rotunjirea independenta
- * poate da 99 (gol vizual in bara) sau 101 (bara depaseste).
+ * poate da 99 (gol vizual in bara) sau 101 (bara depaseste). Valorile nevalide (NaN, negative)
+ * devin 0, iar sumele diferite de 100 (date corupte din backend) sunt normalizate inainte —
+ * bara nu afiseaza niciodata "NaN%" si nu depaseste 100%.
  */
-function procenteRotunjite(valori: number[]): number[] {
+function procenteRotunjite(brute: number[]): number[] {
+  const curate = brute.map((v) => (Number.isFinite(v) && v > 0 ? v : 0));
+  const total = curate.reduce((a, b) => a + b, 0);
+  if (total === 0) {
+    return curate.map(() => 0);
+  }
+  const valori = curate.map((v) => (v / total) * 100);
   const podele = valori.map(Math.floor);
   let rest = 100 - podele.reduce((a, b) => a + b, 0);
   const ordine = valori

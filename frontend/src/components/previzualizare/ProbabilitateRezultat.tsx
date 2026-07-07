@@ -68,7 +68,7 @@ export function ProbabilitateRezultat({ predictie }: ProbabilitateRezultatProps)
         {zone.map((zona, i) => (
           <div
             key={zona.eticheta}
-            style={{ flexGrow: Math.max(zona.procent, 18), flexBasis: 0 }}
+            style={{ flexGrow: Number.isFinite(zona.procent) ? Math.max(zona.procent, 18) : 18, flexBasis: 0 }}
             className={`relative min-w-0 rounded-lg px-2 py-4 text-center ${zona.clasa} ${
               i === real ? 'ring-2 ring-inset ring-ink/40' : ''
             }`}

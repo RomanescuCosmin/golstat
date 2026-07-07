@@ -13,10 +13,12 @@ interface ClasamentSnippetProps {
 }
 
 function fereastra(randuri: RandClasament[], teamId: number, span = 2): RandClasament[] {
+  const marime = span * 2 + 1;
   const idx = randuri.findIndex((r) => r.echipaCurenta || r.teamId === teamId);
-  if (idx < 0) return randuri.slice(0, span * 2 + 1);
-  const start = Math.max(0, idx - span);
-  return randuri.slice(start, start + span * 2 + 1);
+  if (idx < 0) return randuri.slice(0, marime);
+  // la margini fereastra se lipeste de capat, ca sa ramana mereu plina (5 randuri)
+  const start = Math.max(0, Math.min(idx - span, randuri.length - marime));
+  return randuri.slice(start, start + marime);
 }
 
 /** "Poziție în clasament": tabel (#, echipa, MJ, V, E, Î, DG, PCT) cu randul echipei curente evidentiat. */
