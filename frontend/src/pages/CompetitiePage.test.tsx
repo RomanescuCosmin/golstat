@@ -1,4 +1,5 @@
 import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { ApiError, getCompetitie } from '../api/client';
 import { meciCompetitie, paginaCompetitie, randClasament } from '../test/factories';
@@ -24,18 +25,25 @@ beforeEach(() => {
 });
 
 describe('CompetitiePage', () => {
-  test('liga obisnuita: clasament + topuri + rezultate + program', async () => {
+  test('liga obisnuita: sectiuni comutabile clasament / golgheteri / rezultate / program', async () => {
     mockGetCompetitie.mockResolvedValue(paginaCompetitie());
+    const user = userEvent.setup();
     randeaza();
 
     expect(await screen.findByRole('heading', { name: 'Premier League' })).toBeInTheDocument();
+    // sectiunea implicita: clasament
     expect(screen.getByText('Poziție în clasament')).toBeInTheDocument();
-    expect(screen.getByText('Golgheteri')).toBeInTheDocument();
-    expect(screen.getByText('M. Rashford')).toBeInTheDocument();
-    expect(screen.getByText('Rezultate')).toBeInTheDocument();
-    expect(screen.getByText('2 - 1')).toBeInTheDocument();
-    // liga obisnuita: fara grupe si fara faze eliminatorii
+    // liga obisnuita: fara faze eliminatorii (in tabul clasament)
     expect(screen.queryByText('Faze eliminatorii')).toBeNull();
+
+    // golgheteri + pase decisive sub acelasi tab
+    await user.click(screen.getByRole('tab', { name: 'Golgheteri' }));
+    expect(screen.getByText('M. Rashford')).toBeInTheDocument();
+    expect(screen.getByText('Pase decisive')).toBeInTheDocument();
+
+    // rezultate sub tabul dedicat
+    await user.click(screen.getByRole('tab', { name: 'Rezultate' }));
+    expect(screen.getByText('2 - 1')).toBeInTheDocument();
   });
 
   test('competitie cu grupe (Cupa Mondiala): grupele inlocuiesc clasamentul, apar eliminatoriile', async () => {

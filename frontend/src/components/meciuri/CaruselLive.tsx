@@ -11,7 +11,7 @@ import { TeamLogo } from '../ui/TeamLogo';
 import { IconChevronLeft, IconChevronRight } from '../ui/icons';
 
 const REIMPROSPATARE_MS = 15000;
-const LATIME_CARD = 260;
+const LATIME_CARD = 200;
 const PAS = LATIME_CARD + 16; // card + spatiul dintre carduri
 const VITEZA_PX_S = 26;
 const NUDGE_MS = 480;
@@ -20,9 +20,9 @@ const NUDGE_MS = 480;
 const TINTE = ['139 92 246', '244 63 94', '59 130 246', '16 185 129', '245 158 11', '99 102 241'];
 
 /**
- * Sectiunea "Meciuri în desfășurare": carusel pe toata latimea, cu derulare continua uniforma
- * (marquee fara capete), pauza lina la hover si salt animat din sageti. Cardurile au tenta de
- * culoare, scor mare cu minutul live si bara de desfasurare rosu (scurs) / verde (ramas).
+ * Sectiunea "Meciuri în desfășurare": carusel compact, cu derulare continua uniforma
+ * (marquee fara capete), pauza lina la hover si salt animat din sageti. Carduri mici cu tenta
+ * de culoare: minut live, cate un rand pe echipa cu scorul si bara de desfasurare.
  */
 export function CaruselLive() {
   const navigate = useNavigate();
@@ -221,34 +221,19 @@ function CardLive({
       onClick={onOpen}
       tabIndex={clona ? -1 : 0}
       style={{ '--tinta': tinta } as CSSProperties}
-      className="card-live-tinta group relative w-[260px] shrink-0 overflow-hidden rounded-2xl border border-line/80 bg-card px-3 pb-3.5 pt-3 text-left transition duration-300 hover:-translate-y-[3px] hover:border-[rgb(var(--tinta)/0.55)] hover:shadow-cardHover"
+      className="card-live-tinta group relative w-[200px] shrink-0 overflow-hidden rounded-xl border border-line/80 bg-card px-3 pb-2.5 pt-2 text-left transition duration-300 hover:-translate-y-[2px] hover:border-[rgb(var(--tinta)/0.55)] hover:shadow-cardHover"
     >
-      <div className="mb-2 flex justify-center">
-        <span className="flex items-center gap-1.5 rounded-full bg-accent/10 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-[0.14em] text-accent ring-1 ring-accent/20">
-          <span className="relative flex h-1.5 w-1.5">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-60" />
-            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-accent" />
-          </span>
-          Live
+      <div className="mb-1.5 flex items-center gap-1.5">
+        <span className="relative flex h-1.5 w-1.5 shrink-0">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-60" />
+          <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-accent" />
         </span>
+        <span className="text-[10px] font-extrabold tabular-nums text-accent">{minutText(meci)}</span>
+        <span className="min-w-0 flex-1 truncate text-right text-[10px] font-medium text-ink2">{liga}</span>
       </div>
 
-      <div className="grid grid-cols-[1fr_auto_1fr] items-start gap-1">
-        <Echipa dto={meci.gazde} />
-        <div className="flex flex-col items-center px-1.5 pt-1">
-          <span
-            className={`text-[22px] font-extrabold leading-none tracking-tight tabular-nums transition-[color,transform] duration-300 motion-reduce:transition-none ${
-              flash ? 'scale-125 text-accent' : 'text-ink'
-            }`}
-          >
-            {meci.golGazde ?? 0} – {meci.golOaspeti ?? 0}
-          </span>
-          <span className="mt-1.5 text-[11px] font-bold tabular-nums text-accent">{minutText(meci)}</span>
-        </div>
-        <Echipa dto={meci.oaspeti} />
-      </div>
-
-      <p className="mt-2 truncate text-center text-[10px] font-medium text-ink2">{liga}</p>
+      <RandEchipa dto={meci.gazde} gol={meci.golGazde} flash={flash} />
+      <RandEchipa dto={meci.oaspeti} gol={meci.golOaspeti} flash={flash} className="mt-1" />
 
       {/* bara de desfasurare: rosu = timpul scurs, verde = ce a mai ramas */}
       <div className="relative mt-2">
@@ -265,11 +250,28 @@ function CardLive({
   );
 }
 
-function Echipa({ dto }: { dto: EchipaDto }) {
+function RandEchipa({
+  dto,
+  gol,
+  flash,
+  className = '',
+}: {
+  dto: EchipaDto;
+  gol: number | null;
+  flash: boolean;
+  className?: string;
+}) {
   return (
-    <div className="flex min-w-0 flex-col items-center gap-1.5">
-      <TeamLogo nume={dto.nume} logo={dto.logo} size={34} />
-      <span className="w-full truncate text-center text-[11px] font-semibold text-ink">{numeEchipa(dto)}</span>
-    </div>
+    <span className={`flex items-center gap-2 ${className}`}>
+      <TeamLogo nume={dto.nume} logo={dto.logo} size={18} />
+      <span className="min-w-0 flex-1 truncate text-xs font-semibold text-ink">{numeEchipa(dto)}</span>
+      <span
+        className={`text-sm font-extrabold leading-none tabular-nums transition-[color,transform] duration-300 motion-reduce:transition-none ${
+          flash ? 'scale-125 text-accent' : 'text-ink'
+        }`}
+      >
+        {gol ?? 0}
+      </span>
+    </span>
   );
 }

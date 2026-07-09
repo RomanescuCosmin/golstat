@@ -3,8 +3,9 @@ import { ApiError, getMeciuriZi } from '../api/client';
 import type { LigaZi } from '../api/types';
 import { CardCompetitie } from '../components/meciuri/CardCompetitie';
 import { CaruselLive } from '../components/meciuri/CaruselLive';
+import { FavoriteSiCompetitii } from '../components/meciuri/FavoriteSiCompetitii';
 import { FiltreMeciuri, type StareFiltre } from '../components/meciuri/FiltreMeciuri';
-import { RightSidebar } from '../components/meciuri/RightSidebar';
+import { PanouLiveAcum } from '../components/meciuri/PanouLiveAcum';
 import { Card } from '../components/ui/Card';
 import { EmptyState } from '../components/ui/EmptyState';
 import { ErrorState } from '../components/ui/ErrorState';
@@ -69,10 +70,9 @@ export function MeciuriPage() {
   }, [ligi, filtruLiga, filtre, fav]);
 
   const totalMeciuri = ligiAfisate.reduce((n, l) => n + l.meciuri.length, 0);
-  // Caruselul live sta sub primele 2 competitii si se intinde pe toata latimea (si sub railul drept).
-  const primeleLigi = ligiAfisate.slice(0, 2);
-  const restulLigilor = ligiAfisate.slice(2);
 
+  // Coloana stanga curge liber (lista → carusel live); railul drept e sticky si deruleaza intern,
+  // deci nu poate impinge continutul in jos — inaltimea paginii e data strict de continut.
   return (
     <div className="mx-auto grid max-w-[1640px] grid-cols-1 items-start gap-5 lg:gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
       <div className="min-w-0">
@@ -114,28 +114,26 @@ export function MeciuriPage() {
 
         {!loading && !eroare && totalMeciuri > 0 && (
           <div className="animate-fade-in space-y-[18px]">
-            {primeleLigi.map((liga) => (
+            {ligiAfisate.map((liga) => (
               <CardCompetitie key={liga.leagueId} liga={liga} />
             ))}
           </div>
         )}
-      </div>
 
-      <aside className="hidden space-y-5 xl:block">
-        <RightSidebar ligaSelectata={filtruLiga} onAlegeLiga={(id) => setFiltruLiga((c) => (c === id ? null : id))} />
-      </aside>
-
-      <div className="min-w-0 xl:col-span-2">
-        <CaruselLive />
-      </div>
-
-      {!loading && !eroare && restulLigilor.length > 0 && (
-        <div className="min-w-0 animate-fade-in space-y-[18px] xl:col-start-1">
-          {restulLigilor.map((liga) => (
-            <CardCompetitie key={liga.leagueId} liga={liga} />
-          ))}
+        <div className="mt-[18px]">
+          <CaruselLive />
         </div>
-      )}
+      </div>
+
+      {/* Fiecare sectiune din rail isi plafoneaza lista si deruleaza intern (rotita mouse-ului),
+          deci oricat continut ar avea rail-ul nu impinge pagina in jos. */}
+      <aside className="hidden min-w-0 space-y-5 xl:block">
+        <PanouLiveAcum />
+        <FavoriteSiCompetitii
+          ligaSelectata={filtruLiga}
+          onAlegeLiga={(id) => setFiltruLiga((c) => (c === id ? null : id))}
+        />
+      </aside>
     </div>
   );
 }

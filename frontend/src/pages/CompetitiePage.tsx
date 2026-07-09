@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ApiError, getCompetitie } from '../api/client';
 import type { JucatorTop, MeciCompetitie, PaginaCompetitie } from '../api/types';
@@ -13,6 +13,7 @@ import { Card } from '../components/ui/Card';
 import { EmptyState } from '../components/ui/EmptyState';
 import { ErrorState } from '../components/ui/ErrorState';
 import { LigaLogo } from '../components/ui/LigaLogo';
+import { IconBall, IconCalendar, IconFluier, IconTrophy } from '../components/ui/icons';
 import { Skeleton, SkeletonCard } from '../components/ui/Skeleton';
 import { TeamLogo } from '../components/ui/TeamLogo';
 import { numeEchipa } from '../lib/echipa';
@@ -128,7 +129,54 @@ function CardMeciuri({
   );
 }
 
-/** Pagina unei competiții: antet cu selectoare, clasament complet, topuri de jucători, rezultate și program. */
+type SectiuneId = 'clasament' | 'golgheteri' | 'rezultate' | 'program';
+
+const TABURI_SECTIUNE: { id: SectiuneId; eticheta: string; icon: ReactNode }[] = [
+  { id: 'clasament', eticheta: 'Clasament', icon: <IconTrophy width={20} height={20} /> },
+  { id: 'golgheteri', eticheta: 'Golgheteri', icon: <IconBall width={20} height={20} /> },
+  { id: 'rezultate', eticheta: 'Rezultate', icon: <IconFluier width={20} height={20} /> },
+  { id: 'program', eticheta: 'Program', icon: <IconCalendar width={20} height={20} /> },
+];
+
+/** Carduri-selector pentru secțiunile competiției: o singură secțiune vizibilă la un moment dat. */
+function SelectorSectiune({ activ, onSchimba }: { activ: SectiuneId; onSchimba: (id: SectiuneId) => void }) {
+  return (
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4" role="tablist">
+      {TABURI_SECTIUNE.map((t) => {
+        const selectat = t.id === activ;
+        return (
+          <button
+            key={t.id}
+            type="button"
+            role="tab"
+            aria-selected={selectat}
+            onClick={() => onSchimba(t.id)}
+            className={`group flex items-center gap-3 rounded-card border px-4 py-3 text-left transition duration-200 ${
+              selectat
+                ? 'border-primary/40 bg-primary/[0.04] shadow-card dark:bg-primary/10 dark:shadow-none'
+                : 'border-line bg-card hover:border-primary/30 hover:bg-bg'
+            }`}
+          >
+            <span
+              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] transition duration-200 ${
+                selectat
+                  ? 'bg-gradient-to-br from-primary to-[#1D4ED8] text-white shadow-[0_4px_12px_rgb(var(--gs-primary)/0.35)]'
+                  : 'bg-ink2/10 text-ink2 group-hover:text-ink'
+              }`}
+            >
+              {t.icon}
+            </span>
+            <span className={`truncate text-sm font-bold ${selectat ? 'text-ink' : 'text-ink2 group-hover:text-ink'}`}>
+              {t.eticheta}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Pagina unei competiții: antet cu selectoare, apoi secțiuni comutabile (clasament / golgheteri / rezultate / program). */
 export function CompetitiePage() {
   const { leagueId } = useParams<{ leagueId: string }>();
   const id = Number(leagueId);
@@ -139,6 +187,7 @@ export function CompetitiePage() {
   const [eroare, setEroare] = useState<ApiError | null>(null);
   const [incercare, setIncercare] = useState(0);
   const [sezon, setSezon] = useState<number | null>(null);
+  const [sectiune, setSectiune] = useState<SectiuneId>('clasament');
 
   // schimbarea competitiei reseteaza sezonul selectat
   useEffect(() => {
@@ -263,42 +312,51 @@ export function CompetitiePage() {
             </div>
           </Card>
 
-          <div className="grid items-start gap-5 lg:grid-cols-3">
-            <div className="min-w-0 lg:col-span-2">
-              {date.grupe.length > 0 ? (
-                <GrupeCompetitie grupe={date.grupe} />
-              ) : date.clasament.length > 0 ? (
-                <ClasamentSnippet randuri={date.clasament} teamId={-1} />
-              ) : (
-                <Card>
-                  <EmptyState
-                    titlu="Clasament indisponibil"
-                    mesaj="Clasamentul acestei competiții nu este încă disponibil."
-                  />
-                </Card>
-              )}
-            </div>
-            <div className="min-w-0 space-y-5">
-              <TopCompetitie titlu="Golgheteri" jucatori={date.golgheteri} />
-              <TopCompetitie titlu="Pase decisive" jucatori={date.pasatori} />
-            </div>
-          </div>
+          <SelectorSectiune activ={sectiune} onSchimba={setSectiune} />
 
-          {date.eliminatorii.length > 0 && <SchemaEliminatorie faze={date.eliminatorii} />}
+          <div key={sectiune} className="animate-fade-in">
+            {sectiune === 'clasament' && (
+              <div className="space-y-5">
+                {date.grupe.length > 0 ? (
+                  <GrupeCompetitie grupe={date.grupe} />
+                ) : date.clasament.length > 0 ? (
+                  <ClasamentSnippet randuri={date.clasament} teamId={-1} />
+                ) : (
+                  <Card>
+                    <EmptyState
+                      titlu="Clasament indisponibil"
+                      mesaj="Clasamentul acestei competiții nu este încă disponibil."
+                    />
+                  </Card>
+                )}
+                {date.eliminatorii.length > 0 && <SchemaEliminatorie faze={date.eliminatorii} />}
+              </div>
+            )}
 
-          <div className="grid items-start gap-5 lg:grid-cols-2">
-            <CardMeciuri
-              titlu="Rezultate"
-              meciuri={date.rezultate}
-              mesajGol="Nu există rezultate în acest sezon."
-              ruta={(m) => `/meci/${m.fixtureId}/centru`}
-            />
-            <CardMeciuri
-              titlu="Program"
-              meciuri={date.urmatoare}
-              mesajGol="Nu există meciuri programate."
-              ruta={(m) => `/meci/${m.fixtureId}`}
-            />
+            {sectiune === 'golgheteri' && (
+              <div className="grid items-start gap-5 lg:grid-cols-2">
+                <TopCompetitie titlu="Golgheteri" jucatori={date.golgheteri} />
+                <TopCompetitie titlu="Pase decisive" jucatori={date.pasatori} />
+              </div>
+            )}
+
+            {sectiune === 'rezultate' && (
+              <CardMeciuri
+                titlu="Rezultate"
+                meciuri={date.rezultate}
+                mesajGol="Nu există rezultate în acest sezon."
+                ruta={(m) => `/meci/${m.fixtureId}/centru`}
+              />
+            )}
+
+            {sectiune === 'program' && (
+              <CardMeciuri
+                titlu="Program"
+                meciuri={date.urmatoare}
+                mesajGol="Nu există meciuri programate."
+                ruta={(m) => `/meci/${m.fixtureId}`}
+              />
+            )}
           </div>
         </div>
       )}

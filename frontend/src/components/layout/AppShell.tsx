@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom';
 import { TopNav } from './TopNav';
 import { Sidebar } from './Sidebar';
+import { ContainerNotificariGol } from '../live/NotificareGol';
 
 /**
  * Scheletul aplicatiei: TopNav sus, Sidebar la stanga, continutul rutei in centru.
@@ -15,10 +16,11 @@ export function AppShell() {
         <img
           src="/stadion-fundal.jpg"
           alt=""
-          className="h-full w-full object-cover object-top opacity-[0.65] dark:opacity-[0.55]"
+          className="h-full w-full object-cover object-top opacity-[0.14] dark:opacity-[0.55]"
         />
-        {/* Valul de estompare sta jos (70% pe light): imaginea ramane curata, fara umbre albe pe mijloc. */}
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-bg/10 via-70% to-bg dark:from-bg/10 dark:via-bg/45 dark:via-50%" />
+        {/* Pe light punem un val gros peste toata inaltimea: reflectoarele stadionului nu mai creeaza
+            halouri albe in jurul cardurilor. Pe dark pastram estomparea usoara de dinainte. */}
+        <div className="absolute inset-0 bg-gradient-to-b from-bg/45 via-bg/80 via-55% to-bg dark:from-bg/10 dark:via-bg/45 dark:via-50%" />
       </div>
 
       <TopNav />
@@ -28,6 +30,9 @@ export function AppShell() {
           <Outlet />
         </main>
       </div>
+
+      {/* Notificari de gol pentru meciurile echipelor favorite (global, peste tot continutul). */}
+      <ContainerNotificariGol />
     </div>
   );
 }
