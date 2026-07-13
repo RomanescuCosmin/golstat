@@ -9,6 +9,7 @@ import ro.golstat.common.dto.FixtureDto;
 import ro.golstat.common.dto.FixtureEventDto;
 import ro.golstat.common.dto.FixtureLineupDto;
 import ro.golstat.common.dto.FixtureLiveDto;
+import ro.golstat.common.dto.FixturePlayerStatsDto;
 import ro.golstat.common.dto.FixtureTeamStatsDto;
 import ro.golstat.common.dto.InjuryDto;
 import ro.golstat.common.dto.LeagueDto;
@@ -67,6 +68,15 @@ public class ApiFootballProvider implements DataProvider {
         return client.get(GolstatConstants.ApiFootball.FIXTURES_STATISTICS, Map.of("fixture", fixtureId),
                         StatisticsItem.class, props.ttlHistoric()).stream()
                 .map(s -> ApiFootballMapper.toFixtureTeamStats(s, fixtureId))
+                .toList();
+    }
+
+    @Override
+    public List<FixturePlayerStatsDto> fixturePlayerStatistics(long fixtureId) {
+        // statisticile individuale ale unui meci terminat sunt imuabile → TTL lung
+        return client.get(GolstatConstants.ApiFootball.FIXTURES_PLAYERS, Map.of("fixture", fixtureId),
+                        FixturePlayersItem.class, props.ttlHistoric()).stream()
+                .flatMap(i -> ApiFootballMapper.toFixturePlayerStats(i, fixtureId).stream())
                 .toList();
     }
 

@@ -5,6 +5,7 @@ import ro.golstat.common.dto.FixtureDto;
 import ro.golstat.common.dto.FixtureEventDto;
 import ro.golstat.common.dto.FixtureLineupDto;
 import ro.golstat.common.dto.FixtureLiveDto;
+import ro.golstat.common.dto.FixturePlayerStatsDto;
 import ro.golstat.common.dto.FixtureTeamStatsDto;
 import ro.golstat.common.dto.InjuryDto;
 import ro.golstat.common.dto.LeagueDto;
@@ -39,6 +40,15 @@ public interface DataProvider {
 
     /** Formatiile unui meci (startXI + rezerve + antrenor per echipa); apar aproape de kickoff. */
     List<FixtureLineupDto> fixtureLineups(long fixtureId);
+
+    /**
+     * Statisticile individuale ale jucatorilor dintr-un meci (nota, suturi, pase, dueluri...).
+     * Acoperire PARTIALA la furnizor (doar unele competitii) si 1 request per meci → apel OPTIONAL,
+     * pornit per tinta de colectare ({@code LeagueTarget.statisticiJucatori}).
+     */
+    default List<FixturePlayerStatsDto> fixturePlayerStatistics(long fixtureId) {
+        return List.of();
+    }
 
     /**
      * Formatiile PROBABILE/anuntate ale unui meci VIITOR, cerute aproape de kickoff. Semantic e

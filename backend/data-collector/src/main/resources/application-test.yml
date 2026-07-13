@@ -1,18 +1,22 @@
-# Profil `test`: O SINGURA liga, pentru colectare pas-cu-pas / verificat ca merge fara sa arzi cota.
+# Profil `test`: colectare reala 4 campionate (RO/BE/Championship/AT), sezoane 2025 + 2026, FULL.
 # Ruleaza cu:  --spring.profiles.active=test --golstat.api-football.api-key=<cheia>
 #
 golstat:
   collection:
     # Sezonul CURENT (2026): actualizare meciuri viitoare + rezultate finale.
     leagues:
-      - { league-id: 1,   season: 2026 }                        # World Cup — FULL (scoruri + evenimente/statistici pe meciurile jucate)
-      - { league-id: 2,   season: 2026 }                        # UEFA Champions League — FULL (evenimente per meci)
-      - { league-id: 3,   season: 2026 }                        # UEFA Europa League — FULL
-      - { league-id: 848, season: 2026 }                        # UEFA Conference League — FULL
-      - { league-id: 667, season: 2026, doar-fixtures: true }   # Friendlies Clubs — doar meciuri; detaliul vine din bucla LIVE
-      # - { league-id: 140, season: 2025 }                      # La Liga 2025 (deja colectata azi; re-activeaza daca vrei)
-    zile-in-urma: 40      # prinde meciurile WC deja jucate (start ~11 iun 2026) + rezultate recente
-    zile-inainte: 120     # program viitor (cupe, amicale)
+      # 2026/27 (program viitor — ieftin, ~0 meciuri jucate acum)
+      - { league-id: 218, season: 2026 }   # Austria Bundesliga
+      - { league-id: 283, season: 2026 }   # Romania Liga I
+      - { league-id: 144, season: 2026 }   # Belgia Jupiler Pro League
+      - { league-id: 40,  season: 2026 }   # England Championship
+      # 2025/26 (terminat — backfill forma; mici → mari, ca la atingerea cotei sa ramana neluate doar cele mari)
+      - { league-id: 218, season: 2025 }   # Austria Bundesliga   (~195 meciuri)
+      - { league-id: 144, season: 2025 }   # Belgia Jupiler Pro   (~300 meciuri)
+      - { league-id: 283, season: 2025 }   # Romania Liga I       (~320 meciuri)
+      - { league-id: 40,  season: 2025 }   # England Championship (~555 meciuri)
+    zile-in-urma: 400     # acopera tot sezonul 2025/26 (start ~iul/aug 2025) + „meciurile de ieri"
+    zile-inainte: 300     # prinde programul 2026/27
   live:
-    enabled: true         # bucla LIVE pornita (scor/evenimente in timp real)
-    stats-leagues: [667]  # statistici live DOAR pe amicale (economie de cota); scorul+evenimentele live vin oricum pe toate
+    enabled: true         # bucla LIVE pornita (scor/evenimente in timp real); off-season → putine meciuri
+    stats-leagues: []     # gol = statistici live pe toate cele 4 ligi urmarite (in-play)

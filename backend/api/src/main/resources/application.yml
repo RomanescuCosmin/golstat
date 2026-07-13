@@ -23,6 +23,9 @@ spring:
       auto-offset-reset: earliest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      # loturile per liga (injuries) depasesc 1 MiB pe ligile mari; aliniat cu max.request.size de la producer
+      properties:
+        max.partition.fetch.bytes: 5242880
 
 golstat:
   database:

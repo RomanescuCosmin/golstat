@@ -11,6 +11,7 @@ import ro.golstat.common.dto.CoachDto;
 import ro.golstat.common.dto.FixtureDto;
 import ro.golstat.common.dto.FixtureEventDto;
 import ro.golstat.common.dto.FixtureLineupDto;
+import ro.golstat.common.dto.FixturePlayerStatsDto;
 import ro.golstat.common.dto.FixtureTeamStatsDto;
 import ro.golstat.common.dto.InjuryDto;
 import ro.golstat.common.dto.LeagueDto;
@@ -121,6 +122,16 @@ public class DataIngestListeners {
             }));
         } catch (JsonProcessingException e) {
             throw new IllegalStateException("JSON invalid pe " + GolstatConstants.KafkaTopics.FIXTURE_TEAM_STATS, e);
+        }
+    }
+
+    @KafkaListener(topics = GolstatConstants.KafkaTopics.FIXTURE_PLAYER_STATS)
+    void onFixturePlayerStats(String json) {
+        try {
+            ingest.ingestFixturePlayerStats(mapper.readValue(json, new TypeReference<List<FixturePlayerStatsDto>>() {
+            }));
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("JSON invalid pe " + GolstatConstants.KafkaTopics.FIXTURE_PLAYER_STATS, e);
         }
     }
 

@@ -12,6 +12,7 @@ import ro.golstat.common.dto.CoachDto;
 import ro.golstat.common.dto.FixtureDto;
 import ro.golstat.common.dto.FixtureEventDto;
 import ro.golstat.common.dto.FixtureLineupDto;
+import ro.golstat.common.dto.FixturePlayerStatsDto;
 import ro.golstat.common.dto.FixtureTeamStatsDto;
 import ro.golstat.common.dto.InjuryDto;
 import ro.golstat.common.dto.LeagueDto;
@@ -42,6 +43,8 @@ import java.util.Set;
  *       (re-colectarea unui meci inlocuieste tot setul de evenimente).</li>
  *   <li>fixture-team-stats → {@code fixtureId}, tot ca LOT (ambele echipe intr-un mesaj).</li>
  *   <li>fixture-lineups → {@code fixtureId}, LOT (ambele formatii intr-un mesaj).</li>
+ *   <li>fixture-player-stats → {@code fixtureId}, LOT (toti jucatorii ambelor echipe); doar la tintele
+ *       cu {@code statisticiJucatori} si unde furnizorul are acoperire.</li>
  *   <li>injuries → {@code leagueId:season}, LOT (toata lista ligii; re-colectarea inlocuieste setul).</li>
  * </ul>
  */
@@ -72,6 +75,14 @@ public class CollectionService {
     }
 
     public void collectGoalsData(long leagueId, int season, LocalDate from, LocalDate to, boolean doarFixtures) {
+        collectGoalsData(new LeagueTarget(leagueId, season, doarFixtures, true, false, false), from, to);
+    }
+
+    public void collectGoalsData(LeagueTarget target, LocalDate from, LocalDate to) {
+        long leagueId = target.leagueId();
+        int season = target.season();
+        boolean doarFixtures = target.doarFixtures();
+
         // Catalog intai: fixtures/standings au FK spre venue/league/season/team.
         for (VenueDto venue : provider.venues()) {
             publisher.publish(GolstatConstants.KafkaTopics.VENUES, String.valueOf(venue.id()), venue);
@@ -79,9 +90,20 @@ public class CollectionService {
         for (LeagueDto league : provider.leagues()) {
             publisher.publish(GolstatConstants.KafkaTopics.LEAGUES, String.valueOf(league.id()), league);
         }
+        // Sezoanele aduc si ACOPERIREA furnizorului pentru sezonul tinta — gratis (apelul se face oricum),
+        // si ne scuteste de a cere per meci date care nu exista (ex. statistici la cupe/amicale).
+        SeasonDto acoperire = null;
         for (SeasonDto season2 : provider.seasons(leagueId)) {
             publisher.publish(GolstatConstants.KafkaTopics.SEASONS, seasonKey(season2), season2);
+            if (season2.year() != null && season2.year() == season) {
+                acoperire = season2;
+            }
         }
+        boolean cereStatistici = !Boolean.FALSE.equals(
+                acoperire != null ? acoperire.hasStatisticsFixtures() : null);
+        boolean cereStatisticiJucatori = target.statisticiJucatori() && !Boolean.FALSE.equals(
+                acoperire != null ? acoperire.hasStatisticsPlayers() : null);
+
         List<TeamDto> teams = provider.teams(leagueId, season);
         for (TeamDto team : teams) {
             publisher.publish(GolstatConstants.KafkaTopics.TEAMS, String.valueOf(team.id()), team);
@@ -113,12 +135,14 @@ public class CollectionService {
             return;
         }
 
+        boolean doarNote = target.doarStatisticiJucatori();
+
         // Abia apoi detaliile per meci (lineups/events/stats) — pot esua fara sa pierdem meciurile deja publicate.
         for (FixtureDto fixture : fixtures) {
             boolean terminal = TERMINAL.contains(fixture.statusShort());
             // lineup-urile PRE-meci le aduce LineupPrematchPoller (TTL 0, fereastra de kickoff);
             // aici le cerem doar pentru meciurile terminate, unde raspunsul e stabil si cache-uibil
-            if (terminal) {
+            if (terminal && !doarNote) {
                 List<FixtureLineupDto> lineups = provider.fixtureLineups(fixture.id());
                 if (!lineups.isEmpty()) {
                     publisher.publish(GolstatConstants.KafkaTopics.FIXTURE_LINEUPS, String.valueOf(fixture.id()), lineups);
@@ -127,14 +151,31 @@ public class CollectionService {
             if (!terminal) {
                 continue;   // meci viitor/live → fara evenimente
             }
-            List<FixtureEventDto> events = provider.fixtureEvents(fixture.id());
-            if (!events.isEmpty()) {
-                publisher.publish(GolstatConstants.KafkaTopics.FIXTURE_EVENTS, String.valueOf(fixture.id()), events);
+            if (!doarNote) {
+                List<FixtureEventDto> events = provider.fixtureEvents(fixture.id());
+                if (!events.isEmpty()) {
+                    publisher.publish(GolstatConstants.KafkaTopics.FIXTURE_EVENTS, String.valueOf(fixture.id()), events);
+                }
             }
-            List<FixtureTeamStatsDto> teamStats = provider.fixtureStatistics(fixture.id());
-            if (!teamStats.isEmpty()) {
-                publisher.publish(GolstatConstants.KafkaTopics.FIXTURE_TEAM_STATS, String.valueOf(fixture.id()), teamStats);
+            if (cereStatistici && !doarNote) {
+                List<FixtureTeamStatsDto> teamStats = provider.fixtureStatistics(fixture.id());
+                if (!teamStats.isEmpty()) {
+                    publisher.publish(GolstatConstants.KafkaTopics.FIXTURE_TEAM_STATS, String.valueOf(fixture.id()), teamStats);
+                }
             }
+            if (cereStatisticiJucatori) {
+                List<FixturePlayerStatsDto> playerStats = provider.fixturePlayerStatistics(fixture.id());
+                if (!playerStats.isEmpty()) {
+                    publisher.publish(GolstatConstants.KafkaTopics.FIXTURE_PLAYER_STATS,
+                            String.valueOf(fixture.id()), playerStats);
+                }
+            }
+        }
+
+        if (!target.imbogatireEchipe()) {
+            // competitie cu foarte multe echipe (ex. amicale): detaliile per meci ne ajung; lotul,
+            // statisticile de sezon si indisponibilii ar costa ~4 requesturi × mii de echipe
+            return;
         }
 
         List<InjuryDto> injuries = provider.injuries(leagueId, season);

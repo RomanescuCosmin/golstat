@@ -18,9 +18,12 @@ class CollectionPlannerTest {
     private static final Clock CLOCK = Clock.fixed(Instant.parse("2026-07-03T10:00:00Z"), ZoneOffset.UTC);
     private static final LocalDate TODAY = LocalDate.of(2026, 7, 3);
 
-    /** Dublu care retine apelurile (liga + fereastra) si poate arunca cota la o liga anume. */
+    /** Dublu care retine apelurile (tinta + fereastra) si poate arunca cota la o liga anume. */
     private static final class RecordingCollectionService extends CollectionService {
-        record Call(long leagueId, int season, LocalDate from, LocalDate to) {
+        record Call(LeagueTarget target, LocalDate from, LocalDate to) {
+            long leagueId() {
+                return target.leagueId();
+            }
         }
 
         final List<Call> calls = new ArrayList<>();
@@ -31,11 +34,11 @@ class CollectionPlannerTest {
         }
 
         @Override
-        public void collectGoalsData(long leagueId, int season, LocalDate from, LocalDate to, boolean doarFixtures) {
-            if (quotaOnLeague != null && quotaOnLeague == leagueId) {
+        public void collectGoalsData(LeagueTarget target, LocalDate from, LocalDate to) {
+            if (quotaOnLeague != null && quotaOnLeague == target.leagueId()) {
                 throw new ApiFootballQuotaExceededException("/fixtures");
             }
-            calls.add(new Call(leagueId, season, from, to));
+            calls.add(new Call(target, from, to));
         }
     }
 
@@ -54,7 +57,7 @@ class CollectionPlannerTest {
     @Test
     void iteratesEveryLeague_withRollingWindowFromClock() {
         RecordingCollectionService svc = new RecordingCollectionService();
-        planner(svc, new LeagueTarget(1, 2026, false), new LeagueTarget(39, 2025, false)).collect();
+        planner(svc, new LeagueTarget(1, 2026, false, true, false, false), new LeagueTarget(39, 2025, false, true, false, false)).collect();
 
         assertEquals(List.of(1L, 39L), leagueIds(svc));
         RecordingCollectionService.Call first = svc.calls.get(0);
@@ -66,7 +69,7 @@ class CollectionPlannerTest {
     void quotaOnFirstLeague_stopsWholeCycle_withoutThrowing() {
         RecordingCollectionService svc = new RecordingCollectionService();
         svc.quotaOnLeague = 1L;
-        planner(svc, new LeagueTarget(1, 2026, false), new LeagueTarget(39, 2025, false)).collect();
+        planner(svc, new LeagueTarget(1, 2026, false, true, false, false), new LeagueTarget(39, 2025, false, true, false, false)).collect();
         assertTrue(svc.calls.isEmpty(), "cota la prima liga → a doua nu se mai apeleaza");
     }
 
@@ -74,8 +77,22 @@ class CollectionPlannerTest {
     void quotaOnSecondLeague_keepsFirst() {
         RecordingCollectionService svc = new RecordingCollectionService();
         svc.quotaOnLeague = 39L;
-        planner(svc, new LeagueTarget(1, 2026, false), new LeagueTarget(39, 2025, false)).collect();
+        planner(svc, new LeagueTarget(1, 2026, false, true, false, false), new LeagueTarget(39, 2025, false, true, false, false)).collect();
         assertEquals(List.of(1L), leagueIds(svc));
+    }
+
+    @Test
+    void passesTargetFlagsToService() {
+        RecordingCollectionService svc = new RecordingCollectionService();
+        planner(svc, new LeagueTarget(667, 2026, true, false, false, false),
+                new LeagueTarget(1, 2026, false, true, true, false)).collect();
+
+        LeagueTarget amicale = svc.calls.get(0).target();
+        assertTrue(amicale.doarFixtures());
+        assertEquals(false, amicale.imbogatireEchipe());
+        LeagueTarget mondial = svc.calls.get(1).target();
+        assertTrue(mondial.statisticiJucatori());
+        assertEquals(true, mondial.imbogatireEchipe());
     }
 
     @Test

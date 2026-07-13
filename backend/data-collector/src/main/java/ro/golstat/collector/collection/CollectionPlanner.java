@@ -42,7 +42,7 @@ public class CollectionPlanner {
 
         for (LeagueTarget target : props.leagues()) {
             try {
-                collection.collectGoalsData(target.leagueId(), target.season(), from, to, target.doarFixtures());
+                collection.collectGoalsData(target, from, to);
             } catch (ApiFootballQuotaExceededException e) {
                 // Cota e globala pe zi: daca s-a atins la o liga, nu mai are rost sa incercam restul.
                 log.warn("Colectare oprita (cota atinsa): {}", e.getMessage());

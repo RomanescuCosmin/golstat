@@ -16,6 +16,7 @@ import ro.golstat.api.repository.CountryRepository;
 import ro.golstat.api.repository.FixtureEventRepository;
 import ro.golstat.api.repository.FixtureLineupPlayerRepository;
 import ro.golstat.api.repository.FixtureLineupRepository;
+import ro.golstat.api.repository.FixturePlayerStatsRepository;
 import ro.golstat.api.repository.FixtureRepository;
 import ro.golstat.api.repository.FixtureTeamStatsRepository;
 import ro.golstat.api.repository.InjuryRepository;
@@ -32,6 +33,7 @@ import ro.golstat.common.dto.FixtureDto;
 import ro.golstat.common.dto.FixtureEventDto;
 import ro.golstat.common.dto.FixtureLineupDto;
 import ro.golstat.common.dto.FixtureLineupPlayerDto;
+import ro.golstat.common.dto.FixturePlayerStatsDto;
 import ro.golstat.common.dto.FixtureTeamStatsDto;
 import ro.golstat.common.dto.InjuryDto;
 import ro.golstat.common.dto.LeagueDto;
@@ -64,6 +66,7 @@ public class IngestService {
     private final FixtureRepository fixtures;
     private final FixtureEventRepository events;
     private final FixtureTeamStatsRepository teamStats;
+    private final FixturePlayerStatsRepository playerStats;
     private final StandingRepository standings;
     private final LeagueRepository leagues;
     private final SeasonRepository seasons;
@@ -79,6 +82,7 @@ public class IngestService {
 
     public IngestService(TeamRepository teams, FixtureRepository fixtures,
                          FixtureEventRepository events, FixtureTeamStatsRepository teamStats,
+                         FixturePlayerStatsRepository playerStats,
                          StandingRepository standings,
                          LeagueRepository leagues, SeasonRepository seasons, VenueRepository venues,
                          CountryRepository countries,
@@ -90,6 +94,7 @@ public class IngestService {
         this.fixtures = fixtures;
         this.events = events;
         this.teamStats = teamStats;
+        this.playerStats = playerStats;
         this.standings = standings;
         this.leagues = leagues;
         this.seasons = seasons;
@@ -225,6 +230,31 @@ public class IngestService {
         batch.stream().map(FixtureTeamStatsDto::teamId).filter(java.util.Objects::nonNull).distinct().forEach(this::ensureTeam);
         for (FixtureTeamStatsDto dto : batch) {
             teamStats.save(EntityMapper.toFixtureTeamStats(dto));
+        }
+    }
+
+    /**
+     * Un lot de statistici individuale per meci (toti jucatorii, ambele echipe); upsert pe PK compus
+     * (fixtureId, playerId). FK-uri dure spre player/team/fixture → asiguram parintii inainte de save.
+     */
+    @Transactional
+    public void ingestFixturePlayerStats(List<FixturePlayerStatsDto> batch) {
+        List<FixturePlayerStatsDto> valide = batch.stream()
+                .filter(d -> d.fixtureId() != null && d.playerId() != null && d.teamId() != null)
+                .toList();
+        if (valide.isEmpty()) {
+            return;
+        }
+        // ensure* O SINGURA data per id (vezi nota de la ingestEvents)
+        Map<Long, String> jucatori = new LinkedHashMap<>();
+        valide.forEach(d -> jucatori.putIfAbsent(d.playerId(), d.playerName()));
+        jucatori.forEach(this::ensurePlayer);
+        List<Long> teamIds = valide.stream().map(FixturePlayerStatsDto::teamId).distinct().toList();
+        teamIds.forEach(this::ensureTeam);
+        ensureFixture(valide.get(0).fixtureId(), teamIds.get(0), teamIds.get(teamIds.size() - 1));
+
+        for (FixturePlayerStatsDto dto : valide) {
+            playerStats.save(EntityMapper.toFixturePlayerStats(dto));
         }
     }
 
