@@ -3,9 +3,16 @@
 #
 golstat:
   collection:
+    # Sezonul CURENT (2026): actualizare meciuri viitoare + rezultate finale.
     leagues:
-      - { league-id: 140, season: 2025 }   # La Liga — id-ul/sezonul pentru alta liga
-    zile-in-urma: 14      # implicit MIC = test ieftin; pune 400 pentru backfill de sezon intreg
-    zile-inainte: 14
+      - { league-id: 1,   season: 2026 }                        # World Cup — FULL (scoruri + evenimente/statistici pe meciurile jucate)
+      - { league-id: 2,   season: 2026 }                        # UEFA Champions League — FULL (evenimente per meci)
+      - { league-id: 3,   season: 2026 }                        # UEFA Europa League — FULL
+      - { league-id: 848, season: 2026 }                        # UEFA Conference League — FULL
+      - { league-id: 667, season: 2026, doar-fixtures: true }   # Friendlies Clubs — doar meciuri; detaliul vine din bucla LIVE
+      # - { league-id: 140, season: 2025 }                      # La Liga 2025 (deja colectata azi; re-activeaza daca vrei)
+    zile-in-urma: 40      # prinde meciurile WC deja jucate (start ~11 iun 2026) + rezultate recente
+    zile-inainte: 120     # program viitor (cupe, amicale)
   live:
-    enabled: false
+    enabled: true         # bucla LIVE pornita (scor/evenimente in timp real)
+    stats-leagues: [667]  # statistici live DOAR pe amicale (economie de cota); scorul+evenimentele live vin oricum pe toate
