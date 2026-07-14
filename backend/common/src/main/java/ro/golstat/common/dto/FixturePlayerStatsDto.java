@@ -6,6 +6,8 @@ public record FixturePlayerStatsDto(
         Long fixtureId,
         Long teamId,
         Long playerId,
+        /** Fara coloana in tabela: alimenteaza doar placeholder-ul de jucator la ingest (ca la InjuryDto). */
+        String playerName,
         Integer minutes,
         BigDecimal rating,
         Boolean captain,

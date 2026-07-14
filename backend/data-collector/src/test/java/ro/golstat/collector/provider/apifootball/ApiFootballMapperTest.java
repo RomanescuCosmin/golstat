@@ -10,6 +10,7 @@ import ro.golstat.common.dto.FixtureEventDto;
 import ro.golstat.common.dto.FixtureLineupDto;
 import ro.golstat.common.dto.FixtureLineupPlayerDto;
 import ro.golstat.common.dto.FixtureLiveDto;
+import ro.golstat.common.dto.FixturePlayerStatsDto;
 import ro.golstat.common.dto.FixtureTeamStatsDto;
 import ro.golstat.common.dto.InjuryDto;
 import ro.golstat.common.dto.LeagueDto;
@@ -482,5 +483,68 @@ class ApiFootballMapperTest {
         assertEquals(true, current.isCurrent());
         assertEquals(false, current.hasLineups());
         assertEquals(true, current.hasStandings());
+    }
+
+    @Test
+    void fixturePlayers_mapsNestedTeamPlayersStatistics() throws Exception {
+        // pe acest endpoint `rating` si `passes.accuracy` vin STRING (in /players accuracy e numar)
+        String body = """
+                {"response":[{
+                  "team":{"id":33,"name":"Man United"},
+                  "players":[
+                    {"player":{"id":882,"name":"D. de Gea","photo":"dg.png"},
+                     "statistics":[{"games":{"minutes":90,"number":1,"position":"G","rating":"7.2",
+                                             "captain":false,"substitute":false},
+                                    "shots":{"total":null,"on":null},
+                                    "goals":{"total":null,"conceded":1,"assists":null,"saves":4},
+                                    "passes":{"total":30,"key":0,"accuracy":"72"},
+                                    "tackles":{"total":null,"blocks":null,"interceptions":null},
+                                    "duels":{"total":2,"won":1},
+                                    "dribbles":{"attempts":0,"success":0,"past":null},
+                                    "fouls":{"drawn":0,"committed":1},
+                                    "cards":{"yellow":1,"red":0},
+                                    "penalty":{"won":null,"commited":null,"scored":0,"missed":0,"saved":1}}]},
+                    {"player":{"id":900,"name":"Rezerva"},
+                     "statistics":[{"games":{"minutes":5,"position":"M","rating":null,
+                                             "captain":false,"substitute":true}}]}
+                  ]}]}""";
+        List<FixturePlayerStatsDto> stats =
+                ApiFootballMapper.toFixturePlayerStats(parse(body, FixturePlayersItem.class).get(0), 215L);
+
+        assertEquals(2, stats.size());
+        FixturePlayerStatsDto gk = stats.get(0);
+        assertEquals(215L, gk.fixtureId());
+        assertEquals(33L, gk.teamId());
+        assertEquals(882L, gk.playerId());
+        assertEquals("D. de Gea", gk.playerName());
+        assertEquals(new BigDecimal("7.2"), gk.rating());
+        assertEquals(72, gk.passesAccuracy());        // string "72" → Integer
+        assertEquals(4, gk.goalsSaves());
+        assertEquals(1, gk.cardsYellow());
+        assertEquals(1, gk.penaltySaved());
+        assertEquals(false, gk.substitute());
+
+        FixturePlayerStatsDto rezerva = stats.get(1);
+        assertEquals(true, rezerva.substitute());
+        assertNull(rezerva.rating());
+        assertNull(rezerva.passesAccuracy());          // nodul `passes` lipseste → null, fara NPE
+    }
+
+    @Test
+    void fixturePlayers_skipsPlayersWithoutIdOrStatistics() throws Exception {
+        String body = """
+                {"response":[{
+                  "team":{"id":33},
+                  "players":[
+                    {"player":{"id":882,"name":"Cu statistici"},
+                     "statistics":[{"games":{"minutes":90}}]},
+                    {"player":{"id":883,"name":"Fara statistici"},"statistics":[]},
+                    {"player":{"id":null,"name":"Fara id"},"statistics":[{"games":{"minutes":10}}]}
+                  ]}]}""";
+        List<FixturePlayerStatsDto> stats =
+                ApiFootballMapper.toFixturePlayerStats(parse(body, FixturePlayersItem.class).get(0), 215L);
+
+        assertEquals(1, stats.size());
+        assertEquals(882L, stats.get(0).playerId());
     }
 }

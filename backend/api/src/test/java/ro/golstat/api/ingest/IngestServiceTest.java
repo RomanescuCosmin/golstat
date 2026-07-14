@@ -10,6 +10,7 @@ import ro.golstat.api.entity.Fixture;
 import ro.golstat.api.entity.FixtureEvent;
 import ro.golstat.api.entity.FixtureLineup;
 import ro.golstat.api.entity.FixtureLineupPlayer;
+import ro.golstat.api.entity.FixturePlayerStats;
 import ro.golstat.api.entity.FixtureTeamStats;
 import ro.golstat.api.entity.Injury;
 import ro.golstat.api.entity.Player;
@@ -23,6 +24,7 @@ import ro.golstat.api.repository.CountryRepository;
 import ro.golstat.api.repository.FixtureEventRepository;
 import ro.golstat.api.repository.FixtureLineupPlayerRepository;
 import ro.golstat.api.repository.FixtureLineupRepository;
+import ro.golstat.api.repository.FixturePlayerStatsRepository;
 import ro.golstat.api.repository.FixtureRepository;
 import ro.golstat.api.repository.FixtureTeamStatsRepository;
 import ro.golstat.api.repository.InjuryRepository;
@@ -41,6 +43,7 @@ import ro.golstat.common.dto.FixtureDto;
 import ro.golstat.common.dto.FixtureEventDto;
 import ro.golstat.common.dto.FixtureLineupDto;
 import ro.golstat.common.dto.FixtureLineupPlayerDto;
+import ro.golstat.common.dto.FixturePlayerStatsDto;
 import ro.golstat.common.dto.FixtureTeamStatsDto;
 import ro.golstat.common.dto.InjuryDto;
 import ro.golstat.common.dto.PlayerDto;
@@ -69,6 +72,7 @@ class IngestServiceTest {
     @Mock FixtureRepository fixtures;
     @Mock FixtureEventRepository events;
     @Mock FixtureTeamStatsRepository teamStats;
+    @Mock FixturePlayerStatsRepository playerStats;
     @Mock StandingRepository standings;
     @Mock LeagueRepository leagues;
     @Mock SeasonRepository seasons;
@@ -151,6 +155,55 @@ class IngestServiceTest {
     private static FixtureTeamStatsDto stats(long fixtureId, long teamId) {
         return new FixtureTeamStatsDto(fixtureId, teamId, null, null, null, null, null, null,
                 null, null, null, null, null, null, null, null, null, null, null);
+    }
+
+    private static FixturePlayerStatsDto playerStat(long fixtureId, long teamId, long playerId) {
+        return new FixturePlayerStatsDto(fixtureId, teamId, playerId, "Jucator", 90,
+                java.math.BigDecimal.valueOf(7.2), false, false, "M",
+                null, null, null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null, null, null, null);
+    }
+
+    @Test
+    void ingestFixturePlayerStats_ensuresParentsThenUpserts() {
+        when(teams.existsById(anyLong())).thenReturn(false);
+        when(players.existsById(anyLong())).thenReturn(false);
+        when(fixtures.existsById(anyLong())).thenReturn(false);
+
+        ingest.ingestFixturePlayerStats(List.of(playerStat(100, 1, 10), playerStat(100, 2, 20)));
+
+        verify(players, times(2)).save(any(Player.class));
+        verify(teams, times(2)).save(any(Team.class));
+        verify(fixtures).save(any(Fixture.class));
+        verify(playerStats, times(2)).save(any(FixturePlayerStats.class));
+    }
+
+    @Test
+    void ingestFixturePlayerStats_sameTeamTwice_ensuresTeamOnce() {
+        // doi jucatori din aceeasi echipa: doua INSERT-uri placeholder cu acelasi id = duplicate key
+        when(teams.existsById(anyLong())).thenReturn(false);
+        ingest.ingestFixturePlayerStats(List.of(playerStat(100, 1, 10), playerStat(100, 1, 11)));
+
+        verify(teams).existsById(1L);
+        verify(teams, times(1)).save(any(Team.class));
+        verify(playerStats, times(2)).save(any(FixturePlayerStats.class));
+    }
+
+    @Test
+    void ingestFixturePlayerStats_rowWithoutPlayerId_skipped() {
+        FixturePlayerStatsDto faraJucator = new FixturePlayerStatsDto(100L, 1L, null, null, null,
+                null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null, null, null, null);
+        ingest.ingestFixturePlayerStats(List.of(faraJucator));
+        verifyNoInteractions(playerStats);
+    }
+
+    @Test
+    void ingestFixturePlayerStats_empty_doesNothing() {
+        ingest.ingestFixturePlayerStats(List.of());
+        verifyNoInteractions(playerStats);
+        verifyNoInteractions(players);
     }
 
     @Test

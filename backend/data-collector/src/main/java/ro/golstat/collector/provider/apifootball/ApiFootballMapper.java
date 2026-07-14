@@ -6,6 +6,7 @@ import ro.golstat.common.dto.FixtureEventDto;
 import ro.golstat.common.dto.FixtureLineupDto;
 import ro.golstat.common.dto.FixtureLineupPlayerDto;
 import ro.golstat.common.dto.FixtureLiveDto;
+import ro.golstat.common.dto.FixturePlayerStatsDto;
 import ro.golstat.common.dto.FixtureTeamStatsDto;
 import ro.golstat.common.dto.InjuryDto;
 import ro.golstat.common.dto.LeagueDto;
@@ -300,6 +301,76 @@ public final class ApiFootballMapper {
                 toInt(v.get("Passes accurate")),
                 toDecimal(v.get("Passes %")),
                 toDecimal(v.get("expected_goals"))
+        );
+    }
+
+    /** Un element = o ECHIPA cu jucatorii ei; jucatorii fara id sau fara {@code statistics} sunt sariti. */
+    public static List<FixturePlayerStatsDto> toFixturePlayerStats(FixturePlayersItem item, long fixtureId) {
+        if (item.players() == null) {
+            return List.of();
+        }
+        Long teamId = item.team() != null ? item.team().id() : null;
+        List<FixturePlayerStatsDto> out = new ArrayList<>();
+        for (FixturePlayersItem.PlayerEntry entry : item.players()) {
+            if (entry == null || entry.player() == null || entry.player().id() == null
+                    || entry.statistics() == null || entry.statistics().isEmpty()) {
+                continue;
+            }
+            FixturePlayersItem.Statistic s = entry.statistics().get(0);
+            if (s != null) {
+                out.add(toFixturePlayerStats(s, fixtureId, teamId, entry.player()));
+            }
+        }
+        return out;
+    }
+
+    private static FixturePlayerStatsDto toFixturePlayerStats(FixturePlayersItem.Statistic s, long fixtureId,
+                                                              Long teamId, FixturePlayersItem.Player player) {
+        FixturePlayersItem.Games games = s.games();
+        FixturePlayersItem.Goals goals = s.goals();
+        FixturePlayersItem.Shots shots = s.shots();
+        FixturePlayersItem.Passes passes = s.passes();
+        FixturePlayersItem.Tackles tackles = s.tackles();
+        FixturePlayersItem.Duels duels = s.duels();
+        FixturePlayersItem.Dribbles dribbles = s.dribbles();
+        FixturePlayersItem.Fouls fouls = s.fouls();
+        FixturePlayersItem.Cards cards = s.cards();
+        FixturePlayersItem.Penalty penalty = s.penalty();
+        return new FixturePlayerStatsDto(
+                fixtureId,
+                teamId,
+                player.id(),
+                player.name(),
+                games != null ? games.minutes() : null,
+                games != null ? toDecimal(games.rating()) : null,
+                games != null ? games.captain() : null,
+                games != null ? games.substitute() : null,
+                games != null ? games.position() : null,
+                shots != null ? shots.total() : null,
+                shots != null ? shots.on() : null,
+                goals != null ? goals.total() : null,
+                goals != null ? goals.conceded() : null,
+                goals != null ? goals.assists() : null,
+                goals != null ? goals.saves() : null,
+                passes != null ? passes.total() : null,
+                passes != null ? passes.key() : null,
+                passes != null ? toInt(passes.accuracy()) : null,
+                tackles != null ? tackles.total() : null,
+                tackles != null ? tackles.blocks() : null,
+                tackles != null ? tackles.interceptions() : null,
+                duels != null ? duels.total() : null,
+                duels != null ? duels.won() : null,
+                dribbles != null ? dribbles.attempts() : null,
+                dribbles != null ? dribbles.success() : null,
+                fouls != null ? fouls.drawn() : null,
+                fouls != null ? fouls.committed() : null,
+                cards != null ? cards.yellow() : null,
+                cards != null ? cards.red() : null,
+                penalty != null ? penalty.won() : null,
+                penalty != null ? penalty.commited() : null,
+                penalty != null ? penalty.scored() : null,
+                penalty != null ? penalty.missed() : null,
+                penalty != null ? penalty.saved() : null
         );
     }
 

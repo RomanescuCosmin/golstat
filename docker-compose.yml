@@ -33,6 +33,9 @@ services:
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      # loturile per liga (injuries/players) pot depasi 1 MiB implicit → ridicam plafonul broker-ului la 5 MiB
+      KAFKA_MESSAGE_MAX_BYTES: 5242880
+      KAFKA_REPLICA_FETCH_MAX_BYTES: 5242880
       CLUSTER_ID: OIC4Ipr0QriOs8kuadsS3Q
 
   schema-registry:

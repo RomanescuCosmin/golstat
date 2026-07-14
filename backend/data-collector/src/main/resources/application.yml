@@ -10,7 +10,11 @@ spring:
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      # loturile per liga (injuries/players/events) pot depasi 1 MiB implicit → ridicam plafonul la 5 MiB
+      # (aliniat cu KAFKA_MESSAGE_MAX_BYTES pe broker); lz4 comprima payload-ul JSON repetitiv.
       properties:
+        max.request.size: 5242880
+        compression.type: lz4
         # nu legam consumatorii de numele clasei producatorului; tipul tinta se da la consumer
         spring.json.add.type.headers: false
   data:
