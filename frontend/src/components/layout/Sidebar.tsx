@@ -32,6 +32,7 @@ const iteme: Item[] = [
   { eticheta: 'Echipe', icon: IconShield, to: '/echipe' },
   { eticheta: 'Jucători', icon: IconUser, to: '/jucatori' },
   { eticheta: 'Statistici', icon: IconChart, to: '/statistici' },
+  { eticheta: 'Piețe', icon: IconDiamond, to: '/piete' },
   { eticheta: 'Știri', icon: IconStiri },
   { eticheta: 'Favorite', icon: IconStar },
   { eticheta: 'Setări', icon: IconGear },

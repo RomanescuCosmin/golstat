@@ -9,6 +9,9 @@ import java.time.Duration;
  * {@code dailyRequestLimit} = cota planului; TTL-urile de cache sunt diferentiate pe volatilitate:
  * {@code cacheTtl} (implicit, catalog/clasament), {@code ttlUpcoming} (fixtures — contin meciuri
  * viitoare/live care se schimba des), {@code ttlHistoric} (evenimente de meci terminat — imuabile).
+ * {@code rezervaZilnica} = cate requesturi din cota raman INTANGIBILE pentru munca zilnica (meciuri
+ * recente, program, live); backfill-ul istoric are voie sa consume doar ce e peste rezerva, ca o
+ * colectare de sezoane vechi sa nu lase ligile urmarite fara date. Implicit 0 (fara rezerva).
  * Valori absente → default-uri sanatoase.
  */
 @ConfigurationProperties(prefix = "golstat.api-football")
@@ -16,6 +19,7 @@ public record ApiFootballProperties(
         String baseUrl,
         String apiKey,
         Integer dailyRequestLimit,
+        Integer rezervaZilnica,
         Duration cacheTtl,
         Duration ttlUpcoming,
         Duration ttlHistoric,
@@ -26,6 +30,9 @@ public record ApiFootballProperties(
     public ApiFootballProperties {
         if (dailyRequestLimit == null) {
             dailyRequestLimit = 100;
+        }
+        if (rezervaZilnica == null) {
+            rezervaZilnica = 0;
         }
         if (cacheTtl == null) {
             cacheTtl = Duration.ofHours(6);

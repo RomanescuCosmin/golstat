@@ -75,7 +75,7 @@ public class CollectionService {
     }
 
     public void collectGoalsData(long leagueId, int season, LocalDate from, LocalDate to, boolean doarFixtures) {
-        collectGoalsData(new LeagueTarget(leagueId, season, doarFixtures, true, false, false), from, to);
+        collectGoalsData(LeagueTarget.zilnica(leagueId, season, doarFixtures, true, false, false), from, to);
     }
 
     public void collectGoalsData(LeagueTarget target, LocalDate from, LocalDate to) {
@@ -99,10 +99,14 @@ public class CollectionService {
                 acoperire = season2;
             }
         }
-        boolean cereStatistici = !Boolean.FALSE.equals(
+        // Acoperirea declarata de furnizor e doar un INDICIU, nu o interdictie: la sezoanele proaspat
+        // incepute o raporteaza gresit (Liga I 2026 declara statistics_fixtures=false desi datele exista).
+        // Cand zice "nu", sondam primul meci terminat si lasam raspunsul real sa decida pentru restul ligii.
+        Boolean statisticiMeciDisponibile = dupaAcoperire(
                 acoperire != null ? acoperire.hasStatisticsFixtures() : null);
-        boolean cereStatisticiJucatori = target.statisticiJucatori() && !Boolean.FALSE.equals(
-                acoperire != null ? acoperire.hasStatisticsPlayers() : null);
+        Boolean statisticiJucatoriDisponibile = target.statisticiJucatori()
+                ? dupaAcoperire(acoperire != null ? acoperire.hasStatisticsPlayers() : null)
+                : Boolean.FALSE;
 
         List<TeamDto> teams = provider.teams(leagueId, season);
         for (TeamDto team : teams) {
@@ -157,17 +161,25 @@ public class CollectionService {
                     publisher.publish(GolstatConstants.KafkaTopics.FIXTURE_EVENTS, String.valueOf(fixture.id()), events);
                 }
             }
-            if (cereStatistici && !doarNote) {
+            if (statisticiMeciDisponibile != Boolean.FALSE && !doarNote) {
                 List<FixtureTeamStatsDto> teamStats = provider.fixtureStatistics(fixture.id());
                 if (!teamStats.isEmpty()) {
+                    statisticiMeciDisponibile = Boolean.TRUE;
                     publisher.publish(GolstatConstants.KafkaTopics.FIXTURE_TEAM_STATS, String.valueOf(fixture.id()), teamStats);
+                } else if (statisticiMeciDisponibile == null) {
+                    statisticiMeciDisponibile = Boolean.FALSE;
+                    log.info("Liga {} sezon {}: sonda confirma ca nu exista statistici de meci — le sarim", leagueId, season);
                 }
             }
-            if (cereStatisticiJucatori) {
+            if (statisticiJucatoriDisponibile != Boolean.FALSE) {
                 List<FixturePlayerStatsDto> playerStats = provider.fixturePlayerStatistics(fixture.id());
                 if (!playerStats.isEmpty()) {
+                    statisticiJucatoriDisponibile = Boolean.TRUE;
                     publisher.publish(GolstatConstants.KafkaTopics.FIXTURE_PLAYER_STATS,
                             String.valueOf(fixture.id()), playerStats);
+                } else if (statisticiJucatoriDisponibile == null) {
+                    statisticiJucatoriDisponibile = Boolean.FALSE;
+                    log.info("Liga {} sezon {}: sonda confirma ca nu exista note de jucatori — le sarim", leagueId, season);
                 }
             }
         }
@@ -230,6 +242,14 @@ public class CollectionService {
                 log.warn("Imbogatire esuata pentru echipa {}: {}", team.id(), e.toString());
             }
         }
+    }
+
+    /**
+     * Verdict initial pornind de la acoperirea declarata: "da"/necunoscut → cerem direct;
+     * "nu" → {@code null} (nedecis), adica sondam un meci inainte sa renuntam pe toata liga.
+     */
+    private static Boolean dupaAcoperire(Boolean declarat) {
+        return Boolean.FALSE.equals(declarat) ? null : Boolean.TRUE;
     }
 
     private static String standingKey(StandingDto standing) {

@@ -233,7 +233,7 @@ class CollectionServiceTest {
     @Test
     void playerStatsRequestedOnlyWhenFlagOn_publishedAsBatchPerFixture() {
         StatusProvider provider = new StatusProvider();
-        RecordingPublisher pub = collect(provider, new LeagueTarget(1, 2026, false, true, true, false));
+        RecordingPublisher pub = collect(provider, LeagueTarget.zilnica(1, 2026, false, true, true, false));
 
         assertEquals(List.of(200L), provider.playerStatsAskedFor, "NS nu declanseaza cerere");
         assertEquals(1, pub.countOn(GolstatConstants.KafkaTopics.FIXTURE_PLAYER_STATS));
@@ -246,7 +246,7 @@ class CollectionServiceTest {
     @Test
     void playerStats_notRequestedWhenFlagOff() {
         StatusProvider provider = new StatusProvider();
-        RecordingPublisher pub = collect(provider, new LeagueTarget(1, 2026, false, true, false, false));
+        RecordingPublisher pub = collect(provider, LeagueTarget.zilnica(1, 2026, false, true, false, false));
 
         assertTrue(provider.playerStatsAskedFor.isEmpty(), "fara flag nu ardem 1 request/meci");
         assertEquals(0, pub.countOn(GolstatConstants.KafkaTopics.FIXTURE_PLAYER_STATS));
@@ -256,28 +256,46 @@ class CollectionServiceTest {
     void emptyPlayerStats_notPublished() {
         StatusProvider provider = new StatusProvider();
         provider.playerStatsAvailable = false;
-        RecordingPublisher pub = collect(provider, new LeagueTarget(1, 2026, false, true, true, false));
+        RecordingPublisher pub = collect(provider, LeagueTarget.zilnica(1, 2026, false, true, true, false));
 
         assertEquals(0, pub.countOn(GolstatConstants.KafkaTopics.FIXTURE_PLAYER_STATS));
     }
 
     @Test
-    void coverageFalse_skipsStatisticsRequests() {
-        // furnizorul declara ca sezonul n-are statistici (ex. cupe/amicale) → nu le cerem deloc
+    void coverageFalse_darFurnizorulAreDate_sondaDeblocheazaRestulLigii() {
+        // Acoperirea declarata minte la sezoanele proaspat incepute (Liga I 2026 zicea false desi
+        // /fixtures/statistics intorcea cornere/faulturi). Sonda pe primul meci trebuie sa o infirme.
         StatusProvider provider = new StatusProvider();
         provider.acoperire = acoperire2026(false, false);
-        RecordingPublisher pub = collect(provider, new LeagueTarget(1, 2026, false, true, true, false));
+        provider.alDoileaTerminat = true;
+        RecordingPublisher pub = collect(provider, LeagueTarget.zilnica(1, 2026, false, true, true, false));
 
-        assertTrue(provider.statsAskedFor.isEmpty(), "statistici de meci: fara acoperire → fara request");
-        assertTrue(provider.playerStatsAskedFor.isEmpty(), "statistici de jucator: idem, chiar cu flagul pornit");
-        assertEquals(List.of(200L), provider.eventsAskedFor, "evenimentele raman cerute (au acoperire)");
+        assertEquals(List.of(200L, 202L), provider.statsAskedFor, "sonda a reusit → cerem pentru toate");
+        assertEquals(List.of(200L, 202L), provider.playerStatsAskedFor);
+        assertEquals(2, pub.countOn(GolstatConstants.KafkaTopics.FIXTURE_TEAM_STATS));
+    }
+
+    @Test
+    void coverageFalse_siChiarNuExistaDate_sondaOpresteRestulLigii() {
+        // Cazul in care acoperirea are dreptate (ex. amicale): platim UN request de sonda, nu unul per meci.
+        StatusProvider provider = new StatusProvider();
+        provider.acoperire = acoperire2026(false, false);
+        provider.alDoileaTerminat = true;
+        provider.statsAvailable = false;
+        provider.playerStatsAvailable = false;
+        RecordingPublisher pub = collect(provider, LeagueTarget.zilnica(1, 2026, false, true, true, false));
+
+        assertEquals(List.of(200L), provider.statsAskedFor, "sonda a esuat → nu mai insistam pe restul ligii");
+        assertEquals(List.of(200L), provider.playerStatsAskedFor);
+        assertEquals(0, pub.countOn(GolstatConstants.KafkaTopics.FIXTURE_TEAM_STATS));
+        assertEquals(List.of(200L, 202L), provider.eventsAskedFor, "evenimentele raman cerute pentru toate");
     }
 
     @Test
     void coverageTrue_requestsStatistics() {
         StatusProvider provider = new StatusProvider();
         provider.acoperire = acoperire2026(true, true);
-        collect(provider, new LeagueTarget(1, 2026, false, true, true, false));
+        collect(provider, LeagueTarget.zilnica(1, 2026, false, true, true, false));
 
         assertEquals(List.of(200L), provider.statsAskedFor);
         assertEquals(List.of(200L), provider.playerStatsAskedFor);
@@ -287,7 +305,7 @@ class CollectionServiceTest {
     void doarStatisticiJucatori_skipsAlreadyCollectedDetails() {
         // liga deja colectata: cerem STRICT notele (1 req/meci), nu re-cerem formatii/evenimente/statistici
         StatusProvider provider = new StatusProvider();
-        RecordingPublisher pub = collect(provider, new LeagueTarget(39, 2025, false, false, false, true));
+        RecordingPublisher pub = collect(provider, LeagueTarget.zilnica(39, 2025, false, false, false, true));
 
         assertEquals(List.of(200L), provider.playerStatsAskedFor);
         assertTrue(provider.eventsAskedFor.isEmpty(), "evenimentele sunt deja in baza");
@@ -300,7 +318,7 @@ class CollectionServiceTest {
     @Test
     void imbogatireOff_skipsInjuriesAndTeamEnrichment() {
         StatusProvider provider = new StatusProvider();
-        RecordingPublisher pub = collect(provider, new LeagueTarget(1, 2026, false, false, false, false));
+        RecordingPublisher pub = collect(provider, LeagueTarget.zilnica(1, 2026, false, false, false, false));
 
         // amicalele au mii de echipe: ~4 requesturi/echipa ar depasi cota zilnica
         assertEquals(0, pub.countOn(GolstatConstants.KafkaTopics.INJURIES));
@@ -422,6 +440,8 @@ class CollectionServiceTest {
         boolean statsAvailable = true;
         boolean lineupsAvailable = true;
         boolean playerStatsAvailable = true;
+        /** Adauga un al doilea meci terminat (202) — necesar ca sa se vada daca sonda opreste restul ligii. */
+        boolean alDoileaTerminat = false;
         /** Acoperirea sezonului 2026 raportata de furnizor; null = necunoscuta (lista de sezoane goala). */
         SeasonDto acoperire;
 
@@ -443,6 +463,11 @@ class CollectionServiceTest {
 
         @Override
         public List<FixtureDto> fixtures(long leagueId, int season, LocalDate from, LocalDate to) {
+            if (alDoileaTerminat) {
+                return List.of(fixture(200, GolstatConstants.FixtureStatus.FINISHED),
+                        fixture(201, GolstatConstants.FixtureStatus.NOT_STARTED),
+                        fixture(202, GolstatConstants.FixtureStatus.FINISHED));
+            }
             return List.of(fixture(200, GolstatConstants.FixtureStatus.FINISHED),
                     fixture(201, GolstatConstants.FixtureStatus.NOT_STARTED));
         }

@@ -12,6 +12,7 @@ import { ErrorState } from '../components/ui/ErrorState';
 import { SkeletonCard } from '../components/ui/Skeleton';
 import { useFavorite } from '../hooks/useFavorite';
 import { toISODataLocala } from '../lib/format';
+import { sorteazaCompetitii } from '../lib/ligi';
 
 const FILTRE_INITIALE: StareFiltre = { live: false, favorite: false, curand: false };
 const CURAND_MS = 2 * 60 * 60 * 1000; // „începe curând" = următoarele 2 ore
@@ -49,10 +50,10 @@ export function MeciuriPage() {
   }, [dataISO, incercare]);
 
   // Aplica filtrul de competitie + comutatoarele (live / favorite / începe curând) la nivel de meci,
-  // apoi scoate competitiile ramase fara meciuri.
+  // scoate competitiile ramase fara meciuri, apoi le ordoneaza (top 5 → cupe → restul → amicale).
   const ligiAfisate = useMemo(() => {
     const acum = Date.now();
-    return ligi
+    const filtrate = ligi
       .filter((l) => filtruLiga == null || l.leagueId === filtruLiga)
       .map((l) => {
         const meciuri = l.meciuri.filter((m) => {
@@ -67,6 +68,7 @@ export function MeciuriPage() {
         return { ...l, meciuri };
       })
       .filter((l) => l.meciuri.length > 0);
+    return sorteazaCompetitii(filtrate);
   }, [ligi, filtruLiga, filtre, fav]);
 
   const totalMeciuri = ligiAfisate.reduce((n, l) => n + l.meciuri.length, 0);

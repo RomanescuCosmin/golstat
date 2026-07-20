@@ -26,22 +26,58 @@ beforeEach(() => {
 });
 
 describe('ProgramPage', () => {
+  function programPeDouaZile() {
+    return program({
+      zile: [
+        programZi({ data: '2026-07-09' }),
+        programZi({ data: '2026-07-10', ligi: [programLiga({ meciuri: [programMeci({ fixtureId: 4002 })] })] }),
+      ],
+    });
+  }
+
   test('zilele au data calendaristica corecta pentru "YYYY-MM-DD" (fara salt UTC)', async () => {
-    mockGetProgram.mockResolvedValue(
-      program({
-        zile: [
-          programZi({ data: '2026-07-09' }),
-          programZi({ data: '2026-07-10', ligi: [programLiga({ meciuri: [programMeci({ fixtureId: 4002 })] })] }),
-        ],
-      }),
-    );
+    const user = userEvent.setup();
+    mockGetProgram.mockResolvedValue(programPeDouaZile());
     randeaza();
 
+    await user.click(await screen.findByRole('button', { name: /Toate zilele/ }));
+
     // lock end-to-end pentru bug-ul de fus orar: ziua afisata = ziua din payload
-    expect(await screen.findByText(/9 iulie 2026/)).toBeInTheDocument();
+    expect(screen.getByText(/9 iulie 2026/)).toBeInTheDocument();
     expect(screen.getByText(/10 iulie 2026/)).toBeInTheDocument();
     expect(screen.queryByText(/8 iulie 2026/)).toBeNull();
     expect(mockGetProgram).toHaveBeenCalledWith(7);
+  });
+
+  test('banda de zile: prima zi e preselectata, restul sunt ascunse', async () => {
+    mockGetProgram.mockResolvedValue(programPeDouaZile());
+    randeaza();
+
+    expect(await screen.findByText(/9 iulie 2026/)).toBeInTheDocument();
+    expect(screen.queryByText(/10 iulie 2026/)).toBeNull();
+  });
+
+  test('banda de zile: click pe alta zi schimba lista, "Toate zilele" le arata pe toate', async () => {
+    const user = userEvent.setup();
+    mockGetProgram.mockResolvedValue(programPeDouaZile());
+    randeaza();
+
+    await user.click(await screen.findByRole('button', { name: /10 iul/ }));
+    expect(screen.getByText(/10 iulie 2026/)).toBeInTheDocument();
+    expect(screen.queryByText(/9 iulie 2026/)).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: /Toate zilele/ }));
+    expect(screen.getByText(/9 iulie 2026/)).toBeInTheDocument();
+    expect(screen.getByText(/10 iulie 2026/)).toBeInTheDocument();
+  });
+
+  test('banda de zile arata numarul de meciuri al fiecarei zile', async () => {
+    mockGetProgram.mockResolvedValue(
+      program({ zile: [programZi({ ligi: [programLiga({ meciuri: [programMeci(), programMeci({ fixtureId: 4003 })] })] })] }),
+    );
+    randeaza();
+
+    expect(await screen.findByRole('button', { name: /2 meciuri/ })).toBeInTheDocument();
   });
 
   test('program gol: EmptyState', async () => {

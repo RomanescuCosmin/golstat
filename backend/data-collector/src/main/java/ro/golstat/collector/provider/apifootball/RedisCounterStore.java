@@ -29,6 +29,11 @@ public class RedisCounterStore implements CounterStore {
     }
 
     @Override
+    public void set(String key, String value) {
+        redis.opsForValue().set(key, value);
+    }
+
+    @Override
     public long increment(String key) {
         Long value = redis.opsForValue().increment(key);
         return value != null ? value : 0L;

@@ -6,6 +6,7 @@ import org.springframework.data.repository.query.Param;
 import ro.golstat.api.entity.FixtureTeamStats;
 import ro.golstat.api.stats.CountAverage;
 import ro.golstat.api.stats.RefereeCardAverage;
+import ro.golstat.api.stats.RefereeCardAverageRow;
 
 import java.util.Collection;
 import java.util.List;
@@ -64,4 +65,22 @@ public interface FixtureTeamStatsRepository extends JpaRepository<FixtureTeamSta
             """)
     RefereeCardAverage refereeCardAverage(@Param("referee") String referee,
                                           @Param("terminal") Collection<String> terminal);
+
+    /**
+     * Ca {@link #refereeCardAverage}, dar pentru mai multi arbitri intr-un singur query. Arbitrii
+     * fara meciuri terminale cu statistici pur si simplu lipsesc din rezultat (apelantul cade pe
+     * factorul neutru).
+     */
+    @Query("""
+            select f.referee as referee,
+                   2 * avg(coalesce(s.yellowCards, 0) + coalesce(s.redCards, 0)) as avgCards,
+                   count(distinct s.fixtureId) as matches
+            from FixtureTeamStats s
+            join Fixture f on f.id = s.fixtureId
+            where f.referee in :arbitri
+              and f.statusShort in :terminal
+            group by f.referee
+            """)
+    List<RefereeCardAverageRow> refereeCardAverages(@Param("arbitri") Collection<String> arbitri,
+                                                    @Param("terminal") Collection<String> terminal);
 }

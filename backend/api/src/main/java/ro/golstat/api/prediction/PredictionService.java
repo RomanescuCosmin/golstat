@@ -137,7 +137,9 @@ public class PredictionService {
                 echipe.get(f.getHomeTeamId()), echipe.get(f.getAwayTeamId()));
     }
 
-    static MatchContext buildContext(List<MatchSample> homeHistory, List<MatchSample> awayHistory, LeagueAverages avg) {
+    /** Public: si lista pe zile ({@code PieteZileService}) il construieste, din istoricul deja incarcat. */
+    public static MatchContext buildContext(List<MatchSample> homeHistory, List<MatchSample> awayHistory,
+                                            LeagueAverages avg) {
         List<MatchSample> gazdaAcasa = MatchWindow.lastN(homeHistory, WINDOW, MatchLocation.HOME);
         List<MatchSample> oaspetiDeplasare = MatchWindow.lastN(awayHistory, WINDOW, MatchLocation.AWAY);
 

@@ -54,6 +54,27 @@ describe('MeciuriPage', () => {
     expect(mockGetMeciuriZi).toHaveBeenCalledTimes(1);
   });
 
+  test('competitiile sunt ordonate: top 5 inaintea restului, amicalele ultimele', async () => {
+    // Fiecare competitie are o gazda unica — ordinea lor in DOM da ordinea competitiilor,
+    // fara ambiguitate cu numele de liga care apar si in carusel / rail.
+    const gazda = (id: number, nume: string) => meciZi({ fixtureId: id, gazde: { id, nume, logo: null } });
+    mockGetMeciuriZi.mockResolvedValue(
+      programZiGrupat({
+        ligi: [
+          ligaZi({ leagueId: 667, nume: 'Amicale cluburi', meciuri: [gazda(1, 'Echipa Amicala')] }),
+          ligaZi({ leagueId: 283, nume: 'Liga I', meciuri: [gazda(2, 'Echipa Interna')] }),
+          ligaZi({ leagueId: 39, nume: 'Premier League', meciuri: [gazda(3, 'Echipa Engleza')] }),
+        ],
+      }),
+    );
+    const { container } = randeaza();
+    await screen.findByText('Echipa Engleza');
+
+    const text = container.textContent ?? '';
+    expect(text.indexOf('Echipa Engleza')).toBeLessThan(text.indexOf('Echipa Interna'));
+    expect(text.indexOf('Echipa Interna')).toBeLessThan(text.indexOf('Echipa Amicala'));
+  });
+
   test('filtrul Live pastreaza doar meciurile in desfasurare si scoate ligile golite', async () => {
     const user = userEvent.setup();
     mockGetMeciuriZi.mockResolvedValue(

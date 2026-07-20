@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import type { ProgramLiga, ProgramZi } from '../../api/types';
 import { numeEchipa } from '../../lib/echipa';
 import { formatData, formatOra } from '../../lib/format';
-import { numeLiga } from '../../lib/ligi';
+import { numeLiga, sorteazaCompetitii } from '../../lib/ligi';
 import { Card } from '../ui/Card';
 import { LigaLogo } from '../ui/LigaLogo';
 import { TeamLogo } from '../ui/TeamLogo';
@@ -13,7 +13,7 @@ export function SectiuneProgram({ zi }: { zi: ProgramZi }) {
     <section className="space-y-3">
       <h2 className="px-1 text-sm font-extrabold uppercase tracking-wide text-ink2">{formatData(zi.data)}</h2>
       <div className="space-y-4">
-        {zi.ligi.map((liga) => (
+        {sorteazaCompetitii(zi.ligi).map((liga) => (
           <CardCompetitie key={liga.leagueId} liga={liga} />
         ))}
       </div>

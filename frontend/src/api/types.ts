@@ -692,3 +692,55 @@ export interface PaginaJucator {
   echipaCurenta: EchipaDto | null;
   sezoane: SezonJucator[];
 }
+
+/* ─────────────────────────── Piețe pe zile ─────────────────────────── */
+
+/** Codurile de piață expuse de `/v1/piete/zile` (oglinda `ro.golstat.api.piete.CodPiata`). */
+export type CodPiata =
+  | 'GOLURI_PESTE'
+  | 'GOLURI_SUB'
+  | 'GG'
+  | 'NG'
+  | 'CORNERE_PESTE'
+  | 'FAULTURI_PESTE'
+  | 'CARTONASE_PESTE'
+  | 'EGAL_PAUZA'
+  | 'EGAL_FINAL';
+
+/**
+ * O piață a unui meci. ATENȚIE: `probabilitate` e FRACȚIE 0..1 (ca `LinieStatDto.probabilitate`,
+ * NU ca `ProcentCota.procent`) — se formatează cu `formatRata`. `linie` e `null` la piețele binare.
+ * `esantion` = câte meciuri stau în spate; serverul nu trimite niciodată piețe cu eșantion 0.
+ */
+export interface CotaPiata {
+  piata: CodPiata;
+  linie: number | null;
+  probabilitate: number;
+  cota: number;
+  esantion: number;
+}
+
+export interface LigaPiete {
+  id: number;
+  nume: string | null;
+  logo: string | null;
+}
+
+export interface MeciPiete {
+  fixtureId: number;
+  kickoff: string;
+  liga: LigaPiete;
+  gazde: EchipaDto;
+  oaspeti: EchipaDto;
+  piete: CotaPiata[];
+}
+
+export interface ZiPiete {
+  data: string;
+  meciuri: MeciPiete[];
+}
+
+/** Oglinda `ro.golstat.api.piete.PieteZileDto`. */
+export interface PieteZile {
+  zile: ZiPiete[];
+}

@@ -28,7 +28,10 @@ import type {
   PaginaCompetitie,
   PaginaEchipa,
   PaginaJucator,
+  CotaPiata,
+  MeciPiete,
   PiataStatDto,
+  PieteZile,
   Predictie1X2,
   PredictieMeciDto,
   PrevizualizareMeciDto,
@@ -38,6 +41,7 @@ import type {
   ProgramMeci,
   ProgramZi,
   ProgramZiGrupat,
+  ZiPiete,
   RandClasament,
   RezultatCautare,
   SezonJucator,
@@ -583,4 +587,39 @@ export function statisticiLiga(over: Partial<StatisticiLiga> = {}): StatisticiLi
     medieCartonase: 4.1,
     ...over,
   };
+}
+
+/* ─────────────────────────── Piețe pe zile ─────────────────────────── */
+
+/** `probabilitate` e fracție 0..1 (nu procent) — vezi nota din capul fișierului. */
+export function cotaPiata(over: Partial<CotaPiata> = {}): CotaPiata {
+  const probabilitate = over.probabilitate ?? 0.62;
+  return {
+    piata: 'GOLURI_PESTE',
+    linie: 2.5,
+    probabilitate,
+    cota: probabilitate > 0 ? Math.round(100 / probabilitate) / 100 : 0,
+    esantion: 14,
+    ...over,
+  };
+}
+
+export function meciPiete(over: Partial<MeciPiete> = {}): MeciPiete {
+  return {
+    fixtureId: 5001,
+    kickoff: '2026-07-21T18:00:00Z',
+    liga: { id: 39, nume: 'Premier League', logo: null },
+    gazde: echipa(),
+    oaspeti: echipa({ id: 40, nume: 'Liverpool' }),
+    piete: [cotaPiata()],
+    ...over,
+  };
+}
+
+export function ziPiete(over: Partial<ZiPiete> = {}): ZiPiete {
+  return { data: '2026-07-21', meciuri: [meciPiete()], ...over };
+}
+
+export function pieteZile(over: Partial<PieteZile> = {}): PieteZile {
+  return { zile: [ziPiete()], ...over };
 }

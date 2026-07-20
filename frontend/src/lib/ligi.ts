@@ -37,6 +37,41 @@ export const LIGI: Liga[] = [
 /** „Competiții populare" din rail-ul drept: top 5 campionate + cupele europene + Cupa Mondiala. */
 export const LIGI_POPULARE: number[] = [39, 140, 135, 78, 61, 2, 3, 848, 1];
 
+/** Ordinea de afisare a competitiilor in liste: top 5 campionate, apoi cupele. */
+const ORDINE_COMPETITII: number[] = [39, 140, 135, 78, 61, 2, 3, 848, 1];
+
+/** Ligi de amicale (API-Football): cluburi, internationale, pre-sezon. */
+const ID_AMICALE = new Set<number>([667, 10, 666]);
+
+const RANG_RESTUL = 100;
+const RANG_AMICALE = 200;
+
+/** Amicalele stau la coada listei; le prindem si dupa nume, pentru id-uri necunoscute. */
+function esteAmicala(id: number, nume?: string | null): boolean {
+  if (ID_AMICALE.has(id)) {
+    return true;
+  }
+  const n = nume?.toLowerCase() ?? '';
+  return n.includes('amical') || n.includes('friendl');
+}
+
+/** Rangul de afisare al unei competitii: mai mic = mai sus in lista. */
+export function rangLiga(id: number, nume?: string | null): number {
+  const index = ORDINE_COMPETITII.indexOf(id);
+  if (index >= 0) {
+    return index;
+  }
+  return esteAmicala(id, nume) ? RANG_AMICALE : RANG_RESTUL;
+}
+
+/**
+ * Sorteaza competitiile dupa rang. `Array.sort` e stabil, deci in interiorul unui rang
+ * se pastreaza ordinea venita din backend (dupa ora primului meci).
+ */
+export function sorteazaCompetitii<T extends { leagueId: number; nume?: string | null }>(ligi: T[]): T[] {
+  return [...ligi].sort((a, b) => rangLiga(a.leagueId, a.nume) - rangLiga(b.leagueId, b.nume));
+}
+
 export function numeLiga(id: number): string {
   return LIGI.find((l) => l.id === id)?.nume ?? `Liga #${id}`;
 }

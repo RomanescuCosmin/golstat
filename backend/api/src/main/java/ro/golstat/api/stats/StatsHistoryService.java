@@ -9,9 +9,7 @@ import ro.golstat.api.repository.FixtureTeamStatsRepository;
 import ro.golstat.common.GolstatConstants;
 import ro.golstat.stats.model.EventCountSample;
 
-import java.time.LocalDate;
 import java.time.OffsetDateTime;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -49,32 +47,7 @@ public class StatsHistoryService {
                 .findByFixtureIdIn(meciuri.stream().map(Fixture::getId).toList()).stream()
                 .collect(Collectors.groupingBy(FixtureTeamStats::getFixtureId,
                         Collectors.toMap(FixtureTeamStats::getTeamId, Function.identity())));
-
-        List<EventCountSample> cornere = new ArrayList<>();
-        List<EventCountSample> faulturi = new ArrayList<>();
-        List<EventCountSample> cartonase = new ArrayList<>();
-        List<EventCountSample> suturi = new ArrayList<>();
-        List<EventCountSample> suturiPePoarta = new ArrayList<>();
-        List<FixtureTeamStats> proprii = new ArrayList<>();
-        for (Fixture f : meciuri) {
-            boolean home = f.getHomeTeamId() != null && f.getHomeTeamId() == teamId;
-            Long adversarId = home ? f.getAwayTeamId() : f.getHomeTeamId();
-            Map<Long, FixtureTeamStats> randuri = perMeci.getOrDefault(f.getId(), Map.of());
-            FixtureTeamStats ale = randuri.get(teamId);
-            FixtureTeamStats aleAdversarului = adversarId != null ? randuri.get(adversarId) : null;
-            if (ale == null || aleAdversarului == null) {
-                continue;
-            }
-            proprii.add(ale);
-            LocalDate data = f.getKickoff() != null ? f.getKickoff().toLocalDate() : null;
-            adauga(cornere, data, home, ale.getCornerKicks(), aleAdversarului.getCornerKicks());
-            adauga(faulturi, data, home, ale.getFouls(), aleAdversarului.getFouls());
-            adauga(cartonase, data, home, totalCartonase(ale), totalCartonase(aleAdversarului));
-            adauga(suturi, data, home, ale.getShotsTotal(), aleAdversarului.getShotsTotal());
-            adauga(suturiPePoarta, data, home, ale.getShotsOnGoal(), aleAdversarului.getShotsOnGoal());
-        }
-        return new IstoricCounturi(List.copyOf(cornere), List.copyOf(faulturi), List.copyOf(cartonase),
-                List.copyOf(suturi), List.copyOf(suturiPePoarta), List.copyOf(proprii));
+        return CountSampleMapper.istoric(teamId, meciuri, perMeci);
     }
 
     /** Galbene + rosii; {@code null} doar cand ambele lipsesc (rosii lipsa langa galbene = 0). */
@@ -83,14 +56,6 @@ public class StatsHistoryService {
             return null;
         }
         return nz(s.getYellowCards()) + nz(s.getRedCards());
-    }
-
-    private static void adauga(List<EventCountSample> lista, LocalDate data, boolean home,
-                               Integer aleNoastre, Integer aleAdversarului) {
-        if (aleNoastre == null || aleAdversarului == null) {
-            return;
-        }
-        lista.add(new EventCountSample(data, home, aleNoastre, aleAdversarului, null));
     }
 
     private static int nz(Integer value) {

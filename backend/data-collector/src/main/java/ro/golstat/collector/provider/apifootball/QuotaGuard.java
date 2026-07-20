@@ -24,11 +24,13 @@ public class QuotaGuard {
     private final CounterStore store;
     private final Clock clock;
     private final int dailyLimit;
+    private final int rezervaZilnica;
 
     public QuotaGuard(CounterStore store, ApiFootballProperties props, Clock clock) {
         this.store = store;
         this.clock = clock;
         this.dailyLimit = props.dailyRequestLimit();
+        this.rezervaZilnica = props.rezervaZilnica();
     }
 
     /** Rezerva un slot pe ziua curenta. {@code false} daca s-a atins limita (fara sa incrementeze). */
@@ -46,6 +48,19 @@ public class QuotaGuard {
 
     public long used() {
         return store.get(quotaKey()).map(Long::parseLong).orElse(0L);
+    }
+
+    /** Cate requesturi mai incap azi. Permite deciderea INAINTE de apel, nu prin exceptie. */
+    public long ramase() {
+        return Math.max(0, dailyLimit - used());
+    }
+
+    /**
+     * Are voie backfill-ul istoric sa mai consume? Doar peste {@code rezervaZilnica}, ca sa ramana
+     * mereu cota pentru meciurile recente si program — acelea sunt vizibile imediat in aplicatie.
+     */
+    public boolean bugetPesteRezerva() {
+        return ramase() > rezervaZilnica;
     }
 
     private String quotaKey() {

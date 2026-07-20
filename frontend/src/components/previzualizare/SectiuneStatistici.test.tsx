@@ -197,6 +197,39 @@ describe('SectiuneStatistici — meci terminat (badge ✓/✗)', () => {
   });
 });
 
+describe('SectiuneStatistici — meci terminat fara statistica (furnizor fara acoperire)', () => {
+  // Cazul real: Liga I 2026 raporta statistics_fixtures=false, deci faulturile/cornerele lipseau
+  // desi meciul se jucase. Inainte nu se randa NIMIC, deci arata identic cu un meci neinceput.
+  test('tabul Faulturi: stare neutra explicita, nu verdict si nu gol', async () => {
+    const user = userEvent.setup();
+    const { container } = randeaza(statistici({ rezultat: REZULTAT }));
+    await user.click(screen.getByRole('tab', { name: 'Faulturi' }));
+
+    expect(screen.getByText('Fără statistici la acest meci')).toBeInTheDocument();
+    expect(screen.getAllByText('– fără date').length).toBeGreaterThan(0);
+    // nu inventam un verdict din lipsa de date
+    expect(container.textContent).not.toContain('✓');
+    expect(container.textContent).not.toContain('✗');
+    expect(container.textContent).not.toContain('Rezultat real');
+  });
+
+  test('meci viitor: NU apare starea neutra (lipsa e asteptata)', () => {
+    const { container } = randeaza(statistici());
+    expect(container.textContent).not.toContain('Fără statistici la acest meci');
+    expect(screen.queryByText('– fără date')).toBeNull();
+  });
+
+  test('statistica prezenta: verdict normal, fara stare neutra', async () => {
+    const user = userEvent.setup();
+    const { container } = randeaza(statistici({ rezultat: REZULTAT }));
+    await user.click(screen.getByRole('tab', { name: 'Cornere' }));
+
+    expect(screen.getByText('Rezultat real: 9 cornere')).toBeInTheDocument();
+    expect(container.textContent).not.toContain('Fără statistici la acest meci');
+    expect(screen.queryByText('– fără date')).toBeNull();
+  });
+});
+
 describe('SectiuneStatistici — taburi', () => {
   test('comutarea pe Cornere afiseaza piata de cornere', async () => {
     const user = userEvent.setup();

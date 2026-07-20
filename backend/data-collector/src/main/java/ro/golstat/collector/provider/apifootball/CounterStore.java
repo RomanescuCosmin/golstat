@@ -13,6 +13,12 @@ public interface CounterStore {
 
     void set(String key, String value, Duration ttl);
 
+    /**
+     * Scrie fara TTL. Folosit de cursorul de backfill: progresul unei tinte terminate trebuie sa
+     * supravietuiasca oricat, altfel dupa expirare am relua colectarea unui sezon deja adus.
+     */
+    void set(String key, String value);
+
     /** Incrementeaza atomic (INCR) si intoarce noua valoare; cheia inexistenta porneste de la 0. */
     long increment(String key);
 

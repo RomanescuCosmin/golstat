@@ -7,6 +7,7 @@ import {
   idLigaEfectiv,
   logoLiga,
   numeLiga,
+  sorteazaCompetitii,
 } from './ligi';
 
 describe('numeLiga', () => {
@@ -62,6 +63,47 @@ describe('esteLogoPlaceholder', () => {
   test('ligile obisnuite si lipsa oricarui id nu sunt placeholder', () => {
     expect(esteLogoPlaceholder(39)).toBe(false);
     expect(esteLogoPlaceholder(null, null)).toBe(false);
+  });
+});
+
+describe('sorteazaCompetitii', () => {
+  const ids = (ligi: { leagueId: number }[]) => ligi.map((l) => l.leagueId);
+
+  test('top 5 campionate, apoi cupele, apoi restul, amicalele ultimele', () => {
+    const intrare = [
+      { leagueId: 667, nume: 'Amicale cluburi' },
+      { leagueId: 283, nume: 'Liga I' },
+      { leagueId: 135, nume: 'Serie A' },
+      { leagueId: 2, nume: 'UEFA Champions League' },
+      { leagueId: 39, nume: 'Premier League' },
+    ];
+    expect(ids(sorteazaCompetitii(intrare))).toEqual([39, 135, 2, 283, 667]);
+  });
+
+  test('stabila: ligile cu acelasi rang pastreaza ordinea de intrare (ora de start)', () => {
+    const intrare = [
+      { leagueId: 283, nume: 'Liga I' },
+      { leagueId: 203, nume: 'Süper Lig' },
+      { leagueId: 88, nume: 'Eredivisie' },
+    ];
+    expect(ids(sorteazaCompetitii(intrare))).toEqual([283, 203, 88]);
+  });
+
+  test('amicala cu id necunoscut e prinsa dupa nume', () => {
+    const intrare = [
+      { leagueId: 9999, nume: 'Club Friendlies' },
+      { leagueId: 283, nume: 'Liga I' },
+    ];
+    expect(ids(sorteazaCompetitii(intrare))).toEqual([283, 9999]);
+  });
+
+  test('nu muteaza lista primita', () => {
+    const intrare = [
+      { leagueId: 667, nume: 'Amicale cluburi' },
+      { leagueId: 39, nume: 'Premier League' },
+    ];
+    sorteazaCompetitii(intrare);
+    expect(ids(intrare)).toEqual([667, 39]);
   });
 });
 

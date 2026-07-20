@@ -26,7 +26,7 @@ class ApiFootballClientTest {
     private static final Clock CLOCK = Clock.fixed(Instant.parse("2026-07-03T10:00:00Z"), ZoneOffset.UTC);
 
     private static ApiFootballProperties props(int limit) {
-        return new ApiFootballProperties("http://api.test", "k", limit,
+        return new ApiFootballProperties("http://api.test", "k", limit, 0,
                 Duration.ofHours(6), Duration.ofHours(1), Duration.ofHours(24),
                 Duration.ofHours(20), Duration.ofDays(7), Duration.ofDays(7));
     }

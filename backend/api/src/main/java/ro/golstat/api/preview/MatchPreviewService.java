@@ -145,19 +145,7 @@ public class MatchPreviewService {
     /** Ferestrele unei echipe pentru analiza pe piete: ultimele {@value #FEREASTRA}, locatie + general. */
     private static FerestreEchipa ferestre(List<MatchSample> istoric, IstoricCounturi counturi,
                                            MatchLocation locatie) {
-        return new FerestreEchipa(
-                MatchWindow.lastN(istoric, FEREASTRA, locatie),
-                MatchWindow.lastN(istoric, FEREASTRA),
-                MatchWindow.lastN(counturi.cornere(), FEREASTRA, locatie),
-                MatchWindow.lastN(counturi.cornere(), FEREASTRA),
-                MatchWindow.lastN(counturi.faulturi(), FEREASTRA, locatie),
-                MatchWindow.lastN(counturi.faulturi(), FEREASTRA),
-                MatchWindow.lastN(counturi.cartonase(), FEREASTRA, locatie),
-                MatchWindow.lastN(counturi.cartonase(), FEREASTRA),
-                MatchWindow.lastN(counturi.suturi(), FEREASTRA, locatie),
-                MatchWindow.lastN(counturi.suturi(), FEREASTRA),
-                MatchWindow.lastN(counturi.suturiPePoarta(), FEREASTRA, locatie),
-                MatchWindow.lastN(counturi.suturiPePoarta(), FEREASTRA));
+        return StatisticiAvansateBuilder.ferestre(istoric, counturi, locatie, FEREASTRA);
     }
 
     /** P(egal la final) 0..1 din modelul de goluri al meciului; null cand predictia nu o are. */

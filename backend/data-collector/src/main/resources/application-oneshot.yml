@@ -1,0 +1,102 @@
+# Profil `oneshot`: colectare declansata din Windows Task Scheduler (vezi scripts/colectare-oneshot.ps1).
+# Un singur ciclu, apoi procesul iese — PC-ul poate reveni in sleep.
+# Ruleaza cu:  SPRING_PROFILES_ACTIVE=oneshot  si  API_FOOTBALL_KEY=<cheia_ta>
+# Fara secrete aici: cheia vine din env (${API_FOOTBALL_KEY}), deci fisierul e versionat.
+
+golstat:
+  api-football:
+    # Din cei 7500 (plan PRO), 1500 raman INTANGIBILI pentru tintele zilnice. Backfill-ul istoric
+    # de mai jos consuma doar restul, ca un sezon vechi sa nu lase programul de azi necolectat.
+    rezerva-zilnica: 1500
+  collection:
+    mod: one-shot
+    # ORDINEA = PRIORITATE. Etapa 1 (zilnic, fereastra rulanta) ruleaza intotdeauna inaintea etapei 2
+    # (backfill, fereastra absoluta), indiferent de ordinea din lista.
+    leagues:
+      # --- ZILNIC: fereastra rulanta din zile-in-urma/zile-inainte ---
+      # Amicalele au ~2100 de echipe: cu imbogatire pornita ar costa ~8400 requesturi (peste cota zilnica).
+      # `doar-fixtures` opreste inainte de detalii si de imbogatire → 3 requesturi in total.
+      # Lista acopera exact competitiile din frontend/src/lib/ligi.ts — o liga colectata dar neafisata
+      # ar arde cota degeaba, iar una afisata dar necolectata ar aparea goala in interfata.
+      - { league-id: 667, season: 2026, doar-fixtures: true }   # Amicale cluburi
+      - { league-id: 1,   season: 2026 }   # Campionatul Mondial
+      - { league-id: 283, season: 2026 }   # Romania - Liga I
+      - { league-id: 2,   season: 2026 }   # UEFA Champions League
+      - { league-id: 3,   season: 2026 }   # UEFA Europa League
+      - { league-id: 848, season: 2026 }   # UEFA Conference League
+      # Top 5 + restul campionatelor interne, sezonul CURENT (2026 = 2026/27, incepe in august).
+      # Acum, in extrasezon, costa doar catalogul (~5 req/liga/zi); creste cand incep meciurile.
+      - { league-id: 39,  season: 2026 }   # Premier League
+      - { league-id: 140, season: 2026 }   # La Liga
+      - { league-id: 135, season: 2026 }   # Serie A
+      - { league-id: 78,  season: 2026 }   # Bundesliga
+      - { league-id: 61,  season: 2026 }   # Ligue 1
+      - { league-id: 94,  season: 2026 }   # Primeira Liga
+      - { league-id: 88,  season: 2026 }   # Eredivisie
+      - { league-id: 144, season: 2026 }   # Jupiler Pro League
+      - { league-id: 203, season: 2026 }   # Super Lig
+      - { league-id: 197, season: 2026 }   # Super League Greaca
+      - { league-id: 113, season: 2026 }   # Allsvenskan (an calendaristic, joaca si vara)
+      - { league-id: 103, season: 2026 }   # Eliteserien (an calendaristic, joaca si vara)
+      - { league-id: 119, season: 2026 }   # Superliga daneza
+      # Ligile secunde: acelasi tratament, dar au mai multe echipe de imbogatit.
+      - { league-id: 40,  season: 2026 }   # Championship
+      - { league-id: 41,  season: 2026 }   # League One
+      - { league-id: 141, season: 2026 }   # Segunda Division
+      - { league-id: 136, season: 2026 }   # Serie B
+      - { league-id: 79,  season: 2026 }   # 2. Bundesliga
+      - { league-id: 62,  season: 2026 }   # Ligue 2
+      - { league-id: 89,  season: 2026 }   # Eerste Divisie
+
+      # --- BACKFILL sezonul trecut (2025 = 2025/26) ---
+      # `from`/`to` fac tinta istorica: fereastra proprie, independenta de cea rulanta.
+      # Datele stau intre GHILIMELE intentionat: nequotate, YAML le citeste ca timestamp
+      # (java.util.Date) si conversia spre LocalDate esueaza la pornire.
+      # Fereastra e larga intentionat (acopera si ligile de vara, ex. Allsvenskan/Eliteserien, care
+      # joaca in an calendaristic); nu costa nimic in plus — `/fixtures` e filtrat oricum pe league+season.
+      # Fiecare tinta terminata se marcheaza in Redis (golstat:backfill:<liga>:<sezon>) si nu se mai reia.
+      # Cost estimat ~1200 requesturi per liga mare → ~4-5 ligi pe zi la 6000 disponibili.
+      #
+      # NU sunt in lista, fiindca sezonul 2025 e DEJA colectat (verificat in Postgres pe 2026-07-20):
+      #   39 Premier League (380 meciuri), 140 La Liga (380), 135 Serie A (380), 40 Championship (558),
+      #   144 Jupiler Pro (321), 61 Ligue 1 (310), 88 Eredivisie (309), 78 Bundesliga (308),
+      #   plus 283 Liga I (321) si 218 Austria (195), care oricum se urmaresc zilnic.
+      # Le tinem afara din config (nu doar marcate in cursor) ca un flush de Redis sa nu declanseze
+      # o recolectare de ~9600 requesturi — mai mult decat cota pe o zi intreaga.
+      - { league-id: 94,  season: 2025, from: "2025-01-01", to: "2026-06-30" }   # Primeira Liga
+      - { league-id: 203, season: 2025, from: "2025-01-01", to: "2026-06-30" }   # Super Lig
+      - { league-id: 197, season: 2025, from: "2025-01-01", to: "2026-06-30" }   # Super League Greaca
+      - { league-id: 141, season: 2025, from: "2025-01-01", to: "2026-06-30" }   # Segunda Division
+      - { league-id: 136, season: 2025, from: "2025-01-01", to: "2026-06-30" }   # Serie B
+      - { league-id: 79,  season: 2025, from: "2025-01-01", to: "2026-06-30" }   # 2. Bundesliga
+      - { league-id: 62,  season: 2025, from: "2025-01-01", to: "2026-06-30" }   # Ligue 2
+      - { league-id: 113, season: 2025, from: "2025-01-01", to: "2026-06-30" }   # Allsvenskan
+      - { league-id: 103, season: 2025, from: "2025-01-01", to: "2026-06-30" }   # Eliteserien
+      - { league-id: 119, season: 2025, from: "2025-01-01", to: "2026-06-30" }   # Superliga daneza
+      - { league-id: 41,  season: 2025, from: "2025-01-01", to: "2026-06-30" }   # League One
+      - { league-id: 89,  season: 2025, from: "2025-01-01", to: "2026-06-30" }   # Eerste Divisie
+
+      # --- RECUPERARE sezon CURENT (2026) pentru ligile prinse la mijloc de sezon ---
+      # REGULA, valabila ori de cate ori adaugi o liga noua in lista zilnica: fereastra rulanta
+      # colecteaza doar de azi inainte, deci partea DEJA JUCATA a sezonului curent nu e ceruta de
+      # nimeni. Daca liga e in desfasurare cand o adaugi, ii trebuie si o tinta cu fereastra absoluta.
+      # Verificat la 2026-07-20 pe toate cele 26 de ligi: doar astea doua (an calendaristic, incep
+      # primavara) aveau meciuri jucate — restul incep in august cu 0. Allsvenskan avea 103 meciuri
+      # terminate la furnizor si 7 la noi; Eliteserien 105 si 0.
+      # Aceeasi liga+sezon apare deliberat SI zilnic SI aici: tinta de backfill aduce o singura data
+      # istoricul, apoi se marcheaza gata, iar cea zilnica o tine la zi mai departe.
+      - { league-id: 113, season: 2026, from: "2026-01-01", to: "2026-12-31" }   # Allsvenskan
+      - { league-id: 103, season: 2026, from: "2026-01-01", to: "2026-12-31" }   # Eliteserien
+
+    # Fereastra rulanta pentru tintele zilnice. 1 zi e suficient cat timp task-ul chiar ruleaza la 3 ore:
+    # colectorul largeste singur fereastra dupa o pauza (vezi UltimaRulare), deci nu pierdem meciuri
+    # daca laptopul sta inchis. O fereastra mare ar fi costat zilnic: detaliile per meci au TTL 24h,
+    # deci fiecare meci din fereastra se re-cere o data pe zi cat timp ramane in ea.
+    zile-in-urma: 1
+    # 30 de zile de program inainte. E GRATIS: acelasi apel /fixtures aduce si viitorul, iar meciurile
+    # ne-terminate sunt sarite de bucla de detalii (nu au evenimente/statistici de cerut). Cu 2 zile,
+    # ProgramPage — care cere 7 — ramanea aproape goala.
+    zile-inainte: 30
+  live:
+    # Bucla live n-are sens intr-un proces care ruleaza cateva minute si iese.
+    enabled: false

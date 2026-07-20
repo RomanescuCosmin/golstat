@@ -6,7 +6,7 @@ import java.util.Map;
 import java.util.Optional;
 
 /** {@link CounterStore} in-memory pentru teste: contor real (prinde bug-uri de numarare), TTL retinut. */
-class InMemoryCounterStore implements CounterStore {
+public class InMemoryCounterStore implements CounterStore {
 
     final Map<String, String> values = new HashMap<>();
     final Map<String, Duration> ttls = new HashMap<>();
@@ -20,6 +20,11 @@ class InMemoryCounterStore implements CounterStore {
     public void set(String key, String value, Duration ttl) {
         values.put(key, value);
         ttls.put(key, ttl);
+    }
+
+    @Override
+    public void set(String key, String value) {
+        values.put(key, value);
     }
 
     @Override

@@ -31,9 +31,9 @@ class LineupPrematchPollerTest {
     private final RecordingPublisher publisher = new RecordingPublisher();
 
     private LineupPrematchPoller poller() {
-        CollectionProperties collection = new CollectionProperties(List.of(
-                new LeagueTarget(39, 2025, false, true, false, false),
-                new LeagueTarget(667, 2026, true, true, false, false)),   // amicale: doar fixtures → fara lineups
+        CollectionProperties collection = CollectionProperties.scheduled(List.of(
+                LeagueTarget.zilnica(39, 2025, false, true, false, false),
+                LeagueTarget.zilnica(667, 2026, true, true, false, false)),   // amicale: doar fixtures → fara lineups
                 90, 10);
         LiveProperties props = new LiveProperties(true, 15000, 180, 15, 120000, List.of(), 70);
         return new LineupPrematchPoller(provider, publisher, collection, props,

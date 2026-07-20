@@ -1,4 +1,4 @@
-import type { MeciCentral, MeciLive, PaginaCompetitie, PaginaEchipa, PaginaJucator, PredictieMeciDto, PrevizualizareMeciDto, Program, ProgramZiGrupat, RezultatCautare, StatisticiLiga } from './types';
+import type { MeciCentral, MeciLive, PaginaCompetitie, PaginaEchipa, PaginaJucator, PieteZile, PredictieMeciDto, PrevizualizareMeciDto, Program, ProgramZiGrupat, RezultatCautare, StatisticiLiga } from './types';
 
 const BASE = '/api';
 
@@ -110,4 +110,9 @@ export function getStatisticiLigi(): Promise<StatisticiLiga[]> {
 /** Profilul unui jucător: identitate + statistici pe sezoane. */
 export function getJucator(playerId: number): Promise<PaginaJucator> {
   return request<PaginaJucator>(`/v1/jucatori/${playerId}`);
+}
+
+/** Probabilitățile pe piețe ale meciurilor din următoarele `zile` zile (1–7), grupate pe zi. */
+export function getPieteZile(zile = 3): Promise<PieteZile> {
+  return request<PieteZile>(`/v1/piete/zile?zile=${zile}`);
 }

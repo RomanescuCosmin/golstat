@@ -38,8 +38,8 @@ class LivePollerTest {
     }
 
     private LivePoller poller(LiveProperties props) {
-        CollectionProperties collection = new CollectionProperties(
-                List.of(new LeagueTarget(39, 2025, false, true, false, false), new LeagueTarget(1, 2026, false, true, false, false)), 90, 10);
+        CollectionProperties collection = CollectionProperties.scheduled(
+                List.of(LeagueTarget.zilnica(39, 2025, false, true, false, false), LeagueTarget.zilnica(1, 2026, false, true, false, false)), 90, 10);
         return new LivePoller(provider, publisher, schedule, props, collection, clock);
     }
 

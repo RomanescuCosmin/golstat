@@ -49,6 +49,9 @@ export function TopNav() {
           <NavLink to="/statistici" className={tabClasa}>
             Statistici
           </NavLink>
+          <NavLink to="/piete" className={tabClasa}>
+            Piețe
+          </NavLink>
           <NavLink to="/echipe" className={tabClasa}>
             Echipe
           </NavLink>

@@ -9,14 +9,17 @@ import ro.golstat.api.preview.StatisticiAvansateDto.PiataDto;
 import ro.golstat.api.preview.StatisticiAvansateDto.ReprizeDto;
 import ro.golstat.api.preview.StatisticiAvansateDto.RezultatDto;
 import ro.golstat.api.stats.CountLeagueAverages;
+import ro.golstat.api.stats.IstoricCounturi;
 import ro.golstat.stats.cards.CardMarket;
 import ro.golstat.stats.counts.EventLineBlend;
+import ro.golstat.stats.form.MatchWindow;
 import ro.golstat.stats.form.WindowCounts;
 import ro.golstat.stats.goals.GoalLineBlend;
 import ro.golstat.stats.goals.GoalLineStats;
 import ro.golstat.stats.goals.HalfMarkets;
 import ro.golstat.stats.market.EventLineStats;
 import ro.golstat.stats.model.EventCountSample;
+import ro.golstat.stats.model.MatchLocation;
 import ro.golstat.stats.model.MatchSample;
 
 import java.util.Arrays;
@@ -31,12 +34,12 @@ import java.util.stream.Stream;
  * {@link WindowCounts}. Ferestrele "locatie" ale ambelor echipe, concatenate, dau fereastra
  * modelului pe meci.
  */
-final class StatisticiAvansateBuilder {
+public final class StatisticiAvansateBuilder {
 
-    static final double[] LINII_GOLURI = {1.5, 2.5, 3.5};
-    static final double[] LINII_CORNERE = {7.5, 8.5, 9.5, 10.5};
-    static final double[] LINII_FAULTURI = EventLineBlend.STANDARD_FOUL_LINES;
-    static final double[] LINII_CARTONASE = CardMarket.STANDARD_LINES;
+    public static final double[] LINII_GOLURI = {1.5, 2.5, 3.5};
+    public static final double[] LINII_CORNERE = {7.5, 8.5, 9.5, 10.5};
+    public static final double[] LINII_FAULTURI = EventLineBlend.STANDARD_FOUL_LINES;
+    public static final double[] LINII_CARTONASE = CardMarket.STANDARD_LINES;
     static final double[] LINII_SUTURI = {22.5, 24.5, 26.5};
     static final double[] LINII_SUTURI_POARTA = {7.5, 8.5, 9.5};
     /** Dispersiile Negative Binomial calibrate in stats-engine (vezi EventLineBlendTest / CardMarketTest). */
@@ -48,7 +51,7 @@ final class StatisticiAvansateBuilder {
     static final int K = 3;
 
     /** Ferestrele unei echipe: goluri + counturi, fiecare pe locatie si general. */
-    record FerestreEchipa(
+    public record FerestreEchipa(
             List<MatchSample> goluriLocatie,
             List<MatchSample> goluriGeneral,
             List<EventCountSample> cornereLocatie,
@@ -68,12 +71,33 @@ final class StatisticiAvansateBuilder {
     }
 
     /**
+     * Ferestrele unei echipe din istoricul ei deja incarcat: ultimele {@code fereastra} meciuri pe
+     * {@code locatie} si ultimele {@code fereastra} generale, pentru fiecare piata.
+     */
+    public static FerestreEchipa ferestre(List<MatchSample> istoric, IstoricCounturi counturi,
+                                          MatchLocation locatie, int fereastra) {
+        return new FerestreEchipa(
+                MatchWindow.lastN(istoric, fereastra, locatie),
+                MatchWindow.lastN(istoric, fereastra),
+                MatchWindow.lastN(counturi.cornere(), fereastra, locatie),
+                MatchWindow.lastN(counturi.cornere(), fereastra),
+                MatchWindow.lastN(counturi.faulturi(), fereastra, locatie),
+                MatchWindow.lastN(counturi.faulturi(), fereastra),
+                MatchWindow.lastN(counturi.cartonase(), fereastra, locatie),
+                MatchWindow.lastN(counturi.cartonase(), fereastra),
+                MatchWindow.lastN(counturi.suturi(), fereastra, locatie),
+                MatchWindow.lastN(counturi.suturi(), fereastra),
+                MatchWindow.lastN(counturi.suturiPePoarta(), fereastra, locatie),
+                MatchWindow.lastN(counturi.suturiPePoarta(), fereastra));
+    }
+
+    /**
      * {@code egalFinalModel} = P(egal) 0..1 din modelul de goluri al meciului; null daca lipseste.
      * {@code rezultat} = totalurile reale ale meciului (doar la meciuri terminate), pentru hit/miss.
      */
-    static StatisticiAvansateDto build(FerestreEchipa gazde, FerestreEchipa oaspeti,
-                                       CountLeagueAverages mediiCounturi, double mediaGoluriLiga,
-                                       double factorArbitru, Double egalFinalModel, RezultatDto rezultat) {
+    public static StatisticiAvansateDto build(FerestreEchipa gazde, FerestreEchipa oaspeti,
+                                              CountLeagueAverages mediiCounturi, double mediaGoluriLiga,
+                                              double factorArbitru, Double egalFinalModel, RezultatDto rezultat) {
         GoalLineStats modelGoluri = GoalLineBlend.of(
                 concat(gazde.goluriLocatie(), oaspeti.goluriLocatie()), mediaGoluriLiga, LINII_GOLURI);
         return new StatisticiAvansateDto(

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { ApiError, getProgram } from '../api/client';
 import type { Program } from '../api/types';
 import { PageLayout } from '../components/layout/PageLayout';
+import { BandaZileProgram } from '../components/program/BandaZileProgram';
 import { SectiuneProgram } from '../components/program/SectiuneProgram';
 import { Card } from '../components/ui/Card';
 import { EmptyState } from '../components/ui/EmptyState';
@@ -13,6 +14,7 @@ export function ProgramPage() {
   const [loading, setLoading] = useState(true);
   const [eroare, setEroare] = useState<ApiError | null>(null);
   const [incercare, setIncercare] = useState(0);
+  const [ziSelectata, setZiSelectata] = useState<string | null>(null);
 
   useEffect(() => {
     let anulat = false;
@@ -20,7 +22,11 @@ export function ProgramPage() {
     setEroare(null);
     getProgram(7)
       .then((rezultat) => {
-        if (!anulat) setProgram(rezultat);
+        if (!anulat) {
+          setProgram(rezultat);
+          // Deschidem direct pe ziua cea mai apropiata, ca sa nu curga toate cele 7 zile.
+          setZiSelectata(rezultat.zile[0]?.data ?? null);
+        }
       })
       .catch((e: unknown) => {
         if (!anulat) {
@@ -37,13 +43,22 @@ export function ProgramPage() {
   }, [incercare]);
 
   const zile = program?.zile ?? [];
+  const zileAfisate = ziSelectata == null ? zile : zile.filter((z) => z.data === ziSelectata);
 
   return (
     <PageLayout>
       <div className="mb-5">
         <h1 className="text-2xl font-extrabold text-ink">Program</h1>
-        <p className="text-sm text-ink2">Meciuri viitoare din toate competițiile urmărite, pe următoarele 7 zile.</p>
+        <p className="text-sm text-ink2">
+          Meciuri viitoare din toate competițiile urmărite, pe următoarele 7 zile. Alege o zi din bandă.
+        </p>
       </div>
+
+      {!loading && !eroare && zile.length > 0 && (
+        <div className="mb-5">
+          <BandaZileProgram zile={zile} selectata={ziSelectata} onSelect={setZiSelectata} />
+        </div>
+      )}
 
       {loading && (
         <div className="space-y-8">
@@ -74,9 +89,15 @@ export function ProgramPage() {
         </Card>
       )}
 
-      {!loading && !eroare && zile.length > 0 && (
+      {!loading && !eroare && zile.length > 0 && zileAfisate.length === 0 && (
+        <Card>
+          <EmptyState titlu="Niciun meci în ziua selectată" mesaj="Alege altă zi din bandă sau vezi toate zilele." />
+        </Card>
+      )}
+
+      {!loading && !eroare && zileAfisate.length > 0 && (
         <div className="animate-fade-in space-y-8">
-          {zile.map((zi) => (
+          {zileAfisate.map((zi) => (
             <SectiuneProgram key={zi.data} zi={zi} />
           ))}
         </div>

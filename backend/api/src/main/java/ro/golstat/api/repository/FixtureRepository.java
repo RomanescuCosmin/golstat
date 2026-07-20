@@ -30,6 +30,22 @@ public interface FixtureRepository extends JpaRepository<Fixture, Long> {
                                     Pageable pageable);
 
     /**
+     * Ca {@link #findRecentForTeam}, dar pentru MULTE echipe intr-un singur query — istoricul comun
+     * al unei ferestre intregi de zile. Fara limita per echipa (taierea la ultimele N si filtrul pe
+     * kickoff-ul fiecarui meci se fac in Java, altfel ar trebui un query per echipa).
+     */
+    @Query("""
+            select f from Fixture f
+            where (f.homeTeamId in :teamIds or f.awayTeamId in :teamIds)
+              and f.statusShort in :terminal
+              and f.kickoff < :before
+            order by f.kickoff desc
+            """)
+    List<Fixture> findTerminalForTeams(@Param("teamIds") Collection<Long> teamIds,
+                                       @Param("terminal") Collection<String> terminal,
+                                       @Param("before") OffsetDateTime before);
+
+    /**
      * Media golurilor marcate de gazde / de oaspeti pe o liga/sezon, doar din meciuri TERMINALE.
      * Preferam scorul la 90 min ({@code scoreFt}), altfel {@code goals} (aceeasi logica ca la mapare).
      * Fara meciuri terminale → ambele getter-e {@code null}.

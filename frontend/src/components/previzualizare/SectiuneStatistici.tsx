@@ -11,7 +11,7 @@ import type {
   RezultatStatisticiDto,
   StatisticiAvansateDto,
 } from '../../api/types';
-import { useGrowOnMount } from '../../hooks/useAnimatii';
+import { BaraProbabilitatePiata as BaraProbabilitate } from '../ui/BaraProbabilitatePiata';
 import { numeEchipa } from '../../lib/echipa';
 import { formatRata } from '../../lib/format';
 import { Badge } from '../ui/Badge';
@@ -43,30 +43,22 @@ function RezultatBadge({
 }
 
 /**
+ * Meci terminat, dar furnizorul n-are statistica (ex. cornere la un sezon fără acoperire). Fără badge-ul
+ * ăsta lipsa de date arăta identic cu un meci neînceput — și se putea citi greșit ca verdict negativ.
+ */
+function FaraDateBadge() {
+  return (
+    <Badge variant="neutral" className="shrink-0">
+      – fără date
+    </Badge>
+  );
+}
+
+/**
  * Secțiunea centrală „Statistici": analiza pe piețe a meciului, pe ultimele 7 meciuri —
  * gazdele ACASĂ și oaspeții în DEPLASARE — cu probabilitatea modelată per linie (bară custom)
  * și frecvențele empirice per echipă (banda de 7 puncte), plus legenda explicită.
  */
-
-/** Bară de probabilitate custom: umplere gradient + marker la 50%. Fără istoric rămâne goală. */
-function BaraProbabilitate({ rata, areIstoric = true }: { rata: number; areIstoric?: boolean }) {
-  const montat = useGrowOnMount();
-  const procent = Number.isFinite(rata) ? Math.max(0, Math.min(100, rata * 100)) : 0;
-  const puternica = procent >= 50;
-  return (
-    <div className="relative h-3 flex-1 overflow-hidden rounded-full bg-ink2/10 dark:bg-ink2/15">
-      {areIstoric && (
-        <div
-          className={`h-full rounded-full bg-gradient-to-r transition-[width] duration-700 ease-out motion-reduce:transition-none ${
-            puternica ? 'from-primary/60 to-primary' : 'from-draw/60 to-draw'
-          }`}
-          style={{ width: montat ? `${procent}%` : '0%' }}
-        />
-      )}
-      <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-ink2/30" aria-hidden />
-    </div>
-  );
-}
 
 /** Banda celor (max) 7 meciuri: puncte pline = reușite. */
 function PuncteFrecventa({ frecventa, plin }: { frecventa: FrecventaDto; plin: string }) {
@@ -106,6 +98,7 @@ function RandLinie({
   descriere,
   echipe,
   actual,
+  meciTerminat = false,
   etichetaDa = 'Peste',
   etichetaNu = 'Sub',
 }: {
@@ -118,8 +111,10 @@ function RandLinie({
   /** ex. "peste 9.5 cornere" — intră în legenda "în X/7 meciuri acasă". */
   descriere: string;
   echipe: ContextEchipe;
-  /** La meci terminat: s-a produs evenimentul (peste linie / egal / gol)? `null`/undefined = fără badge. */
+  /** La meci terminat: s-a produs evenimentul (peste linie / egal / gol)? `null`/undefined = fără verdict. */
   actual?: boolean | null;
+  /** Meciul s-a jucat: `actual` lipsă înseamnă statistică indisponibilă, nu meci viitor. */
+  meciTerminat?: boolean;
   etichetaDa?: string;
   etichetaNu?: string;
 }) {
@@ -136,9 +131,11 @@ function RandLinie({
         >
           {formatRata(rata)}
         </span>
-        {actual != null && (
+        {actual != null ? (
           <RezultatBadge rata={rata} actual={actual} etichetaDa={etichetaDa} etichetaNu={etichetaNu} />
-        )}
+        ) : meciTerminat ? (
+          <FaraDateBadge />
+        ) : null}
       </div>
       <div className="mt-2 grid gap-x-6 gap-y-1 sm:grid-cols-2">
         <div className="flex min-w-0 items-center justify-between gap-2">
@@ -216,6 +213,7 @@ function CardPiata({
   piata,
   echipe,
   totalReal,
+  meciTerminat = false,
   children,
 }: {
   titlu: string;
@@ -223,17 +221,23 @@ function CardPiata({
   piata: PiataStatDto;
   echipe: ContextEchipe;
   totalReal?: number | null;
+  /** Meciul s-a jucat: `totalReal` lipsă înseamnă statistică indisponibilă, nu meci viitor. */
+  meciTerminat?: boolean;
   children?: ReactNode;
 }) {
   return (
     <Card className="h-full p-5">
       <div className="flex items-start justify-between gap-3">
         <h3 className="text-base font-bold text-ink">{titlu}</h3>
-        {totalReal != null && (
+        {totalReal != null ? (
           <span className="shrink-0 rounded-md bg-ink2/10 px-2 py-0.5 text-xs font-semibold text-ink dark:bg-ink2/15">
             Rezultat real: {totalReal} {unitate}
           </span>
-        )}
+        ) : meciTerminat ? (
+          <span className="shrink-0 rounded-md bg-ink2/10 px-2 py-0.5 text-xs font-semibold text-ink2 dark:bg-ink2/15">
+            Fără statistici la acest meci
+          </span>
+        ) : null}
       </div>
       <MediiPiata medii={piata} echipe={echipe} unitate={unitate} />
       <div className="mt-2">
@@ -249,6 +253,7 @@ function CardPiata({
             descriere={`peste ${linie.linie} ${unitate}`}
             echipe={echipe}
             actual={totalReal != null ? totalReal > linie.linie : null}
+            meciTerminat={meciTerminat}
           />
         ))}
         {children}
@@ -405,7 +410,7 @@ export function SectiuneStatistici({ statistici, gazde, oaspeti }: SectiuneStati
       case 'goluri':
         return (
           <CardPiata titlu="Goluri" unitate="goluri" piata={statistici.goluri} echipe={echipe}
-            totalReal={rezultat?.totalGoluri} />
+            totalReal={rezultat?.totalGoluri} meciTerminat={rezultat != null} />
         );
       case 'egaluri':
         return statistici.egaluri || statistici.reprize ? (
@@ -422,27 +427,27 @@ export function SectiuneStatistici({ statistici, gazde, oaspeti }: SectiuneStati
       case 'cornere':
         return (
           <CardPiata titlu="Cornere" unitate="cornere" piata={statistici.cornere} echipe={echipe}
-            totalReal={rezultat?.totalCornere} />
+            totalReal={rezultat?.totalCornere} meciTerminat={rezultat != null} />
         );
       case 'cartonase':
         return (
           <CardPiata titlu="Cartonașe" unitate="cartonașe" piata={statistici.cartonase} echipe={echipe}
-            totalReal={rezultat?.totalCartonase} />
+            totalReal={rezultat?.totalCartonase} meciTerminat={rezultat != null} />
         );
       case 'faulturi':
         return (
           <CardPiata titlu="Faulturi" unitate="faulturi" piata={statistici.faulturi} echipe={echipe}
-            totalReal={rezultat?.totalFaulturi} />
+            totalReal={rezultat?.totalFaulturi} meciTerminat={rezultat != null} />
         );
       case 'suturi':
         return (
           <CardPiata titlu="Șuturi" unitate="șuturi" piata={statistici.suturi} echipe={echipe}
-            totalReal={rezultat?.totalSuturi} />
+            totalReal={rezultat?.totalSuturi} meciTerminat={rezultat != null} />
         );
       case 'suturiPePoarta':
         return (
           <CardPiata titlu="Șuturi pe poartă" unitate="șuturi pe poartă" piata={statistici.suturiPePoarta}
-            echipe={echipe} totalReal={rezultat?.totalSuturiPePoarta} />
+            echipe={echipe} totalReal={rezultat?.totalSuturiPePoarta} meciTerminat={rezultat != null} />
         );
       default:
         return null;
