@@ -27,7 +27,7 @@ class ApiFootballClientTest {
 
     private static ApiFootballProperties props(int limit) {
         return new ApiFootballProperties("http://api.test", "k", limit, 0,
-                Duration.ofHours(6), Duration.ofHours(1), Duration.ofHours(24),
+                Duration.ofHours(6), Duration.ofHours(1), Duration.ofHours(24), Duration.ofMinutes(15),
                 Duration.ofHours(20), Duration.ofDays(7), Duration.ofDays(7));
     }
 
@@ -113,6 +113,63 @@ class ApiFootballClientTest {
 
         ApiFootballClient client = new ApiFootballClient(props(100), builder, store, quota);
         client.get("/fixtures", Map.of("league", 39), FixtureItem.class, Duration.ofHours(24));
+
+        String cacheKey = store.values.keySet().stream()
+                .filter(k -> k.startsWith("golstat:af:cache:")).findFirst().orElseThrow();
+        assertEquals(Duration.ofHours(24), store.ttls.get(cacheKey));
+    }
+
+    @Test
+    void raspunsGol_cacheuitCuTtlScurt() {
+        InMemoryCounterStore store = new InMemoryCounterStore();
+        QuotaGuard quota = new QuotaGuard(store, props(100), CLOCK);
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        server.expect(ExpectedCount.once(), requestTo("http://api.test/fixtures/statistics?fixture=215"))
+                .andRespond(withSuccess("{\"response\":[]}", MediaType.APPLICATION_JSON));
+
+        ApiFootballClient client = new ApiFootballClient(props(100), builder, store, quota);
+        client.get("/fixtures/statistics", Map.of("fixture", 215), StatisticsItem.class,
+                Duration.ofHours(24), Duration.ofMinutes(15));
+
+        String cacheKey = store.values.keySet().stream()
+                .filter(k -> k.startsWith("golstat:af:cache:")).findFirst().orElseThrow();
+        assertEquals(Duration.ofMinutes(15), store.ttls.get(cacheKey),
+                "golul se cache-uieste cu TTL-ul scurt, nu cu cel istoric");
+    }
+
+    @Test
+    void raspunsGol_ttlGolZero_nuSeCacheuieste() {
+        InMemoryCounterStore store = new InMemoryCounterStore();
+        QuotaGuard quota = new QuotaGuard(store, props(100), CLOCK);
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        server.expect(ExpectedCount.twice(), requestTo("http://api.test/fixtures/statistics?fixture=215"))
+                .andRespond(withSuccess("{\"response\":[]}", MediaType.APPLICATION_JSON));
+
+        ApiFootballClient client = new ApiFootballClient(props(100), builder, store, quota);
+        client.get("/fixtures/statistics", Map.of("fixture", 215), StatisticsItem.class,
+                Duration.ofHours(24), Duration.ZERO);
+        client.get("/fixtures/statistics", Map.of("fixture", 215), StatisticsItem.class,
+                Duration.ofHours(24), Duration.ZERO);
+
+        server.verify();   // golul nu s-a cache-uit → al doilea apel loveste HTTP
+        boolean anythingCached = store.values.keySet().stream().anyMatch(k -> k.startsWith("golstat:af:cache:"));
+        assertFalse(anythingCached);
+    }
+
+    @Test
+    void raspunsPlin_cuTtlGol_folosesteTtlNormal() {
+        InMemoryCounterStore store = new InMemoryCounterStore();
+        QuotaGuard quota = new QuotaGuard(store, props(100), CLOCK);
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        server.expect(ExpectedCount.once(), requestTo("http://api.test/fixtures?league=39"))
+                .andRespond(withSuccess(FIXTURES_JSON, MediaType.APPLICATION_JSON));
+
+        ApiFootballClient client = new ApiFootballClient(props(100), builder, store, quota);
+        client.get("/fixtures", Map.of("league", 39), FixtureItem.class,
+                Duration.ofHours(24), Duration.ofMinutes(15));
 
         String cacheKey = store.values.keySet().stream()
                 .filter(k -> k.startsWith("golstat:af:cache:")).findFirst().orElseThrow();

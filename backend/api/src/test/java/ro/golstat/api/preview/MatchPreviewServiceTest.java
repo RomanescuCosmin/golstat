@@ -18,6 +18,7 @@ import ro.golstat.api.prediction.PredictieMeciDto.ProcentCota;
 import ro.golstat.api.prediction.PredictionNotFoundException;
 import ro.golstat.api.prediction.PredictionService;
 import ro.golstat.api.preview.StatisticiAvansateDto.FrecventaDto;
+import ro.golstat.api.repository.FixtureEventRepository;
 import ro.golstat.api.repository.FixtureLineupPlayerRepository;
 import ro.golstat.api.repository.FixtureLineupRepository;
 import ro.golstat.api.repository.FixtureRepository;
@@ -79,6 +80,7 @@ class MatchPreviewServiceTest {
     @Mock InjuryRepository injuries;
     @Mock PlayerRepository players;
     @Mock FixtureTeamStatsRepository teamStats;
+    @Mock FixtureEventRepository events;
     @InjectMocks MatchPreviewService service;
 
     private static MatchSample sample(int day, boolean home, int gf, int ga) {
@@ -508,6 +510,59 @@ class MatchPreviewServiceTest {
         assertTrue(rezultat.egalFinal());
         assertNull(rezultat.totalCornere());
         assertNull(rezultat.totalCartonase());
+    }
+
+    @Test
+    void previzualizare_faraStatisticiDarCuEvenimente_cartonaseleVinDinCronologie() {
+        // Cazul real Rapid - Sepsi (Liga I 2026): furnizorul n-a publicat statistici de echipa, dar a
+        // publicat evenimentele. Cartonasele sunt deci cunoscute si nu mai afisam "fara date"; cornerele
+        // si faulturile raman null — nu exista ca evenimente, deci chiar nu le stim.
+        when(predictions.predict(100L)).thenReturn(Optional.of(predictie()));
+        Fixture meci = nsFixture();
+        meci.setStatusShort(GolstatConstants.FixtureStatus.FINISHED);
+        meci.setScoreFtHome(1);
+        meci.setScoreFtAway(0);
+        meci.setScoreHtHome(0);
+        meci.setScoreHtAway(0);
+        when(fixtures.findById(100L)).thenReturn(Optional.of(meci));
+        when(statsHistory.istoric(anyLong(), any(), anyInt())).thenReturn(IstoricCounturi.gol());
+        when(countAverages.averages(any(), any())).thenReturn(new CountLeagueAverages(10.0, 24.0, 4.0, 25.0, 9.0));
+        when(leagueAverages.averages(anyLong(), anyInt())).thenReturn(new LeagueAverages(1.5, 1.1));
+        when(referees.factor(any(), anyDouble())).thenReturn(RefereeFactor.NEUTRAL);
+        when(history.lastMatches(anyLong(), any(), anyInt())).thenReturn(List.of());
+        when(fixtures.findHeadToHead(anyLong(), anyLong(), any(), any(), any())).thenReturn(List.of());
+        when(teams.findAllById(any())).thenReturn(List.of());
+        when(teamStats.findByFixtureIdIn(List.of(100L))).thenReturn(List.of());
+        when(events.countCards(100L, GolstatConstants.EventType.CARD)).thenReturn(6L);
+
+        StatisticiAvansateDto.RezultatDto rezultat = service.previzualizare(100L).statistici().rezultat();
+
+        assertEquals(6, rezultat.totalCartonase());
+        assertNull(rezultat.totalCornere(), "cornerele nu se pot deduce din evenimente");
+        assertNull(rezultat.totalFaulturi(), "faulturile nu se pot deduce din evenimente");
+    }
+
+    @Test
+    void previzualizare_faraStatisticiSiFaraEvenimente_cartonaseleRamanNecunoscute() {
+        // Zero evenimente inseamna cronologie necolectata, NU un meci fara cartonase — altfel am
+        // afisa "0 cartonase" cu incredere la un meci despre care nu stim nimic.
+        when(predictions.predict(100L)).thenReturn(Optional.of(predictie()));
+        Fixture meci = nsFixture();
+        meci.setStatusShort(GolstatConstants.FixtureStatus.FINISHED);
+        meci.setScoreFtHome(0);
+        meci.setScoreFtAway(0);
+        when(fixtures.findById(100L)).thenReturn(Optional.of(meci));
+        when(statsHistory.istoric(anyLong(), any(), anyInt())).thenReturn(IstoricCounturi.gol());
+        when(countAverages.averages(any(), any())).thenReturn(new CountLeagueAverages(10.0, 24.0, 4.0, 25.0, 9.0));
+        when(leagueAverages.averages(anyLong(), anyInt())).thenReturn(new LeagueAverages(1.5, 1.1));
+        when(referees.factor(any(), anyDouble())).thenReturn(RefereeFactor.NEUTRAL);
+        when(history.lastMatches(anyLong(), any(), anyInt())).thenReturn(List.of());
+        when(fixtures.findHeadToHead(anyLong(), anyLong(), any(), any(), any())).thenReturn(List.of());
+        when(teams.findAllById(any())).thenReturn(List.of());
+        when(teamStats.findByFixtureIdIn(List.of(100L))).thenReturn(List.of());
+        when(events.countCards(100L, GolstatConstants.EventType.CARD)).thenReturn(0L);
+
+        assertNull(service.previzualizare(100L).statistici().rezultat().totalCartonase());
     }
 
     private static FixtureLineup lineup(long teamId, String formatie, Long coachId) {

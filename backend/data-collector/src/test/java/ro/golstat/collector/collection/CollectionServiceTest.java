@@ -267,7 +267,7 @@ class CollectionServiceTest {
         // /fixtures/statistics intorcea cornere/faulturi). Sonda pe primul meci trebuie sa o infirme.
         StatusProvider provider = new StatusProvider();
         provider.acoperire = acoperire2026(false, false);
-        provider.alDoileaTerminat = true;
+        provider.meciuriTerminate = 2;
         RecordingPublisher pub = collect(provider, LeagueTarget.zilnica(1, 2026, false, true, true, false));
 
         assertEquals(List.of(200L, 202L), provider.statsAskedFor, "sonda a reusit → cerem pentru toate");
@@ -277,18 +277,21 @@ class CollectionServiceTest {
 
     @Test
     void coverageFalse_siChiarNuExistaDate_sondaOpresteRestulLigii() {
-        // Cazul in care acoperirea are dreptate (ex. amicale): platim UN request de sonda, nu unul per meci.
+        // Cazul in care acoperirea are dreptate (ex. amicale): platim cel mult MAX_SONDE_GOALE requesturi
+        // de sonda, nu unul per meci — un singur meci cu date intarziate nu decide pentru toata liga.
         StatusProvider provider = new StatusProvider();
         provider.acoperire = acoperire2026(false, false);
-        provider.alDoileaTerminat = true;
+        provider.meciuriTerminate = 4;
         provider.statsAvailable = false;
         provider.playerStatsAvailable = false;
         RecordingPublisher pub = collect(provider, LeagueTarget.zilnica(1, 2026, false, true, true, false));
 
-        assertEquals(List.of(200L), provider.statsAskedFor, "sonda a esuat → nu mai insistam pe restul ligii");
-        assertEquals(List.of(200L), provider.playerStatsAskedFor);
+        assertEquals(List.of(200L, 202L, 203L), provider.statsAskedFor,
+                "3 sonde goale → nu mai insistam pe restul ligii");
+        assertEquals(List.of(200L, 202L, 203L), provider.playerStatsAskedFor);
         assertEquals(0, pub.countOn(GolstatConstants.KafkaTopics.FIXTURE_TEAM_STATS));
-        assertEquals(List.of(200L, 202L), provider.eventsAskedFor, "evenimentele raman cerute pentru toate");
+        assertEquals(List.of(200L, 202L, 203L, 204L), provider.eventsAskedFor,
+                "evenimentele raman cerute pentru toate");
     }
 
     @Test
@@ -440,8 +443,9 @@ class CollectionServiceTest {
         boolean statsAvailable = true;
         boolean lineupsAvailable = true;
         boolean playerStatsAvailable = true;
-        /** Adauga un al doilea meci terminat (202) — necesar ca sa se vada daca sonda opreste restul ligii. */
-        boolean alDoileaTerminat = false;
+        /** Cate meciuri terminate intoarce fixtures() (ids 200, 202, 203...) — necesar ca sa se vada
+         *  cand sonda opreste restul ligii. */
+        int meciuriTerminate = 1;
         /** Acoperirea sezonului 2026 raportata de furnizor; null = necunoscuta (lista de sezoane goala). */
         SeasonDto acoperire;
 
@@ -463,13 +467,13 @@ class CollectionServiceTest {
 
         @Override
         public List<FixtureDto> fixtures(long leagueId, int season, LocalDate from, LocalDate to) {
-            if (alDoileaTerminat) {
-                return List.of(fixture(200, GolstatConstants.FixtureStatus.FINISHED),
-                        fixture(201, GolstatConstants.FixtureStatus.NOT_STARTED),
-                        fixture(202, GolstatConstants.FixtureStatus.FINISHED));
+            List<FixtureDto> lista = new ArrayList<>();
+            lista.add(fixture(200, GolstatConstants.FixtureStatus.FINISHED));
+            lista.add(fixture(201, GolstatConstants.FixtureStatus.NOT_STARTED));
+            for (int i = 2; i <= meciuriTerminate; i++) {
+                lista.add(fixture(200 + i, GolstatConstants.FixtureStatus.FINISHED));
             }
-            return List.of(fixture(200, GolstatConstants.FixtureStatus.FINISHED),
-                    fixture(201, GolstatConstants.FixtureStatus.NOT_STARTED));
+            return lista;
         }
 
         @Override

@@ -18,7 +18,7 @@ class QuotaGuardTest {
 
     private static ApiFootballProperties props(int limit) {
         return new ApiFootballProperties("http://api.test", "k", limit, 0,
-                Duration.ofHours(6), Duration.ofHours(1), Duration.ofHours(24),
+                Duration.ofHours(6), Duration.ofHours(1), Duration.ofHours(24), Duration.ofMinutes(15),
                 Duration.ofHours(20), Duration.ofDays(7), Duration.ofDays(7));
     }
 

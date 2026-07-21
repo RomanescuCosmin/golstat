@@ -3,11 +3,9 @@ package ro.golstat.api.statistici;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ro.golstat.api.entity.League;
-import ro.golstat.api.entity.Season;
 import ro.golstat.api.repository.FixtureRepository;
 import ro.golstat.api.repository.FixtureTeamStatsRepository;
 import ro.golstat.api.repository.LeagueRepository;
-import ro.golstat.api.repository.SeasonRepository;
 import ro.golstat.api.stats.CountAverage;
 import ro.golstat.api.stats.GoalAverage;
 import ro.golstat.api.stats.LeagueAverageService;
@@ -17,6 +15,7 @@ import ro.golstat.common.GolstatConstants.FixtureStatus;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * Clasamentul de tendinte pe ligi al paginii Statistici: pentru fiecare mare competitie europeana,
@@ -26,41 +25,44 @@ import java.util.Objects;
 @Transactional(readOnly = true)
 public class StatisticiService {
 
-    /** Marile competitii afisate (mari campionate + cupe europene); ordinea initiala inainte de sortare. */
-    private static final List<Long> LIGI = List.of(
-            39L, 140L, 135L, 78L, 61L, 88L, 94L, 144L, 203L, 283L, 197L, 113L, 103L, 119L,
-            2L, 3L, 848L);
+    /**
+     * Amicalele n-au clasament si aduna mii de meciuri intre echipe din ligi diferite: mediile lor
+     * nu spun nimic despre o "tendinta de competitie", deci le tinem in afara clasamentului.
+     */
+    private static final Set<Long> EXCLUSE = Set.of(667L, 10L, 666L);
 
     private final LeagueRepository leagues;
-    private final SeasonRepository seasons;
     private final FixtureRepository fixtures;
     private final FixtureTeamStatsRepository teamStats;
     private final LeagueAverageService goalAverages;
 
-    public StatisticiService(LeagueRepository leagues, SeasonRepository seasons, FixtureRepository fixtures,
+    public StatisticiService(LeagueRepository leagues, FixtureRepository fixtures,
                              FixtureTeamStatsRepository teamStats, LeagueAverageService goalAverages) {
         this.leagues = leagues;
-        this.seasons = seasons;
         this.fixtures = fixtures;
         this.teamStats = teamStats;
         this.goalAverages = goalAverages;
     }
 
-    /** Ligile cu date reale, sortate descrescator dupa media de goluri pe meci. */
+    /**
+     * Ligile cu date reale, sortate descrescator dupa media de goluri pe meci.
+     *
+     * <p>Lista vine din DATE, nu dintr-o lista alba: orice competitie colectata apare aici automat.
+     * Inainte era hardcodata, deci ligile aduse ulterior prin backfill (Serie B, 2. Bundesliga,
+     * Segunda, Championship...) nu apareau niciodata, oricate date am fi avut.
+     */
     public List<StatisticiLigaDto> ligi() {
-        return LIGI.stream()
-                .map(this::liga)
+        return fixtures.ligiCuMeciuriJucate(FixtureStatus.TERMINAL).stream()
+                .filter(ls -> ls.getLeagueId() != null && ls.getSeasonYear() != null)
+                .filter(ls -> !EXCLUSE.contains(ls.getLeagueId()))
+                .map(ls -> liga(ls.getLeagueId(), ls.getSeasonYear()))
                 .filter(Objects::nonNull)
                 .sorted(Comparator.comparing(StatisticiLigaDto::medieGoluri,
                         Comparator.nullsLast(Comparator.reverseOrder())))
                 .toList();
     }
 
-    private StatisticiLigaDto liga(long leagueId) {
-        Integer sezon = sezonCuDate(leagueId);
-        if (sezon == null) {
-            return null;
-        }
+    private StatisticiLigaDto liga(long leagueId, int sezon) {
         // doar ligi cu meciuri TERMINALE reale (altfel mediile sunt doar default-uri)
         GoalAverage brut = fixtures.avgGoals(leagueId, sezon, FixtureStatus.TERMINAL);
         if (brut == null || brut.getAvgGazde() == null) {
@@ -83,19 +85,6 @@ public class StatisticiService {
     /** DB da media PE ECHIPA; totalul pe meci = dublul. Null → nu exista statistici reale. */
     private static Double perMeci(Double perEchipa) {
         return perEchipa != null ? round1(2 * perEchipa) : null;
-    }
-
-    /** Cel mai recent sezon al ligii cu meciuri jucate (dupa lista de sezoane). */
-    private Integer sezonCuDate(long leagueId) {
-        List<Integer> ani = seasons.findByLeagueIdOrderByYearDesc(leagueId).stream()
-                .map(Season::getYear).filter(Objects::nonNull).toList();
-        for (Integer an : ani) {
-            GoalAverage brut = fixtures.avgGoals(leagueId, an, FixtureStatus.TERMINAL);
-            if (brut != null && brut.getAvgGazde() != null) {
-                return an;
-            }
-        }
-        return null;
     }
 
     private static Double round1(Double v) {

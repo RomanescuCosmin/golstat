@@ -9,7 +9,9 @@ meciuri, separata pe acasa / deplasare.
 - **Group / package**: `ro.golstat`
 - **Stack**: Spring Boot (backend, Java) + React (frontend) + Kafka + PostgreSQL/TimescaleDB + Redis
 - **Build**: Gradle multi-modul (monorepo)
-- **Status**: SCHELET. Niciun modul nu are inca implementare; le construim separat, pas cu pas.
+- **Status**: IMPLEMENTAT substantial: colectarea ruleaza in productie (Task Scheduler + profil
+  `oneshot`), api + frontend expun program/meciuri/statistici/piete, stats-engine are modelele
+  matematice testate. Context complet si stare la zi: `docs/context-agenti.md`.
 
 ---
 
@@ -88,6 +90,7 @@ nu inainte. Tinem build-ul curat.
 
 ## Data Source
 
-API-Football (api-sports.io). Plan free: 100 requests/zi, toate endpoint-urile.
-Abstractizeaza sursa printr-o interfata `DataProvider` din prima zi (schimb usor de furnizor).
-Cache agresiv in Redis + polling inteligent pentru a economisi cota.
+API-Football (api-sports.io). Plan PRO: 7500 requests/zi (rezerva zilnica 1500 pentru munca
+curenta; backfill-ul consuma doar ce e peste rezerva — vezi `application-oneshot.yml`).
+Sursa e abstractizata prin interfata `DataProvider` (schimb usor de furnizor).
+Cache agresiv in Redis + colectare programata pentru a economisi cota.

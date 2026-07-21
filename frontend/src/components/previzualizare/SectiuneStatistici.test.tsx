@@ -175,6 +175,30 @@ describe('SectiuneStatistici — fara istoric (frecvente 0/0)', () => {
     const { container } = randeaza(FARA_ISTORIC);
     expect(bara(container)).toBeNull();
   });
+
+  test('procentul modelat NU se afiseaza — doar "—"', () => {
+    // Fara istoric, 55% ar veni exclusiv din media ligii — un procent "sigur" fara niciun meci
+    // masurat in spate. Nu-l afisam.
+    randeaza(FARA_ISTORIC);
+    expect(screen.queryByText('55%')).toBeNull();
+    expect(screen.getByText('—')).toBeInTheDocument();
+  });
+
+  test('cornere fara istoric la meci terminat: fara procent si fara verdict ✓/✗', async () => {
+    const user = userEvent.setup();
+    const s = statistici({
+      cornere: piataGoala([linieFaraIstoric(9.5, 0.86)]),
+      rezultat: REZULTAT,
+    });
+    const { container } = randeaza(s);
+    await user.click(screen.getByRole('tab', { name: 'Cornere' }));
+
+    expect(screen.queryByText('86%')).toBeNull();
+    expect(screen.getByText('—')).toBeInTheDocument();
+    // fara model cu date reale nu exista verdict, desi meciul are total real de cornere
+    expect(container.textContent).not.toContain('✓');
+    expect(container.textContent).not.toContain('✗');
+  });
 });
 
 describe('SectiuneStatistici — meci terminat (badge ✓/✗)', () => {

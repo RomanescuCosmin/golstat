@@ -73,7 +73,7 @@ class CollectionPlannerTest {
     private static QuotaGuard quota(int limita, int rezerva, int consumatDeja) {
         InMemoryCounterStore store = new InMemoryCounterStore();
         ApiFootballProperties p = new ApiFootballProperties(
-                "http://x", "k", limita, rezerva, null, null, null, null, null, null);
+                "http://x", "k", limita, rezerva, null, null, null, null, null, null, null);
         QuotaGuard guard = new QuotaGuard(store, p, CLOCK);
         for (int i = 0; i < consumatDeja; i++) {
             guard.tryAcquire();

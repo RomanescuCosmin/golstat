@@ -60,6 +60,10 @@ public class CollectionService {
             GolstatConstants.FixtureStatus.FINISHED_PEN
     );
 
+    // Un singur meci cu detalii inca nepublicate de furnizor nu trebuie sa decida pentru toata liga:
+    // sonda declara "nu exista" abia dupa atatea raspunsuri goale consecutive.
+    private static final int MAX_SONDE_GOALE = 3;
+
     private final DataProvider provider;
     private final EventPublisher publisher;
     private final LiveSchedule liveSchedule;
@@ -140,6 +144,8 @@ public class CollectionService {
         }
 
         boolean doarNote = target.doarStatisticiJucatori();
+        int sondeStatsGoale = 0;
+        int sondeNoteGoale = 0;
 
         // Abia apoi detaliile per meci (lineups/events/stats) — pot esua fara sa pierdem meciurile deja publicate.
         for (FixtureDto fixture : fixtures) {
@@ -166,9 +172,10 @@ public class CollectionService {
                 if (!teamStats.isEmpty()) {
                     statisticiMeciDisponibile = Boolean.TRUE;
                     publisher.publish(GolstatConstants.KafkaTopics.FIXTURE_TEAM_STATS, String.valueOf(fixture.id()), teamStats);
-                } else if (statisticiMeciDisponibile == null) {
+                } else if (statisticiMeciDisponibile == null && ++sondeStatsGoale >= MAX_SONDE_GOALE) {
                     statisticiMeciDisponibile = Boolean.FALSE;
-                    log.info("Liga {} sezon {}: sonda confirma ca nu exista statistici de meci — le sarim", leagueId, season);
+                    log.info("Liga {} sezon {}: {} sonde goale — sarim statisticile de meci",
+                            leagueId, season, sondeStatsGoale);
                 }
             }
             if (statisticiJucatoriDisponibile != Boolean.FALSE) {
@@ -177,9 +184,10 @@ public class CollectionService {
                     statisticiJucatoriDisponibile = Boolean.TRUE;
                     publisher.publish(GolstatConstants.KafkaTopics.FIXTURE_PLAYER_STATS,
                             String.valueOf(fixture.id()), playerStats);
-                } else if (statisticiJucatoriDisponibile == null) {
+                } else if (statisticiJucatoriDisponibile == null && ++sondeNoteGoale >= MAX_SONDE_GOALE) {
                     statisticiJucatoriDisponibile = Boolean.FALSE;
-                    log.info("Liga {} sezon {}: sonda confirma ca nu exista note de jucatori — le sarim", leagueId, season);
+                    log.info("Liga {} sezon {}: {} sonde goale — sarim notele de jucatori",
+                            leagueId, season, sondeNoteGoale);
                 }
             }
         }

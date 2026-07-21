@@ -55,36 +55,36 @@ public class ApiFootballProvider implements DataProvider {
 
     @Override
     public List<FixtureEventDto> fixtureEvents(long fixtureId) {
-        // evenimentele unui meci terminat sunt imuabile → TTL lung
+        // evenimentele unui meci terminat sunt imuabile → TTL lung; gol = nepublicate inca → TTL scurt
         return client.get(GolstatConstants.ApiFootball.FIXTURES_EVENTS, Map.of("fixture", fixtureId),
-                        EventItem.class, props.ttlHistoric()).stream()
+                        EventItem.class, props.ttlHistoric(), props.ttlDetaliiGoale()).stream()
                 .map(e -> ApiFootballMapper.toEvent(e, fixtureId))
                 .toList();
     }
 
     @Override
     public List<FixtureTeamStatsDto> fixtureStatistics(long fixtureId) {
-        // statisticile unui meci terminat sunt imuabile → TTL lung
+        // statisticile unui meci terminat sunt imuabile → TTL lung; gol = nepublicate inca → TTL scurt
         return client.get(GolstatConstants.ApiFootball.FIXTURES_STATISTICS, Map.of("fixture", fixtureId),
-                        StatisticsItem.class, props.ttlHistoric()).stream()
+                        StatisticsItem.class, props.ttlHistoric(), props.ttlDetaliiGoale()).stream()
                 .map(s -> ApiFootballMapper.toFixtureTeamStats(s, fixtureId))
                 .toList();
     }
 
     @Override
     public List<FixturePlayerStatsDto> fixturePlayerStatistics(long fixtureId) {
-        // statisticile individuale ale unui meci terminat sunt imuabile → TTL lung
+        // statisticile individuale ale unui meci terminat sunt imuabile → TTL lung; gol → TTL scurt
         return client.get(GolstatConstants.ApiFootball.FIXTURES_PLAYERS, Map.of("fixture", fixtureId),
-                        FixturePlayersItem.class, props.ttlHistoric()).stream()
+                        FixturePlayersItem.class, props.ttlHistoric(), props.ttlDetaliiGoale()).stream()
                 .flatMap(i -> ApiFootballMapper.toFixturePlayerStats(i, fixtureId).stream())
                 .toList();
     }
 
     @Override
     public List<FixtureLineupDto> fixtureLineups(long fixtureId) {
-        // formatia anuntata a unui meci nu se mai schimba → TTL lung
+        // formatia anuntata a unui meci nu se mai schimba → TTL lung; gol = neanuntata → TTL scurt
         return client.get(GolstatConstants.ApiFootball.FIXTURES_LINEUPS, Map.of("fixture", fixtureId),
-                        LineupItem.class, props.ttlHistoric()).stream()
+                        LineupItem.class, props.ttlHistoric(), props.ttlDetaliiGoale()).stream()
                 .map(l -> ApiFootballMapper.toFixtureLineup(l, fixtureId))
                 .toList();
     }

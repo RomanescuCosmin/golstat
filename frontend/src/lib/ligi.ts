@@ -31,6 +31,9 @@ export const LIGI: Liga[] = [
   { id: 119, nume: 'Superliga', regiune: 'Danemarca' },
   { id: 103, nume: 'Eliteserien', regiune: 'Norvegia' },
   { id: 197, nume: 'Super League', regiune: 'Grecia' },
+  // „Bundesliga Austria", nu „Bundesliga": furnizorul o numeste identic cu cea germana (78), iar in
+  // selectoare cele doua ar aparea ca doua randuri cu acelasi text.
+  { id: 218, nume: 'Bundesliga Austria', regiune: 'Austria' },
   { id: 667, nume: 'Amicale cluburi', regiune: 'Internațional' },
 ];
 
@@ -74,6 +77,19 @@ export function sorteazaCompetitii<T extends { leagueId: number; nume?: string |
 
 export function numeLiga(id: number): string {
   return LIGI.find((l) => l.id === id)?.nume ?? `Liga #${id}`;
+}
+
+/**
+ * Optiunile pentru selectoarele de competitie: TOATE ligile, nu doar cele populare.
+ * Ordinea: top 5 + cupele intai (rangLiga), apoi restul in ordinea din LIGI, amicalele la coada.
+ *
+ * Selectoarele foloseau `LIGI_POPULARE` (9 ligi), deci competitii colectate precum Serie B sau
+ * 2. Bundesliga nu puteau fi alese deloc din interfata.
+ */
+export function optiuniSelectorLigi(): { id: number; nume: string }[] {
+  return [...LIGI]
+    .sort((a, b) => rangLiga(a.id, a.nume) - rangLiga(b.id, b.nume))
+    .map((l) => ({ id: l.id, nume: l.nume }));
 }
 
 /** Id-ul ligii Campionatul Mondial la API-Football (are doar placeholder gri → logo desenat de noi). */

@@ -11,6 +11,9 @@ export default {
         ink2: 'rgb(var(--gs-ink2) / <alpha-value>)',
         line: 'rgb(var(--gs-line) / <alpha-value>)',
         primary: 'rgb(var(--gs-primary) / <alpha-value>)',
+        // Accentul paginii de piete: violet, ca selectiile din filtre sa nu se confunde nici cu
+        // albastrul de navigatie, nici cu verdele barelor de sansa.
+        piata: 'rgb(var(--gs-piata) / <alpha-value>)',
         accent: 'rgb(var(--gs-accent) / <alpha-value>)',
         win: 'rgb(var(--gs-win) / <alpha-value>)',
         draw: 'rgb(var(--gs-draw) / <alpha-value>)',

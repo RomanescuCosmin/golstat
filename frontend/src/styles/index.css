@@ -10,6 +10,7 @@
   --gs-ink2: 100 112 133; /* #647085 */
   --gs-line: 226 231 240; /* #E2E7F0 */
   --gs-primary: 37 99 235; /* #2563EB */
+  --gs-piata: 124 58 237; /* #7C3AED — accentul filtrelor din pagina de piete */
   --gs-accent: 239 68 68; /* #EF4444 */
   --gs-win: 34 165 91; /* #22A55B */
   --gs-draw: 154 164 178; /* #9AA4B2 */
@@ -23,6 +24,7 @@
   --gs-ink2: 139 148 167; /* #8B94A7 */
   --gs-line: 31 39 56; /* #1F2738 */
   --gs-primary: 59 130 246; /* #3B82F6 */
+  --gs-piata: 167 139 250; /* #A78BFA — violetul se deschide pe fundal inchis, ca sa ramana lizibil */
   --gs-accent: 248 113 113; /* #F87171 */
   --gs-win: 58 168 112; /* #3AA870 */
   --gs-draw: 110 120 137; /* #6E7889 */

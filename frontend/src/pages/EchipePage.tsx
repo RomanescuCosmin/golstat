@@ -10,7 +10,7 @@ import { ErrorState } from '../components/ui/ErrorState';
 import { Skeleton } from '../components/ui/Skeleton';
 import { TeamLogo } from '../components/ui/TeamLogo';
 import { IconShield } from '../components/ui/icons';
-import { LIGI_POPULARE, numeLiga } from '../lib/ligi';
+import { numeLiga, optiuniSelectorLigi } from '../lib/ligi';
 
 /** Index de echipe: gridul echipelor din clasamentul competiției selectate. */
 export function EchipePage() {
@@ -42,7 +42,7 @@ export function EchipePage() {
     };
   }, [leagueId, incercare]);
 
-  const optiuniLigi = LIGI_POPULARE.map((id) => ({ id, nume: numeLiga(id) }));
+  const optiuniLigi = optiuniSelectorLigi();
 
   return (
     <PageLayout>

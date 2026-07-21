@@ -5,6 +5,7 @@ import { FormatiiMeci } from '../components/centru/FormatiiMeci';
 import { HeaderScor } from '../components/centru/HeaderScor';
 import { LiveAcumRail } from '../components/centru/LiveAcumRail';
 import { StatisticiLive } from '../components/centru/StatisticiLive';
+import { VerdictePiete } from '../components/centru/VerdictePiete';
 import { PageLayout } from '../components/layout/PageLayout';
 import { Card } from '../components/ui/Card';
 import { EmptyState } from '../components/ui/EmptyState';
@@ -51,6 +52,15 @@ export function MatchCenterPage() {
             <Card>
               <EmptyState titlu="Statistici indisponibile" mesaj="Statistici indisponibile pentru acest meci." />
             </Card>
+          )}
+
+          {/* Doar la meciuri terminate: la unul viitor/live n-avem ce verdict da, iar endpointul
+              de previzualizare nici nu raspunde pentru statusuri intermediare. */}
+          {date.terminat && (
+            <section className="space-y-3">
+              <h2 className="text-lg font-bold text-ink">Verdict pe piețe</h2>
+              <VerdictePiete fixtureId={date.fixtureId} />
+            </section>
           )}
 
           {date.formatii && (

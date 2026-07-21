@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { cotaPiata, meciPiete, ziPiete } from '../test/factories';
-import { codValid, etichetaZi, filtreaza, linieValida, numaraRanduri, piataDupaGrup } from './piete';
+import {
+  codValid,
+  etichetaZi,
+  filtreaza,
+  ligiDisponibile,
+  ligiValide,
+  linieValida,
+  numaraRanduri,
+  piataDupaGrup,
+} from './piete';
 
 describe('filtreaza', () => {
   const zile = [
@@ -89,6 +98,82 @@ describe('filtreaza', () => {
   it('lista goala nu crapa', () => {
     expect(filtreaza([], 'GOLURI_PESTE', 2.5, 30)).toEqual([]);
     expect(numaraRanduri([])).toBe(0);
+  });
+});
+
+describe('filtrul de campionate', () => {
+  const zile = [
+    ziPiete({
+      data: '2026-07-21',
+      meciuri: [
+        meciPiete({
+          fixtureId: 1,
+          liga: { id: 39, nume: 'Premier League', logo: null },
+          piete: [cotaPiata({ probabilitate: 0.8 })],
+        }),
+        meciPiete({
+          fixtureId: 2,
+          liga: { id: 140, nume: 'La Liga', logo: null },
+          piete: [cotaPiata({ probabilitate: 0.7 })],
+        }),
+        meciPiete({
+          fixtureId: 3,
+          liga: { id: 667, nume: 'Friendlies Clubs', logo: null },
+          piete: [cotaPiata({ probabilitate: 0.2 })],
+        }),
+      ],
+    }),
+  ];
+
+  it('lista goala inseamna TOATE campionatele, nu niciunul', () => {
+    expect(numaraRanduri(filtreaza(zile, 'GOLURI_PESTE', 2.5, 0, []))).toBe(3);
+  });
+
+  it('pastreaza doar campionatele alese', () => {
+    const rezultat = filtreaza(zile, 'GOLURI_PESTE', 2.5, 0, [39]);
+    expect(rezultat[0].randuri.map((r) => r.meci.fixtureId)).toEqual([1]);
+  });
+
+  it('accepta selectii multiple', () => {
+    const rezultat = filtreaza(zile, 'GOLURI_PESTE', 2.5, 0, [39, 140]);
+    expect(rezultat[0].randuri.map((r) => r.meci.fixtureId)).toEqual([1, 2]);
+  });
+
+  it('se combina cu pragul', () => {
+    expect(numaraRanduri(filtreaza(zile, 'GOLURI_PESTE', 2.5, 75, [39, 140]))).toBe(1);
+    expect(numaraRanduri(filtreaza(zile, 'GOLURI_PESTE', 2.5, 0, [667]))).toBe(1);
+    expect(numaraRanduri(filtreaza(zile, 'GOLURI_PESTE', 2.5, 50, [667]))).toBe(0);
+  });
+
+  it('campionat inexistent da lista goala, nu toate', () => {
+    expect(filtreaza(zile, 'GOLURI_PESTE', 2.5, 0, [999])).toEqual([]);
+  });
+
+  it('ligiDisponibile numara dupa piata si prag, sortat descrescator', () => {
+    const toate = ligiDisponibile(zile, 'GOLURI_PESTE', 2.5, 0);
+    expect(toate.map((l) => [l.id, l.numar])).toEqual([
+      [667, 1],
+      [140, 1],
+      [39, 1],
+    ]);
+
+    const pesteJumate = ligiDisponibile(zile, 'GOLURI_PESTE', 2.5, 50);
+    // campionatele fara meciuri raman in lista (cu 0), ca sa nu sara pastilele
+    expect(pesteJumate).toHaveLength(3);
+    expect(pesteJumate.find((l) => l.id === 667)?.numar).toBe(0);
+    expect(pesteJumate[0].numar).toBe(1);
+  });
+
+  it('ligiDisponibile NU tine cont de selectia de campionate', () => {
+    // altfel alegerea unui campionat ar arata 0 la toate celelalte
+    const lista = ligiDisponibile(zile, 'GOLURI_PESTE', 2.5, 0);
+    expect(lista.every((l) => l.numar === 1)).toBe(true);
+  });
+
+  it('ligiValide curata campionatele disparute din date', () => {
+    const disponibile = ligiDisponibile(zile, 'GOLURI_PESTE', 2.5, 0);
+    expect(ligiValide([39, 999], disponibile)).toEqual([39]);
+    expect(ligiValide([], disponibile)).toEqual([]);
   });
 });
 

@@ -22,6 +22,16 @@ public interface FixtureEventRepository extends JpaRepository<FixtureEvent, Long
     List<FixtureEvent> findTimeline(@Param("fixtureId") long fixtureId);
 
     /**
+     * Cate cartonase au fost aratate intr-un meci, numarate din cronologie. Plasa de siguranta pentru
+     * meciurile la care furnizorul n-a publicat statistici de echipa, dar A publicat evenimentele
+     * (tipic la ligile cu acoperire partiala, ex. Liga I 2026): fara asta pagina zicea "fara date"
+     * desi numarul real era deja in baza. Verificat pe 6920 de meciuri cu ambele surse: coincide cu
+     * suma din fixture_team_stats la 6903 (99,75%).
+     */
+    @Query("select count(e) from FixtureEvent e where e.fixtureId = :fixtureId and e.type = :card")
+    long countCards(@Param("fixtureId") long fixtureId, @Param("card") String card);
+
+    /**
      * Minutele golurilor unei echipe pe o liga/sezon, doar din meciuri TERMINALE (pentru distributie).
      * Golurile din prelungirea reprizei a doua (minut 90 cu timeExtra > 0) primesc 91 ca sa cada in
      * intervalul "90+"; prelungirea primei reprize (45+X) ramane in intervalul minutului de baza.

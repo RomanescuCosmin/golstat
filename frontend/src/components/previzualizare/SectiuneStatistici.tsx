@@ -87,7 +87,11 @@ interface ContextEchipe {
   oaspeti: EchipaDto;
 }
 
-/** Un rând de piață: eticheta + bara modelată + frecvențele ambelor echipe cu legendă. */
+/**
+ * Un rând de piață: eticheta + bara modelată + frecvențele ambelor echipe cu legendă.
+ * Fără istoric pe piață, procentul modelat ar fi doar media ligii — afișăm „—" în loc,
+ * și nu dăm verdict ✓/✗ pe un model fără date în spate.
+ */
 function RandLinie({
   eticheta,
   rata,
@@ -126,14 +130,14 @@ function RandLinie({
         <BaraProbabilitate rata={rata} areIstoric={areIstoric} />
         <span
           className={`w-12 shrink-0 text-right text-base font-extrabold tabular-nums ${
-            rata >= 0.5 ? 'text-primary' : 'text-draw'
+            !areIstoric ? 'text-ink2' : rata >= 0.5 ? 'text-primary' : 'text-draw'
           }`}
         >
-          {formatRata(rata)}
+          {areIstoric ? formatRata(rata) : '—'}
         </span>
-        {actual != null ? (
+        {actual != null && areIstoric ? (
           <RezultatBadge rata={rata} actual={actual} etichetaDa={etichetaDa} etichetaNu={etichetaNu} />
-        ) : meciTerminat ? (
+        ) : meciTerminat && actual == null ? (
           <FaraDateBadge />
         ) : null}
       </div>
@@ -272,12 +276,12 @@ function RandGg({ gg, echipe, actual }: { gg: GgDto; echipe: ContextEchipe; actu
         <BaraProbabilitate rata={gg.probabilitate} areIstoric={areIstoric} />
         <span
           className={`w-12 shrink-0 text-right text-base font-extrabold tabular-nums ${
-            gg.probabilitate >= 0.5 ? 'text-primary' : 'text-draw'
+            !areIstoric ? 'text-ink2' : gg.probabilitate >= 0.5 ? 'text-primary' : 'text-draw'
           }`}
         >
-          {formatRata(gg.probabilitate)}
+          {areIstoric ? formatRata(gg.probabilitate) : '—'}
         </span>
-        {actual != null && (
+        {actual != null && areIstoric && (
           <RezultatBadge rata={gg.probabilitate} actual={actual} etichetaDa="Da" etichetaNu="Nu" />
         )}
       </div>

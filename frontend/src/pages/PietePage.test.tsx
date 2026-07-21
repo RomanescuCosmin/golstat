@@ -59,6 +59,30 @@ function dateComplete() {
   });
 }
 
+/** Trei meciuri din trei campionate diferite, pentru filtrul de campionat. */
+function dateMultiLiga() {
+  const meci = (id: number, ligaId: number, ligaNume: string, gazde: string, p: number) =>
+    meciPiete({
+      fixtureId: id,
+      liga: { id: ligaId, nume: ligaNume, logo: null },
+      gazde: { id: id * 10, nume: gazde, logo: null },
+      oaspeti: { id: id * 10 + 1, nume: `Adversar ${id}`, logo: null },
+      piete: [cotaPiata({ piata: 'GOLURI_PESTE', linie: 2.5, probabilitate: p })],
+    });
+  return pieteZile({
+    zile: [
+      ziPiete({
+        data: '2026-07-21',
+        meciuri: [
+          meci(1, 39, 'Premier League', 'Arsenal', 0.9),
+          meci(2, 140, 'La Liga', 'Barcelona', 0.86),
+          meci(3, 283, 'Liga I', 'Dinamo', 0.4),
+        ],
+      }),
+    ],
+  });
+}
+
 describe('PietePage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -100,42 +124,74 @@ describe('PietePage', () => {
     expect(mockGet).toHaveBeenCalledTimes(1);
   });
 
-  it('schimbarea pietei schimba lista si liniile disponibile', async () => {
+  it('schimbarea tipului schimba lista si optiunile din dropdown', async () => {
     mockGet.mockResolvedValueOnce(dateComplete());
     randeaza();
     await screen.findByText('Puternica');
 
     await userEvent.click(screen.getByRole('tab', { name: 'Cornere' }));
 
-    // liniile de goluri dispar, apar cele de cornere
-    expect(screen.getByRole('button', { name: '7.5' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: '2.5' })).not.toBeInTheDocument();
+    // liniile de goluri dispar din dropdown, apar cele de cornere
+    const selector = screen.getByLabelText('Piața');
+    expect(within(selector).getByRole('option', { name: 'Peste 7.5' })).toBeInTheDocument();
+    expect(within(selector).queryByRole('option', { name: 'Peste 2.5' })).not.toBeInTheDocument();
     // doar meciul 1 are cornere
     expect(screen.getByText('Slaba')).toBeInTheDocument();
     expect(screen.queryByText('Puternica')).not.toBeInTheDocument();
     expect(mockGet).toHaveBeenCalledTimes(1);
   });
 
-  it('piata binara ascunde selectorul de linie', async () => {
+  it('piata binara are doar directii in dropdown, fara linii', async () => {
     mockGet.mockResolvedValueOnce(dateComplete());
     randeaza();
     await screen.findByText('Puternica');
 
     await userEvent.click(screen.getByRole('tab', { name: 'GG' }));
 
-    expect(screen.queryByRole('group', { name: 'Linie' })).not.toBeInTheDocument();
+    const optiuni = within(screen.getByLabelText('Piața')).getAllByRole('option');
+    expect(optiuni.map((o) => o.textContent)).toEqual(['Ambele înscriu', 'Nu ambele']);
     expect(screen.getByText('Puternica')).toBeInTheDocument();
   });
 
-  it('schimbarea liniei schimba procentele', async () => {
+  it('schimbarea liniei din dropdown schimba procentele', async () => {
     mockGet.mockResolvedValueOnce(dateComplete());
     randeaza();
     await screen.findByText('Puternica');
 
-    await userEvent.click(screen.getByRole('button', { name: '1.5' }));
+    await userEvent.selectOptions(screen.getByLabelText('Piața'), 'GOLURI_PESTE|1.5');
 
     expect(screen.getByText('95%')).toBeInTheDocument();
     expect(screen.getByText(/1 meci peste 30%/)).toBeInTheDocument();
+  });
+
+  it('fiecare rand arata piata aleasa, cu unitate', async () => {
+    mockGet.mockResolvedValueOnce(dateComplete());
+    randeaza();
+    await screen.findByText('Puternica');
+
+    // eticheta lunga tine minte ce inseamna procentul cand derulezi lista
+    expect(screen.getAllByText('Peste 2.5 goluri')).toHaveLength(3);
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Cornere' }));
+    expect(screen.getByText('Peste 7.5 cornere')).toBeInTheDocument();
+  });
+
+  it('steluta marcheaza meciul si ramane apasata, fara sa navigheze', async () => {
+    mockGet.mockResolvedValueOnce(dateComplete());
+    randeaza();
+    await screen.findByText('Puternica');
+
+    const steluta = screen.getByRole('button', { name: /Salvează Puternica/ });
+    expect(steluta).toHaveAttribute('aria-pressed', 'false');
+
+    await userEvent.click(steluta);
+
+    expect(screen.getByRole('button', { name: /Salvează Puternica/ })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    // lista ramane pe loc: marcajul nu e un filtru
+    expect(screen.getByText(/3 meciuri peste 30%/)).toBeInTheDocument();
   });
 
   it('prag imposibil da stare goala, nu lista muta', async () => {
@@ -188,6 +244,87 @@ describe('PietePage', () => {
 
     await screen.findByText(/1 meci peste 30%/);
     expect(container.textContent).not.toMatch(/NaN|undefined|Infinity/);
+  });
+
+  it('filtreaza pe campionat, cu selectii multiple, fara refetch', async () => {
+    mockGet.mockResolvedValueOnce(dateMultiLiga());
+    randeaza();
+    await screen.findByText('Arsenal');
+
+    // implicit: toate campionatele
+    expect(screen.getByRole('button', { name: /Toate/ })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText(/3 meciuri peste 30%/)).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /Premier League/ }));
+    expect(screen.getByText(/1 meci peste 30%/)).toBeInTheDocument();
+    expect(screen.getByText('Arsenal')).toBeInTheDocument();
+    expect(screen.queryByText('Barcelona')).not.toBeInTheDocument();
+
+    // a doua selectie se ADAUGA
+    await userEvent.click(screen.getByRole('button', { name: /La Liga/ }));
+    expect(screen.getByText(/2 meciuri peste 30%/)).toBeInTheDocument();
+    expect(screen.getByText('Arsenal')).toBeInTheDocument();
+    expect(screen.getByText('Barcelona')).toBeInTheDocument();
+    expect(screen.queryByText('Dinamo')).not.toBeInTheDocument();
+
+    // deselectarea scoate campionatul
+    await userEvent.click(screen.getByRole('button', { name: /Premier League/ }));
+    expect(screen.getByText(/1 meci peste 30%/)).toBeInTheDocument();
+    expect(screen.queryByText('Arsenal')).not.toBeInTheDocument();
+
+    expect(mockGet).toHaveBeenCalledTimes(1);
+  });
+
+  it('„Toate" reseteaza selectia de campionate', async () => {
+    mockGet.mockResolvedValueOnce(dateMultiLiga());
+    randeaza();
+    await screen.findByText('Arsenal');
+
+    await userEvent.click(screen.getByRole('button', { name: /Premier League/ }));
+    expect(screen.getByRole('button', { name: /Toate/ })).toHaveAttribute('aria-pressed', 'false');
+
+    await userEvent.click(screen.getByRole('button', { name: /Toate/ }));
+    expect(screen.getByText(/3 meciuri peste 30%/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Toate/ })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('selectia de campionat se pastreaza cand schimbi piata sau pragul', async () => {
+    mockGet.mockResolvedValueOnce(dateMultiLiga());
+    randeaza();
+    await screen.findByText('Arsenal');
+
+    await userEvent.click(screen.getByRole('button', { name: /Premier League/ }));
+    fireEvent.change(screen.getByRole('slider', { name: 'Șansă minimă' }), { target: { value: '10' } });
+
+    expect(screen.getByRole('button', { name: /Premier League/ })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(screen.queryByText('Barcelona')).not.toBeInTheDocument();
+  });
+
+  it('campionatul fara meciuri la pragul curent ramane in lista, cu 0', async () => {
+    mockGet.mockResolvedValueOnce(dateMultiLiga());
+    randeaza();
+    await screen.findByText('Arsenal');
+
+    fireEvent.change(screen.getByRole('slider', { name: 'Șansă minimă' }), { target: { value: '85' } });
+
+    // Liga I (0.4) cade sub prag, dar pastila ramane — altfel lista ar sari sub deget
+    const pastila = await screen.findByRole('button', { name: /Liga I/ });
+    expect(pastila).toHaveTextContent('0');
+  });
+
+  it('selectand un campionat gol se ajunge la stare goala explicita', async () => {
+    mockGet.mockResolvedValueOnce(dateMultiLiga());
+    randeaza();
+    await screen.findByText('Arsenal');
+
+    fireEvent.change(screen.getByRole('slider', { name: 'Șansă minimă' }), { target: { value: '85' } });
+    await userEvent.click(await screen.findByRole('button', { name: /Liga I/ }));
+
+    expect(await screen.findByText('Niciun meci peste prag')).toBeInTheDocument();
+    expect(screen.getByText(/campionatele alese/)).toBeInTheDocument();
   });
 
   it('grupeaza pe zi cu antet propriu', async () => {

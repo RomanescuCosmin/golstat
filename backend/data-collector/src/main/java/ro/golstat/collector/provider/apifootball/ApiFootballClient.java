@@ -79,7 +79,18 @@ public class ApiFootballClient {
      * API-ul. Folosit pentru LIVE, unde datele se schimba la fiecare poll (GS-15).
      */
     public <T> List<T> get(String path, Map<String, Object> params, Class<T> itemType, Duration ttl) {
-        return getPage(path, params, itemType, ttl).items();
+        return getPage(path, params, itemType, ttl, ttl).items();
+    }
+
+    /**
+     * Ca {@link #get(String, Map, Class, Duration)}, dar cu TTL separat pentru raspuns GOL
+     * ({@code response: []}). Detaliile unui meci abia terminat apar la furnizor cu intarziere:
+     * un gol cache-uit cu TTL-ul lung ar ascunde datele pana iese meciul din fereastra de colectare.
+     * {@code ttlGol == 0} → golul nu se cache-uieste deloc.
+     */
+    public <T> List<T> get(String path, Map<String, Object> params, Class<T> itemType,
+                           Duration ttl, Duration ttlGol) {
+        return getPage(path, params, itemType, ttl, ttlGol).items();
     }
 
     /**
@@ -94,7 +105,7 @@ public class ApiFootballClient {
         do {
             Map<String, Object> pageParams = new HashMap<>(params);
             pageParams.put("page", page);
-            Page<T> p = getPage(path, pageParams, itemType, ttl);
+            Page<T> p = getPage(path, pageParams, itemType, ttl, ttl);
             all.addAll(p.items());
             total = p.total();
             page++;
@@ -102,7 +113,8 @@ public class ApiFootballClient {
         return all;
     }
 
-    private <T> Page<T> getPage(String path, Map<String, Object> params, Class<T> itemType, Duration ttl) {
+    private <T> Page<T> getPage(String path, Map<String, Object> params, Class<T> itemType,
+                                Duration ttl, Duration ttlGol) {
         boolean useCache = !ttl.isZero();
         String cacheKey = cacheKey(path, params);
         if (useCache) {
@@ -116,8 +128,9 @@ public class ApiFootballClient {
         }
         String json = fetch(path, params);
         Page<T> page = deserialize(json, path, itemType);   // valideaza errors INAINTE de cache
-        if (useCache) {
-            store.set(cacheKey, json, ttl);
+        Duration ttlEfectiv = page.items().isEmpty() ? ttlGol : ttl;
+        if (useCache && !ttlEfectiv.isZero()) {
+            store.set(cacheKey, json, ttlEfectiv);
         }
         return page;
     }

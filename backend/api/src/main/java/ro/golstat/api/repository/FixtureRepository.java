@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import ro.golstat.api.entity.Fixture;
 import ro.golstat.api.stats.GoalAverage;
+import ro.golstat.api.stats.LeagueSeason;
 
 import java.time.OffsetDateTime;
 import java.util.Collection;
@@ -61,6 +62,22 @@ public interface FixtureRepository extends JpaRepository<Fixture, Long> {
     GoalAverage avgGoals(@Param("leagueId") long leagueId,
                          @Param("season") int season,
                          @Param("terminal") Collection<String> terminal);
+
+    /**
+     * Ligile care au meciuri TERMINALE, fiecare cu cel mai recent sezon jucat.
+     *
+     * <p>Inlocuieste o lista alba hardcodata de competitii: pagina de statistici arata astfel exact
+     * ce s-a colectat, iar o liga noua apare singura dupa backfill, fara modificari de cod.
+     * Intr-un singur query — varianta "pentru fiecare liga, cauta sezonul cu date" facea cate un
+     * apel per sezon per liga.
+     */
+    @Query("""
+            select f.leagueId as leagueId, max(f.seasonYear) as seasonYear
+            from Fixture f
+            where f.statusShort in :terminal
+            group by f.leagueId
+            """)
+    List<LeagueSeason> ligiCuMeciuriJucate(@Param("terminal") Collection<String> terminal);
 
     /**
      * Intalnirile directe TERMINALE dintre doua echipe (indiferent cine a fost gazda) dinaintea

@@ -7,9 +7,17 @@ import { PageLayout } from '../components/layout/PageLayout';
 import { Card } from '../components/ui/Card';
 import { EmptyState } from '../components/ui/EmptyState';
 import { ErrorState } from '../components/ui/ErrorState';
-import { IconChart } from '../components/ui/icons';
 import { Skeleton } from '../components/ui/Skeleton';
-import { codValid, filtreaza, linieValida, numaraRanduri } from '../lib/piete';
+import { useFavoritePiete } from '../hooks/useFavoritePiete';
+import {
+  codValid,
+  etichetaPiata,
+  filtreaza,
+  ligiDisponibile,
+  ligiValide,
+  linieValida,
+  numaraRanduri,
+} from '../lib/piete';
 
 const ZILE = 3;
 
@@ -30,6 +38,9 @@ export function PietePage() {
   const [cod, setCod] = useState<CodPiata>('GOLURI_PESTE');
   const [linie, setLinie] = useState<number | null>(2.5);
   const [prag, setPrag] = useState(30);
+  /** Gol = toate campionatele. */
+  const [ligiSelectate, setLigiSelectate] = useState<number[]>([]);
+  const { favorite, comuta } = useFavoritePiete();
 
   useEffect(() => {
     let anulat = false;
@@ -53,11 +64,18 @@ export function PietePage() {
     };
   }, [incercare]);
 
-  const zile = useMemo(
-    () => filtreaza(date?.zile ?? [], cod, linie, prag),
+  const ligi = useMemo(
+    () => ligiDisponibile(date?.zile ?? [], cod, linie, prag),
     [date, cod, linie, prag],
   );
+  // datele reincarcate pot pierde un campionat selectat — nu-l lasam sa filtreze pe nimic
+  const selectate = useMemo(() => ligiValide(ligiSelectate, ligi), [ligiSelectate, ligi]);
+  const zile = useMemo(
+    () => filtreaza(date?.zile ?? [], cod, linie, prag, selectate),
+    [date, cod, linie, prag, selectate],
+  );
   const total = numaraRanduri(zile);
+  const etichetaAleasa = etichetaPiata(grup, cod, linie);
 
   function schimbaGrup(nou: string) {
     setGrup(nou);
@@ -65,30 +83,32 @@ export function PietePage() {
     setLinie(linieValida(nou, linie));
   }
 
+  function schimbaPiata(nouCod: CodPiata, nouaLinie: number | null) {
+    setCod(nouCod);
+    setLinie(nouaLinie);
+  }
+
   return (
     <PageLayout>
-      <div className="mb-5 flex items-start gap-3">
-        <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-card bg-primary/10 text-primary">
-          <IconChart width={20} height={20} />
-        </span>
-        <div>
-          <h1 className="text-2xl font-extrabold text-ink">Piețe</h1>
-          <p className="text-sm text-ink2">
-            Șansele pe piețe ale meciurilor din următoarele {ZILE} zile, din toate competițiile.
-          </p>
-        </div>
+      <div className="mb-5">
+        <h1 className="text-2xl font-extrabold text-ink">Piețe</h1>
+        <p className="mt-1 text-sm text-ink2">
+          Cele mai bune șanse din următoarele {ZILE} zile.
+        </p>
       </div>
 
-      <Card className="mb-5 p-4">
+      <Card className="mb-6 p-4 sm:p-5">
         <FiltrePiete
           grup={grup}
           cod={cod}
           linie={linie}
           prag={prag}
+          ligi={ligi}
+          ligiSelectate={selectate}
           onGrup={schimbaGrup}
-          onCod={setCod}
-          onLinie={setLinie}
+          onPiata={schimbaPiata}
           onPrag={setPrag}
+          onLigi={setLigiSelectate}
         />
       </Card>
 
@@ -118,19 +138,29 @@ export function PietePage() {
         <Card>
           <EmptyState
             titlu="Niciun meci peste prag"
-            mesaj={`Nicio partidă din următoarele ${ZILE} zile nu atinge ${prag}% pe piața aleasă. Coboară pragul sau schimbă piața.`}
+            mesaj={
+              selectate.length > 0
+                ? `Niciun meci din campionatele alese nu atinge ${prag}% pe piața selectată. Coboară pragul sau adaugă campionate.`
+                : `Nicio partidă din următoarele ${ZILE} zile nu atinge ${prag}% pe piața aleasă. Coboară pragul sau schimbă piața.`
+            }
           />
         </Card>
       )}
 
       {!loading && !eroare && total > 0 && (
         <>
-          <p className="mb-3 text-xs font-semibold text-ink2">
+          <p className="mb-4 text-xs font-semibold text-ink2">
             {total} {total === 1 ? 'meci' : 'meciuri'} peste {prag}%
           </p>
-          <div className="space-y-6">
+          <div className="space-y-8">
             {zile.map((zi) => (
-              <SectiuneZiPiete key={zi.data} zi={zi} />
+              <SectiuneZiPiete
+                key={zi.data}
+                zi={zi}
+                piata={etichetaAleasa}
+                favorite={favorite}
+                onFavorit={comuta}
+              />
             ))}
           </div>
         </>

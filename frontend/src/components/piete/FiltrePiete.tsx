@@ -1,73 +1,53 @@
 import type { CodPiata } from '../../api/types';
-import { PIETE, piataDupaGrup } from '../../lib/piete';
-import { Taburi, type Tab } from '../ui/Taburi';
+import type { OptiuneLiga } from '../../lib/piete';
 import { PragSlider } from './PragSlider';
-
-const TABURI: Tab[] = PIETE.map((p) => ({ id: p.grup, eticheta: p.eticheta }));
-
-/** Pastilă de selecție (linie sau direcție), în stilul toggle-urilor din filtrele de meciuri. */
-function Pastila({
-  activ,
-  onClick,
-  children,
-}: {
-  activ: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      aria-pressed={activ}
-      onClick={onClick}
-      className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition ${
-        activ
-          ? 'bg-primary text-white shadow-card'
-          : 'bg-ink2/10 text-ink2 hover:bg-ink2/20 hover:text-ink dark:bg-ink2/15'
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
+import { SegmenteTipPiata } from './SegmenteTipPiata';
+import { SelectorLigi } from './SelectorLigi';
+import { SelectorPiata } from './SelectorPiata';
 
 interface Props {
   grup: string;
   cod: CodPiata;
   linie: number | null;
   prag: number;
+  ligi: OptiuneLiga[];
+  ligiSelectate: number[];
   onGrup: (grup: string) => void;
-  onCod: (cod: CodPiata) => void;
-  onLinie: (linie: number) => void;
+  onPiata: (cod: CodPiata, linie: number | null) => void;
   onPrag: (prag: number) => void;
+  onLigi: (selectate: number[]) => void;
 }
 
-/** Selectorul de piață + linie + direcție + pragul minim. */
-export function FiltrePiete({ grup, cod, linie, prag, onGrup, onCod, onLinie, onPrag }: Props) {
-  const definitie = piataDupaGrup(grup);
+/**
+ * Zona de filtre: tipul pieței (segmente), selecția din interiorul ei (dropdown), pragul minim
+ * și campionatele. Trei rânduri, în ordinea în care se ia decizia — ce piață, cât de sigură,
+ * unde. Pe ecrane mici, segmentele și campionatele derulează orizontal în loc să se împacheteze.
+ */
+export function FiltrePiete({
+  grup,
+  cod,
+  linie,
+  prag,
+  ligi,
+  ligiSelectate,
+  onGrup,
+  onPiata,
+  onPrag,
+  onLigi,
+}: Props) {
   return (
-    <div className="space-y-3">
-      <Taburi taburi={TABURI} activ={grup} onSchimba={onGrup} varianta="pilule" />
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-        {definitie.optiuni.length > 1 && (
-          <div className="flex gap-2" role="group" aria-label="Direcție">
-            {definitie.optiuni.map((o) => (
-              <Pastila key={o.cod} activ={o.cod === cod} onClick={() => onCod(o.cod)}>
-                {o.eticheta}
-              </Pastila>
-            ))}
-          </div>
-        )}
-        {definitie.linii.length > 0 && (
-          <div className="flex gap-2 overflow-x-auto" role="group" aria-label="Linie">
-            {definitie.linii.map((l) => (
-              <Pastila key={l} activ={l === linie} onClick={() => onLinie(l)}>
-                {l}
-              </Pastila>
-            ))}
-          </div>
-        )}
+    <div className="flex flex-col gap-4">
+      <div className="-mx-1 overflow-x-auto px-1 pb-1">
+        <SegmenteTipPiata grup={grup} onSchimba={onGrup} />
+      </div>
+
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:gap-8">
+        <SelectorPiata grup={grup} cod={cod} linie={linie} onSchimba={onPiata} />
         <PragSlider prag={prag} onSchimba={onPrag} />
+      </div>
+
+      <div className="border-t border-line pt-4">
+        <SelectorLigi ligi={ligi} selectate={ligiSelectate} onSchimba={onLigi} />
       </div>
     </div>
   );

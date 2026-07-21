@@ -39,6 +39,9 @@ golstat:
       - { league-id: 113, season: 2026 }   # Allsvenskan (an calendaristic, joaca si vara)
       - { league-id: 103, season: 2026 }   # Eliteserien (an calendaristic, joaca si vara)
       - { league-id: 119, season: 2026 }   # Superliga daneza
+      # Sezonul 2025 e deja in baza (195 meciuri, din vechiul profil `test`), iar 2026 incepe pe
+      # 31 iulie cu 0 meciuri jucate — deci NU are nevoie de tinta de recuperare, doar de urmarire.
+      - { league-id: 218, season: 2026 }   # Bundesliga Austria
       # Ligile secunde: acelasi tratament, dar au mai multe echipe de imbogatit.
       - { league-id: 40,  season: 2026 }   # Championship
       - { league-id: 41,  season: 2026 }   # League One
@@ -88,15 +91,20 @@ golstat:
       - { league-id: 113, season: 2026, from: "2026-01-01", to: "2026-12-31" }   # Allsvenskan
       - { league-id: 103, season: 2026, from: "2026-01-01", to: "2026-12-31" }   # Eliteserien
 
-    # Fereastra rulanta pentru tintele zilnice. 1 zi e suficient cat timp task-ul chiar ruleaza la 3 ore:
-    # colectorul largeste singur fereastra dupa o pauza (vezi UltimaRulare), deci nu pierdem meciuri
-    # daca laptopul sta inchis. O fereastra mare ar fi costat zilnic: detaliile per meci au TTL 24h,
-    # deci fiecare meci din fereastra se re-cere o data pe zi cat timp ramane in ea.
-    zile-in-urma: 1
-    # 30 de zile de program inainte. E GRATIS: acelasi apel /fixtures aduce si viitorul, iar meciurile
+    # Fereastra rulanta pentru tintele zilnice. 3 zile = plasa de siguranta pentru detaliile publicate
+    # cu intarziere de furnizor (statistici/evenimente apar la minute-ore dupa fluier): meciul ramane
+    # in fereastra ~24 de cicluri, timp in care golul cache-uit scurt (ttl-detalii-goale) expira si
+    # re-cerem. Costul: detaliile au TTL 24h, deci meciurile din zilele 2-3 se re-cer o data pe zi
+    # (~800-1000 req/zi worst-case de weekend) — incape lejer in cota PRO cu rezerva.
+    # Colectorul largeste oricum singur fereastra dupa o pauza (vezi UltimaRulare).
+    zile-in-urma: 3
+    # 60 de zile de program inainte. E GRATIS: acelasi apel /fixtures aduce si viitorul, iar meciurile
     # ne-terminate sunt sarite de bucla de detalii (nu au evenimente/statistici de cerut). Cu 2 zile,
     # ProgramPage — care cere 7 — ramanea aproape goala.
-    zile-inainte: 30
+    # De ce 60 si nu 30: campionatele mari incep pe 21-28 august, adica exact peste marginea de 30 de
+    # zile (Premier League pe 21 aug cadea cu O ZI in afara ferestrei). La 60 intra tot calendarul de
+    # start al sezonului, deci programul e vizibil din timp, nu abia cand incepe.
+    zile-inainte: 60
   live:
     # Bucla live n-are sens intr-un proces care ruleaza cateva minute si iese.
     enabled: false

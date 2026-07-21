@@ -14,6 +14,7 @@ import ro.golstat.api.prediction.PredictieMeciDto.EchipaDto;
 import ro.golstat.api.prediction.PredictionNotFoundException;
 import ro.golstat.api.prediction.PredictionService;
 import ro.golstat.api.preview.StatisticiAvansateBuilder.FerestreEchipa;
+import ro.golstat.api.repository.FixtureEventRepository;
 import ro.golstat.api.repository.FixtureLineupPlayerRepository;
 import ro.golstat.api.repository.FixtureLineupRepository;
 import ro.golstat.api.repository.FixtureRepository;
@@ -84,6 +85,7 @@ public class MatchPreviewService {
     private final InjuryRepository injuries;
     private final PlayerRepository players;
     private final FixtureTeamStatsRepository teamStats;
+    private final FixtureEventRepository events;
 
     public MatchPreviewService(PredictionService predictions, FixtureRepository fixtures,
                                MatchHistoryService history, StatsHistoryService statsHistory,
@@ -91,7 +93,7 @@ public class MatchPreviewService {
                                RefereeService referees, TeamRepository teams,
                                FixtureLineupRepository lineups, FixtureLineupPlayerRepository lineupPlayers,
                                InjuryRepository injuries, PlayerRepository players,
-                               FixtureTeamStatsRepository teamStats) {
+                               FixtureTeamStatsRepository teamStats, FixtureEventRepository events) {
         this.predictions = predictions;
         this.fixtures = fixtures;
         this.history = history;
@@ -105,6 +107,7 @@ public class MatchPreviewService {
         this.injuries = injuries;
         this.players = players;
         this.teamStats = teamStats;
+        this.events = events;
     }
 
     /** Previzualizarea unui meci dupa id; {@link PredictionNotFoundException} daca nu are predictie. */
@@ -195,9 +198,24 @@ public class MatchPreviewService {
                 totalGoluri, ambeleMarcheaza, egalFinal, egalPauza, golRepriza1, golRepriza2,
                 totalCount(gazdeStats, oaspetiStats, FixtureTeamStats::getCornerKicks),
                 totalCount(gazdeStats, oaspetiStats, FixtureTeamStats::getFouls),
-                totalCount(gazdeStats, oaspetiStats, StatsHistoryService::totalCartonase),
+                cartonase(meci, gazdeStats, oaspetiStats),
                 totalCount(gazdeStats, oaspetiStats, FixtureTeamStats::getShotsTotal),
                 totalCount(gazdeStats, oaspetiStats, FixtureTeamStats::getShotsOnGoal));
+    }
+
+    /**
+     * Cartonasele meciului, cu plasa de siguranta pe cronologie: cand furnizorul n-a publicat
+     * statistici de echipa dar A publicat evenimentele, numarul real e deja la noi si n-are rost sa
+     * afisam "fara date". Cornerele si faulturile NU se pot recupera asa — nu exista ca evenimente.
+     */
+    private Integer cartonase(Fixture meci, FixtureTeamStats gazde, FixtureTeamStats oaspeti) {
+        Integer dinStatistici = totalCount(gazde, oaspeti, StatsHistoryService::totalCartonase);
+        if (dinStatistici != null) {
+            return dinStatistici;
+        }
+        long dinEvenimente = events.countCards(meci.getId(), GolstatConstants.EventType.CARD);
+        // zero cartonase e un rezultat legitim, dar zero EVENIMENTE inseamna cronologie necolectata
+        return dinEvenimente > 0 ? (int) dinEvenimente : null;
     }
 
     /** Suma unei statistici pe ambele echipe; {@code null} daca lipseste pe oricare parte. */

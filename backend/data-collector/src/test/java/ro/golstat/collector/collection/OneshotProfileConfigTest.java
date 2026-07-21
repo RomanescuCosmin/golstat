@@ -40,10 +40,11 @@ class OneshotProfileConfigTest {
         CollectionProperties props = incarca();
 
         assertTrue(props.esteOneShot(), "profilul oneshot trebuie sa ruleze un singur ciclu");
-        // 1 zi e sigur DOAR fiindca UltimaRulare largeste fereastra dupa o pauza
-        assertEquals(1, props.zileInUrma());
-        // ProgramPage cere 7 zile de program; lookahead-ul nu costa requesturi in plus
-        assertEquals(30, props.zileInainte());
+        // 3 zile tin meciul in fereastra cat sa re-cerem detaliile publicate cu intarziere de furnizor
+        assertEquals(3, props.zileInUrma());
+        // Lookahead-ul nu costa requesturi in plus, iar 60 acopera startul de sezon din august
+        // (campionatele mari incep pe 21-28, adica peste marginea de 30 de zile).
+        assertEquals(60, props.zileInainte());
     }
 
     @Test
@@ -52,7 +53,7 @@ class OneshotProfileConfigTest {
                 .filter(t -> !t.esteBackfill())
                 .toList();
 
-        assertEquals(26, zilnice.size(), "cate competitii are si frontend/src/lib/ligi.ts");
+        assertEquals(27, zilnice.size(), "cate competitii are si frontend/src/lib/ligi.ts");
         assertTrue(zilnice.stream().allMatch(t -> t.season() == 2026), "zilnicul urmareste sezonul curent");
         assertTrue(zilnice.stream().anyMatch(t -> t.leagueId() == 667 && t.doarFixtures()),
                 "amicalele raman doar-fixtures, altfel imbogatirea depaseste singura cota zilnica");

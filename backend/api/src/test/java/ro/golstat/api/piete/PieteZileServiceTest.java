@@ -16,6 +16,7 @@ import ro.golstat.api.preview.StatisticiAvansateDto;
 import ro.golstat.api.preview.StatisticiAvansateDto.LinieDto;
 import ro.golstat.api.preview.StatisticiAvansateDto.PiataDto;
 import ro.golstat.api.repository.FixtureLineupPlayerRepository;
+import ro.golstat.api.repository.FixtureEventRepository;
 import ro.golstat.api.repository.FixtureLineupRepository;
 import ro.golstat.api.repository.InjuryRepository;
 import ro.golstat.api.repository.PlayerRepository;
@@ -355,7 +356,8 @@ class PieteZileServiceTest {
                 date.fixtures, history, new StatsHistoryService(date.fixtures, date.teamStats),
                 new CountLeagueAverageService(date.teamStats), new LeagueAverageService(date.fixtures),
                 new RefereeService(date.teamStats), date.teams,
-                lineups, lineupPlayers, injuries, players, date.teamStats);
+                lineups, lineupPlayers, injuries, players, date.teamStats,
+                mock(FixtureEventRepository.class));
     }
 
     // --- ajutoare de aserție ---

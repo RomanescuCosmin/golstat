@@ -11,7 +11,7 @@ import { SkeletonCard } from '../components/ui/Skeleton';
 import { TeamLogo } from '../components/ui/TeamLogo';
 import { IconUser } from '../components/ui/icons';
 import { numeEchipa } from '../lib/echipa';
-import { LIGI_POPULARE, numeLiga } from '../lib/ligi';
+import { numeLiga, optiuniSelectorLigi } from '../lib/ligi';
 
 /** Card cu un top de jucatori al competitiei (golgheteri / pasatori). */
 function CardTopJucatori({ titlu, jucatori }: { titlu: string; jucatori: JucatorTop[] }) {
@@ -89,7 +89,7 @@ export function JucatoriPage() {
     };
   }, [leagueId, incercare]);
 
-  const optiuniLigi = LIGI_POPULARE.map((id) => ({ id, nume: numeLiga(id) }));
+  const optiuniLigi = optiuniSelectorLigi();
 
   return (
     <PageLayout>
