@@ -34,6 +34,24 @@ export const LIGI: Liga[] = [
   // „Bundesliga Austria", nu „Bundesliga": furnizorul o numeste identic cu cea germana (78), iar in
   // selectoare cele doua ar aparea ca doua randuri cu acelasi text.
   { id: 218, nume: 'Bundesliga Austria', regiune: 'Austria' },
+  // Numele vin cu tara acolo unde furnizorul le duplica: „Premier League" (Ucraina) ar fi identic cu
+  // Anglia, „Super League" cu Grecia, iar Serbia si Slovacia au amandoua „Super Liga".
+  { id: 106, nume: 'Ekstraklasa', regiune: 'Polonia' },
+  { id: 207, nume: 'Super League Elveția', regiune: 'Elveția' },
+  { id: 179, nume: 'Premiership Scoția', regiune: 'Scoția' },
+  { id: 345, nume: 'Czech Liga', regiune: 'Cehia' },
+  { id: 210, nume: 'HNL', regiune: 'Croația' },
+  { id: 271, nume: 'NB I', regiune: 'Ungaria' },
+  { id: 172, nume: 'First League Bulgaria', regiune: 'Bulgaria' },
+  { id: 286, nume: 'Super Liga Serbia', regiune: 'Serbia' },
+  { id: 332, nume: 'Super Liga Slovacia', regiune: 'Slovacia' },
+  { id: 333, nume: 'Premier League Ucraina', regiune: 'Ucraina' },
+  { id: 383, nume: "Ligat Ha'al", regiune: 'Israel' },
+  { id: 318, nume: '1. Division', regiune: 'Cipru' },
+  { id: 373, nume: '1. SNL', regiune: 'Slovenia' },
+  { id: 244, nume: 'Veikkausliiga', regiune: 'Finlanda' },
+  { id: 357, nume: 'Premier Division', regiune: 'Irlanda' },
+  { id: 164, nume: 'Úrvalsdeild', regiune: 'Islanda' },
   { id: 667, nume: 'Amicale cluburi', regiune: 'Internațional' },
 ];
 

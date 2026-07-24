@@ -47,23 +47,19 @@ export function CaruselLive() {
     };
   }, []);
 
+  if (live.length === 0) return null;
+
   return (
     <Card className="overflow-hidden">
       <div className="flex items-center gap-2.5 px-5 pb-1 pt-4">
         <h2 className="text-[15px] font-extrabold text-ink">Meciuri în desfășurare</h2>
-        {live.length > 0 && (
-          <span className="flex items-center gap-1.5 rounded-full bg-accent/10 px-2 py-0.5 text-[11px] font-bold text-accent">
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent" />
-            {live.length}
-          </span>
-        )}
+        <span className="flex items-center gap-1.5 rounded-full bg-accent/10 px-2 py-0.5 text-[11px] font-bold text-accent">
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent" />
+          {live.length}
+        </span>
       </div>
 
-      {live.length === 0 ? (
-        <p className="px-5 pb-5 pt-2 text-xs text-ink2">Niciun meci în desfășurare acum.</p>
-      ) : (
-        <Banda live={live} onOpen={(id) => navigate(`/meci/${id}/centru`)} />
-      )}
+      <Banda live={live} onOpen={(id) => navigate(`/meci/${id}/centru`)} />
     </Card>
   );
 }

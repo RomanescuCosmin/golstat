@@ -42,6 +42,29 @@ golstat:
       # Sezonul 2025 e deja in baza (195 meciuri, din vechiul profil `test`), iar 2026 incepe pe
       # 31 iulie cu 0 meciuri jucate — deci NU are nevoie de tinta de recuperare, doar de urmarire.
       - { league-id: 218, season: 2026 }   # Bundesliga Austria
+      # Campionate adaugate pe 2026-07-21. Deocamdata DOAR zilnic (program + scoruri + clasament +
+      # loturi). Tintele de backfill pe 2025 se adauga abia dupa `scripts/testeaza-acoperire.ps1`:
+      # un sezon costa ~1200 requesturi si n-are rost platit la o liga unde furnizorul n-are
+      # cornere/faulturi/cartonase (vezi Liga I, unde `/fixtures/statistics` intoarce results=0).
+      - { league-id: 106, season: 2026 }   # Ekstraklasa (Polonia)
+      - { league-id: 207, season: 2026 }   # Super League (Elvetia)
+      - { league-id: 179, season: 2026 }   # Premiership (Scotia)
+      - { league-id: 345, season: 2026 }   # Czech Liga (Cehia)
+      - { league-id: 210, season: 2026 }   # HNL (Croatia)
+      - { league-id: 271, season: 2026 }   # NB I (Ungaria)
+      - { league-id: 172, season: 2026 }   # First League (Bulgaria)
+      - { league-id: 286, season: 2026 }   # Super Liga (Serbia)
+      - { league-id: 332, season: 2026 }   # Super Liga (Slovacia)
+      - { league-id: 333, season: 2026 }   # Premier League (Ucraina)
+      - { league-id: 383, season: 2026 }   # Ligat Ha'al (Israel)
+      - { league-id: 318, season: 2026 }   # 1. Division (Cipru)
+      - { league-id: 373, season: 2026 }   # 1. SNL (Slovenia)
+      # An calendaristic: sezonul 2026 e in DESFASURARE, deci vor avea nevoie si de tinta de
+      # recuperare (ca 113/103). O adaugam dupa ce testul confirma ca merita — altfel platim
+      # fereastra absoluta degeaba.
+      - { league-id: 244, season: 2026 }   # Veikkausliiga (Finlanda)
+      - { league-id: 357, season: 2026 }   # Premier Division (Irlanda)
+      - { league-id: 164, season: 2026 }   # Urvalsdeild (Islanda)
       # Ligile secunde: acelasi tratament, dar au mai multe echipe de imbogatit.
       - { league-id: 40,  season: 2026 }   # Championship
       - { league-id: 41,  season: 2026 }   # League One
@@ -78,6 +101,36 @@ golstat:
       - { league-id: 119, season: 2025, from: "2025-01-01", to: "2026-06-30" }   # Superliga daneza
       - { league-id: 41,  season: 2025, from: "2025-01-01", to: "2026-06-30" }   # League One
       - { league-id: 89,  season: 2025, from: "2025-01-01", to: "2026-06-30" }   # Eerste Divisie
+      # Adaugate pe 2026-07-22, dupa `scripts/testeaza-acoperire.ps1`: furnizorul chiar are
+      # cornere + faulturi + cartonase pe sezonul 2025 la ligile astea, deci backfill-ul (~1200
+      # requesturi/liga) produce piete, nu doar scoruri.
+      - { league-id: 106, season: 2025, from: "2025-01-01", to: "2026-06-30" }   # Ekstraklasa
+      - { league-id: 207, season: 2025, from: "2025-01-01", to: "2026-06-30" }   # Super League Elvetia
+      - { league-id: 179, season: 2025, from: "2025-01-01", to: "2026-06-30" }   # Premiership Scotia
+      - { league-id: 345, season: 2025, from: "2025-01-01", to: "2026-06-30" }   # Czech Liga
+      - { league-id: 271, season: 2025, from: "2025-01-01", to: "2026-06-30" }   # NB I Ungaria
+      - { league-id: 286, season: 2025, from: "2025-01-01", to: "2026-06-30" }   # Super Liga Serbia
+      - { league-id: 383, season: 2025, from: "2025-01-01", to: "2026-06-30" }   # Ligat Ha'al Israel
+      # Re-sondate pe 12 meciuri intinse peste sezon (primul sondaj, pe UN singur meci, le clasase
+      # gresit ca „doar scoruri" — nimerise exact meciuri fara date). Acoperirea reala a statisticilor:
+      #   357 Irlanda 92%, 172 Bulgaria 75%, 318 Cipru 25%, 244 Finlanda 17%, 373 Slovenia 0%, 164 Islanda 0%.
+      # Le luam pe toate: backfill-ul costa ~1200 requesturi indiferent daca vin statistici de echipa,
+      # dar aduce oricum program, scoruri si cronologie — deci pietele de goluri merg peste tot, iar
+      # la Slovenia si cele de cartonase (cronologia are evenimente de tip Card).
+      - { league-id: 357, season: 2025, from: "2025-01-01", to: "2026-06-30" }   # Premier Division Irlanda
+      - { league-id: 172, season: 2025, from: "2025-01-01", to: "2026-06-30" }   # First League Bulgaria
+      - { league-id: 318, season: 2025, from: "2025-01-01", to: "2026-06-30" }   # 1. Division Cipru
+      - { league-id: 244, season: 2025, from: "2025-01-01", to: "2026-06-30" }   # Veikkausliiga Finlanda
+      - { league-id: 373, season: 2025, from: "2025-01-01", to: "2026-06-30" }   # 1. SNL Slovenia
+      - { league-id: 164, season: 2025, from: "2025-01-01", to: "2026-06-30" }   # Urvalsdeild Islanda
+      # Re-sondate pe 2026-07-22: primul sondaj le raportase "fara meciuri terminate", dar era un
+      # request esuat tranzitoriu tratat ca lipsa de date (bug reparat in testeaza-acoperire.ps1).
+      # Au sezon 2025 complet: Croatia 180 meciuri terminate / acoperire 5/5, Slovacia 192 / 4/5,
+      # Ucraina 243 / 3/5. Sezonul 2026 incepe la 25 iul - 1 aug cu 0 meciuri jucate, deci nu au
+      # nevoie de tinta de recuperare.
+      - { league-id: 210, season: 2025, from: "2025-01-01", to: "2026-06-30" }   # HNL Croatia
+      - { league-id: 332, season: 2025, from: "2025-01-01", to: "2026-06-30" }   # Super Liga Slovacia
+      - { league-id: 333, season: 2025, from: "2025-01-01", to: "2026-06-30" }   # Premier League Ucraina
 
       # --- RECUPERARE sezon CURENT (2026) pentru ligile prinse la mijloc de sezon ---
       # REGULA, valabila ori de cate ori adaugi o liga noua in lista zilnica: fereastra rulanta
@@ -90,6 +143,17 @@ golstat:
       # istoricul, apoi se marcheaza gata, iar cea zilnica o tine la zi mai departe.
       - { league-id: 113, season: 2026, from: "2026-01-01", to: "2026-12-31" }   # Allsvenskan
       - { league-id: 103, season: 2026, from: "2026-01-01", to: "2026-12-31" }   # Eliteserien
+      # Adaugate pe 2026-07-22, dupa aceeasi regula. Verificat la furnizor in aceeasi zi cate meciuri
+      # din sezonul 2026 erau deja jucate cand am adaugat liga — toate cad inaintea ferestrei rulante
+      # de 3 zile, deci fara tinta absoluta s-ar fi pierdut definitiv:
+      #   244 Finlanda 96, 357 Irlanda 121, 164 Islanda 91 (an calendaristic, la ~2/3 de sezon),
+      #   172 Bulgaria 7, 373 Slovenia 5 (sezon toamna-primavara, abia inceput).
+      # 318 Cipru avea 0 meciuri in 2026, deci nu are nevoie de recuperare.
+      - { league-id: 244, season: 2026, from: "2026-01-01", to: "2026-12-31" }   # Veikkausliiga
+      - { league-id: 357, season: 2026, from: "2026-01-01", to: "2026-12-31" }   # Premier Division Irlanda
+      - { league-id: 164, season: 2026, from: "2026-01-01", to: "2026-12-31" }   # Urvalsdeild
+      - { league-id: 172, season: 2026, from: "2026-01-01", to: "2026-12-31" }   # First League Bulgaria
+      - { league-id: 373, season: 2026, from: "2026-01-01", to: "2026-12-31" }   # 1. SNL Slovenia
 
     # Fereastra rulanta pentru tintele zilnice. 3 zile = plasa de siguranta pentru detaliile publicate
     # cu intarziere de furnizor (statistici/evenimente apar la minute-ore dupa fluier): meciul ramane

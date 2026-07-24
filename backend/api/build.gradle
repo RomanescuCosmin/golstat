@@ -6,11 +6,15 @@ plugins {
 dependencies {
     implementation project(':common')
     implementation project(':stats-engine')
+    // Doar pentru bucla LIVE gazduita in API: aduce stratul de furnizor (API-Football) din colector.
+    // Scanam explicit doar pachetul `provider` (LiveCollectorConfig), deci colectarea batch NU se activeaza.
+    implementation project(':data-collector')
 
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-websocket'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'   // cota + cache furnizor (bucla LIVE)
     implementation 'org.springframework.kafka:spring-kafka'
     runtimeOnly 'org.postgresql:postgresql'
 

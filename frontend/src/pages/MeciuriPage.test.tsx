@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { ApiError, getLive, getMeciuriZi } from '../api/client';
-import { ligaZi, meciZi, programZiGrupat } from '../test/factories';
+import { ligaZi, meciLive, meciZi, programZiGrupat } from '../test/factories';
 import { MeciuriPage } from './MeciuriPage';
 
 vi.mock('../api/client', async (importOriginal) => ({
@@ -176,6 +176,36 @@ describe('MeciuriPage', () => {
 
     await user.click(screen.getByRole('button', { name: /Filtre/ }));
     expect(screen.getByText('Liga Alfa')).toBeInTheDocument();
+  });
+
+  test('fara meciuri live: cardul "Meciuri în desfășurare" nu apare deloc', async () => {
+    mockGetMeciuriZi.mockResolvedValue(
+      programZiGrupat({ ligi: [ligaZi({ leagueId: 901, nume: 'Liga Alfa', meciuri: [meciZi()] })] }),
+    );
+    randeaza();
+    await screen.findByText('Liga Alfa');
+
+    expect(screen.queryByText('Meciuri în desfășurare')).toBeNull();
+    expect(screen.queryByText('Niciun meci în desfășurare acum.')).toBeNull();
+  });
+
+  test('cu meciuri live: caruselul e al doilea card, intre primul si al doilea campionat', async () => {
+    mockGetMeciuriZi.mockResolvedValue(
+      programZiGrupat({
+        ligi: [
+          ligaZi({ leagueId: 901, nume: 'Liga Alfa', meciuri: [meciZi({ fixtureId: 1 })] }),
+          ligaZi({ leagueId: 902, nume: 'Liga Beta', meciuri: [meciZi({ fixtureId: 2 })] }),
+        ],
+      }),
+    );
+    mockGetLive.mockResolvedValue([meciLive()]);
+    const { container } = randeaza();
+    await screen.findByText('Liga Alfa');
+
+    expect(await screen.findByText('Meciuri în desfășurare')).toBeInTheDocument();
+    const text = container.textContent ?? '';
+    expect(text.indexOf('Liga Alfa')).toBeLessThan(text.indexOf('Meciuri în desfășurare'));
+    expect(text.indexOf('Meciuri în desfășurare')).toBeLessThan(text.indexOf('Liga Beta'));
   });
 
   test('zi fara meciuri: EmptyState', async () => {

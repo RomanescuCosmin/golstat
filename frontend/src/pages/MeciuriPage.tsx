@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { ApiError, getMeciuriZi } from '../api/client';
 import type { LigaZi } from '../api/types';
 import { CardCompetitie } from '../components/meciuri/CardCompetitie';
@@ -73,7 +73,8 @@ export function MeciuriPage() {
 
   const totalMeciuri = ligiAfisate.reduce((n, l) => n + l.meciuri.length, 0);
 
-  // Coloana stanga curge liber (lista → carusel live); railul drept e sticky si deruleaza intern,
+  // Coloana stanga curge liber (caruselul live, cand exista meciuri, e al doilea card — dupa
+  // primul campionat); railul drept e sticky si deruleaza intern,
   // deci nu poate impinge continutul in jos — inaltimea paginii e data strict de continut.
   return (
     <div className="mx-auto grid max-w-[1640px] grid-cols-1 items-start gap-5 lg:gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
@@ -106,25 +107,27 @@ export function MeciuriPage() {
         )}
 
         {!loading && !eroare && totalMeciuri === 0 && (
-          <Card>
-            <EmptyState
-              titlu="Niciun meci de afișat"
-              mesaj="Schimbă ziua, competiția sau dezactivează filtrele din dreapta sus."
-            />
-          </Card>
+          <div className="space-y-[18px]">
+            <Card>
+              <EmptyState
+                titlu="Niciun meci de afișat"
+                mesaj="Schimbă ziua, competiția sau dezactivează filtrele din dreapta sus."
+              />
+            </Card>
+            <CaruselLive />
+          </div>
         )}
 
         {!loading && !eroare && totalMeciuri > 0 && (
           <div className="animate-fade-in space-y-[18px]">
-            {ligiAfisate.map((liga) => (
-              <CardCompetitie key={liga.leagueId} liga={liga} />
+            {ligiAfisate.map((liga, i) => (
+              <Fragment key={liga.leagueId}>
+                <CardCompetitie liga={liga} />
+                {i === 0 && <CaruselLive />}
+              </Fragment>
             ))}
           </div>
         )}
-
-        <div className="mt-[18px]">
-          <CaruselLive />
-        </div>
       </div>
 
       {/* Fiecare sectiune din rail isi plafoneaza lista si deruleaza intern (rotita mouse-ului),

@@ -26,9 +26,32 @@ spring:
       # loturile per liga (injuries) depasesc 1 MiB pe ligile mari; aliniat cu max.request.size de la producer
       properties:
         max.partition.fetch.bytes: 5242880
+  data:
+    redis:                     # cota + cache furnizor pentru bucla LIVE (partajate cu colectorul)
+      host: localhost
+      port: 6379
 
 golstat:
   database:
     name: golstat
   cors:
     allowed-origins: http://localhost:5173
+  # Sursa de date pentru bucla LIVE. Contorul de cota sta in Redis sub aceeasi cheie ca la colector,
+  # deci live + backfill impart automat cei 7500/zi (live are prioritate: nu respecta rezerva de backfill).
+  api-football:
+    base-url: https://v3.football.api-sports.io
+    api-key: ${API_FOOTBALL_KEY:}
+    daily-request-limit: 7500
+    cache-ttl: 6h
+    ttl-upcoming: 1h
+    ttl-historic: 24h
+    ttl-team-stats: 20h
+    ttl-players: 7d
+    ttl-coaches: 7d
+  live:
+    enabled: true              # bucla LIVE gazduita in API (proces mereu pornit); off in teste (@WebMvcTest)
+    poll-ms: 15000             # ritmul de poll cand exista un meci in fereastra
+    window-before-minutes: 140 # cat timp dupa kickoff mai consideram meciul "live" (meci lung + prelungiri)
+    window-after-minutes: 15   # cat inainte de kickoff pornim polul
+    stats-every-ms: 120000     # refresh throttled al statisticilor live (2 min → cota controlata)
+    stats-leagues: []          # allowlist ligi pentru statistici live (gol = toate cele urmarite)

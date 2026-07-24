@@ -53,7 +53,7 @@ class OneshotProfileConfigTest {
                 .filter(t -> !t.esteBackfill())
                 .toList();
 
-        assertEquals(27, zilnice.size(), "cate competitii are si frontend/src/lib/ligi.ts");
+        assertEquals(43, zilnice.size(), "cate competitii are si frontend/src/lib/ligi.ts");
         assertTrue(zilnice.stream().allMatch(t -> t.season() == 2026), "zilnicul urmareste sezonul curent");
         assertTrue(zilnice.stream().anyMatch(t -> t.leagueId() == 667 && t.doarFixtures()),
                 "amicalele raman doar-fixtures, altfel imbogatirea depaseste singura cota zilnica");
@@ -69,7 +69,7 @@ class OneshotProfileConfigTest {
                 .filter(LeagueTarget::esteBackfill)
                 .toList();
 
-        assertEquals(14, backfill.size(), "12 ligi pe sezonul trecut + 2 recuperari pe sezonul curent");
+        assertEquals(35, backfill.size(), "28 ligi pe sezonul trecut + 7 recuperari pe sezonul curent");
         for (LeagueTarget t : backfill) {
             assertTrue(t.imbogatireEchipe(), "loturile sunt necesare pentru statisticile jucatorilor");
             assertFalse(t.statisticiJucatori(), "notele per meci ar adauga ~380 requesturi per liga");
@@ -106,12 +106,14 @@ class OneshotProfileConfigTest {
     void midSeasonLeaguesHaveACurrentSeasonCatchUpTarget() {
         // Fereastra rulanta prinde doar de azi inainte. O liga adaugata in mijlocul sezonului isi pierde
         // definitiv meciurile deja jucate daca nu primeste si o tinta cu fereastra absoluta.
-        // Allsvenskan si Eliteserien joaca pe an calendaristic, deci in iulie sunt la ~2/3 de sezon.
+        // Allsvenskan si Eliteserien joaca pe an calendaristic, deci in iulie sunt la ~2/3 de sezon;
+        // la fel Finlanda, Irlanda si Islanda. Bulgaria si Slovenia sunt toamna-primavara, dar
+        // apucasera sa joace cateva etape inainte sa le adaugam pe 2026-07-21.
         List<LeagueTarget> backfill = incarca().leagues().stream()
                 .filter(LeagueTarget::esteBackfill)
                 .toList();
 
-        for (long liga : List.of(113L, 103L)) {
+        for (long liga : List.of(113L, 103L, 244L, 357L, 164L, 172L, 373L)) {
             assertTrue(backfill.stream().anyMatch(t -> t.leagueId() == liga && t.season() == 2026),
                     "liga " + liga + " e in plin sezon 2026 dar n-are tinta de recuperare");
         }

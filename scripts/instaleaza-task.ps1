@@ -78,20 +78,23 @@ $actiune = New-ScheduledTaskAction -Execute 'powershell.exe' `
     -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$scriptColectare`" -Adoarme" `
     -WorkingDirectory $PSScriptRoot
 
-# Repetitie pe 24h, decalata cu 10 minute fata de ora fixa.
-# De ce nu la fix: cota API-Football se reseteaza la miezul noptii UTC = 03:00 ora Romaniei vara
-# (02:00 iarna). Cu pornire la 00:00 si interval de 3h, o rulare ar cadea exact pe granita resetului.
-# Decalajul o muta sigur DUPA reset, deci ciclul de noapte prinde cota proaspata intreaga.
-# 10 ani, nu [TimeSpan]::MaxValue: acesta din urma serializeaza ca P99999999DT23H59M59S, pe care
-# Task Scheduler il respinge cu "value incorrectly formatted or out of range".
-$triggerRepetat = New-ScheduledTaskTrigger -Once -At (Get-Date).Date.AddMinutes(10) `
-    -RepetitionInterval (New-TimeSpan -Hours $LaOre) `
-    -RepetitionDuration (New-TimeSpan -Days 3650)
+# Cate un trigger ZILNIC per ora de rulare, nu unul `-Once` cu repetitie.
+# De ce: masurat pe 2026-07-21, un `-Once` + `RepetitionInterval 3h` a trezit laptopul la 18:10 si
+# 21:10, apoi NU l-a mai trezit la 00:10, 03:10 si 06:10 — desi wake timers erau permise (AC+DC),
+# masina suporta S3 clasic si sesiunea era logata. Windows armeaza ceasul RTC pentru URMATOAREA
+# ocurenta a unui trigger; pe repetitii, arm-area se pierde peste granita de zi. Un DailyTrigger la
+# ora fixa are propria ocurenta pentru fiecare zi, deci se re-armeaza singur.
+#
+# Decalajul de 10 minute fata de ora fixa: cota API-Football se reseteaza la miezul noptii UTC =
+# 03:00 ora Romaniei vara (02:00 iarna). O rulare exact la 03:00 ar cadea pe granita resetului.
+$oreRulare = 0..23 | Where-Object { $_ % $LaOre -eq 0 }
+$triggereZilnice = $oreRulare | ForEach-Object {
+    New-ScheduledTaskTrigger -Daily -At (Get-Date).Date.AddHours($_).AddMinutes(10)
+}
 
-# Trigger pe DEBLOCARE: cel mai fiabil moment de colectare. Trezirea programata din sleep e
-# nesigura pe hardware-ul asta (verificat: 18:09/21:09 s-au trezit, 00:10/03:10/06:10 nu, desi wake
-# timers erau permise si sesiunea logata). Deblocarea insa e garantata cand te apuci de lucru
-# dimineata, iar fereastra de 3 zile + largirea automata prind tot ce s-a ratat peste noapte.
+# Trigger pe DEBLOCARE: plasa de siguranta peste trezirea programata. Chiar daca un wake ratat lasa
+# o gaura peste noapte, deblocarea de dimineata declanseaza ciclul, iar fereastra de 3 zile plus
+# largirea automata din UltimaRulare recupereaza tot ce s-a pierdut.
 # Cmdlet-ul New-ScheduledTaskTrigger nu expune session-state-change, deci il construim prin CIM.
 # StateChange = 8 => TASK_SESSION_UNLOCK.
 $clasaTrigger = Get-CimClass -Namespace 'Root/Microsoft/Windows/TaskScheduler' `
@@ -104,7 +107,7 @@ $triggerDeblocare.Enabled     = $true
 # oricum unlock-urile repetate (nu ruleaza daca un ciclu s-a incheiat in ultimele 30 min).
 $triggerDeblocare.Delay       = 'PT1M'
 
-$trigger = @($triggerRepetat, $triggerDeblocare)
+$trigger = @($triggereZilnice) + $triggerDeblocare
 
 $setari = New-ScheduledTaskSettingsSet `
     -WakeToRun `
@@ -121,7 +124,8 @@ Register-ScheduledTask -TaskName $NumeTask -Action $actiune -Trigger $trigger -S
     -Description 'Colecteaza date API-Football pentru golstat; trezeste PC-ul din sleep.' `
     -User $env:USERNAME -Force | Out-Null
 
-Write-Host "Task-ul '$NumeTask' a fost inregistrat (la fiecare $LaOre ore + la deblocare, cu trezire din sleep)."
+Write-Host ("Task-ul '{0}' a fost inregistrat: {1} triggere zilnice ({2}) + deblocare, cu trezire din sleep." -f `
+    $NumeTask, $triggereZilnice.Count, (($oreRulare | ForEach-Object { '{0:00}:10' -f $_ }) -join ', '))
 Write-Host ''
 Write-Host 'Verificari utile:'
 Write-Host '  Get-ScheduledTask golstat-colectare | Get-ScheduledTaskInfo'

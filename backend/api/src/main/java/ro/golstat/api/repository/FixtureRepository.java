@@ -123,6 +123,12 @@ public interface FixtureRepository extends JpaRepository<Fixture, Long> {
                                   @Param("from") OffsetDateTime from,
                                   @Param("to") OffsetDateTime to);
 
+    /**
+     * Exista vreun meci cu kickoff in fereastra data (orice status)? Poarta ieftina pentru bucla LIVE:
+     * polim API-Football doar in preajma unui meci, altfel am arde requesturi 24/7 degeaba.
+     */
+    boolean existsByKickoffBetween(OffsetDateTime start, OffsetDateTime end);
+
     /** Meciurile in DESFASURARE acum (orice liga), cele mai apropiate de start primele. */
     @Query("""
             select f from Fixture f
