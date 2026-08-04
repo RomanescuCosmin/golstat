@@ -50,8 +50,8 @@ golstat:
     ttl-coaches: 7d
   live:
     enabled: true              # bucla LIVE gazduita in API (proces mereu pornit); off in teste (@WebMvcTest)
-    poll-ms: 15000             # ritmul de poll cand exista un meci in fereastra
+    poll-ms: 15000             # scor + evenimente: la 15s (live=all = 1 request/poll, indiferent de nr. meciuri)
     window-before-minutes: 140 # cat timp dupa kickoff mai consideram meciul "live" (meci lung + prelungiri)
     window-after-minutes: 15   # cat inainte de kickoff pornim polul
-    stats-every-ms: 120000     # refresh throttled al statisticilor live (2 min → cota controlata)
+    stats-every-ms: 30000      # statistici live la 30s (era 2 min); 1 request/meci/refresh → creste cu nr. meciuri live
     stats-leagues: []          # allowlist ligi pentru statistici live (gol = toate cele urmarite)
