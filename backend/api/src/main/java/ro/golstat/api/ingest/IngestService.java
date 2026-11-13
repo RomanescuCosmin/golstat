@@ -203,6 +203,25 @@ public class IngestService {
         fixtures.save(EntityMapper.toFixture(dto));
     }
 
+    /**
+     * Starea live peste un meci deja din program: doar scor, status, minut si pauza — lista live a
+     * furnizorului nu are runda / stadion / arbitru, iar un save complet le-ar sterge.
+     * @return false daca meciul nu exista (nu e din programul urmarit)
+     */
+    @Transactional
+    public boolean actualizeazaLive(FixtureDto dto) {
+        return fixtures.findById(dto.id()).map(f -> {
+            f.setStatusShort(dto.statusShort());
+            f.setStatusLong(dto.statusLong());
+            f.setStatusElapsed(dto.statusElapsed());
+            f.setGoalsHome(dto.goalsHome());
+            f.setGoalsAway(dto.goalsAway());
+            f.setScoreHtHome(dto.scoreHtHome());
+            f.setScoreHtAway(dto.scoreHtAway());
+            return true;
+        }).orElse(false);
+    }
+
     @Transactional
     public void ingestStanding(StandingDto dto) {
         ensureSeason(dto.leagueId(), dto.seasonYear());

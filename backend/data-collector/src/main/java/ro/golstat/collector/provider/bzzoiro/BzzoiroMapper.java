@@ -95,13 +95,25 @@ final class BzzoiroMapper {
             case "notstarted" -> FixtureStatus.NOT_STARTED;
             case "postponed" -> FixtureStatus.POSTPONED;
             case "cancelled", "canceled" -> FixtureStatus.CANCELLED;
-            case "inprogress" -> switch (String.valueOf(text(e, "period"))) {
-                case "HT" -> FixtureStatus.HALF_TIME;
-                case "2H" -> FixtureStatus.SECOND_HALF;
-                case "ET" -> FixtureStatus.EXTRA_TIME;
-                default -> FixtureStatus.FIRST_HALF;
-            };
-            default -> s.toUpperCase();
+            // lista /events/live/ da status=inprogress + period=1st_half/halftime/...;
+            // /events/{id}/ da direct status=1st_half/halftime + period=1T/HT/2T
+            case "inprogress" -> java.util.Objects.requireNonNullElse(
+                    inJoc(String.valueOf(text(e, "period"))), FixtureStatus.FIRST_HALF);
+            default -> {
+                String inJoc = inJoc(s);
+                yield inJoc != null ? inJoc : s.toUpperCase();
+            }
+        };
+    }
+
+    private static String inJoc(String stare) {
+        return switch (stare) {
+            case "1st_half", "1T", "1H" -> FixtureStatus.FIRST_HALF;
+            case "halftime", "HT" -> FixtureStatus.HALF_TIME;
+            case "2nd_half", "2T", "2H" -> FixtureStatus.SECOND_HALF;
+            case "extra_time", "overtime", "ET" -> FixtureStatus.EXTRA_TIME;
+            case "penalties", "P" -> FixtureStatus.PENALTY;
+            default -> null;
         };
     }
 

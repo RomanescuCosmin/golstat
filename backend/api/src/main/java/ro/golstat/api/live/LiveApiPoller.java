@@ -92,8 +92,10 @@ public class LiveApiPoller {
                 if (f == null || f.id() == null || f.leagueId() == null || !tracked.contains(f.leagueId())) {
                     continue;
                 }
+                if (!ingest.actualizeazaLive(f)) {
+                    continue;
+                }
                 liveTracked.add(f.id());
-                ingest.ingestFixture(f);
                 broadcaster.broadcast(f);   // push LIVE daca meciul e in desfasurare
 
                 if (fl.evenimente() != null && !fl.evenimente().isEmpty()) {

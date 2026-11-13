@@ -64,6 +64,7 @@ class LiveApiPollerTest {
 
     private void matchInWindow() {
         when(fixtures.existsByKickoffBetween(any(), any())).thenReturn(true);
+        when(ingest.actualizeazaLive(any())).thenReturn(true);
     }
 
     /** Ligile urmarite vin din meciurile terminate colectate (proiectia {@link LeagueSeason}). */
@@ -85,11 +86,24 @@ class LiveApiPollerTest {
 
         poller().poll();
 
-        verify(ingest).ingestFixture(argThat(f -> f.id() == 100L));
-        verify(ingest).ingestFixture(argThat(f -> f.id() == 200L));
-        verify(ingest, never()).ingestFixture(argThat(f -> f.id() == 300L));
+        verify(ingest).actualizeazaLive(argThat(f -> f.id() == 100L));
+        verify(ingest).actualizeazaLive(argThat(f -> f.id() == 200L));
+        verify(ingest, never()).actualizeazaLive(argThat(f -> f.id() == 300L));
+        verify(ingest, never()).ingestFixture(any());
         verify(broadcaster).broadcast(argThat(f -> f.id() == 100L));
         verify(broadcaster).broadcast(argThat(f -> f.id() == 200L));
+    }
+
+    @Test
+    void meciNecunoscutInDb_esteSarit() {
+        matchInWindow();
+        tracked(39L);
+        when(ingest.actualizeazaLive(any())).thenReturn(false);
+        provider.live = List.of(live(100, 39));
+
+        poller().poll();
+
+        verify(broadcaster, never()).broadcast(any());
     }
 
     @Test

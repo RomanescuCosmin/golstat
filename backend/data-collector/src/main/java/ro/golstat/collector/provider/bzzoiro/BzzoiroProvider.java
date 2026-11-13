@@ -121,14 +121,18 @@ public class BzzoiroProvider implements DataProvider {
     }
 
     /**
-     * Meciurile in desfasurare din ligile configurate: UN singur request ({@code status=inprogress}) aduce
-     * scorul si minutul tuturor, indiferent cate sunt. Incidentele vin separat, la finalul meciului.
+     * Meciurile in desfasurare din ligile configurate: UN singur request ({@code /events/live/}) aduce
+     * scorul si minutul tuturor. Lista nu are sezon, runda, stadion, arbitru — doar starea live; cele deja
+     * terminate din lista le sarim, ca sa treaca pe ruta „tocmai terminat" (stare finala + completare).
      */
     @Override
     public List<FixtureLiveDto> liveFixtures() {
         Map<Long, Long> aplicatie = ligiInverse();
         List<FixtureLiveDto> out = new ArrayList<>();
-        for (JsonNode e : client.getAll("/events/", Map.of("status", "inprogress"))) {
+        for (JsonNode e : client.get("/events/live/", Map.of()).path("events")) {
+            if (!"inprogress".equals(e.path("status").asText())) {
+                continue;
+            }
             FixtureDto f = dinEveniment(e, aplicatie);
             if (f != null) {
                 out.add(new FixtureLiveDto(f, List.of()));
@@ -170,7 +174,8 @@ public class BzzoiroProvider implements DataProvider {
             return null;
         }
         Optional<JsonNode> sezon = sezonCurent(liga);
-        if (sezon.isEmpty() || e.path("season_id").asLong() != sezon.get().path("id").asLong()) {
+        // lista live nu trimite season_id: acolo ne bazam pe liga + meciul deja existent in DB
+        if (sezon.isEmpty() || (e.has("season_id") && e.path("season_id").asLong() != sezon.get().path("id").asLong())) {
             return null;
         }
         FixtureDto f = BzzoiroMapper.toFixture(e, liga, sezon.get().path("year").asInt(),
