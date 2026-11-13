@@ -17,6 +17,14 @@ public enum CodPiata {
     CORNERE_PESTE(true),
     FAULTURI_PESTE(true),
     CARTONASE_PESTE(true),
+    GOLURI_GAZDE_PESTE(true),
+    GOLURI_OASPETI_PESTE(true),
+    CORNERE_GAZDE_PESTE(true),
+    CORNERE_OASPETI_PESTE(true),
+    CARTONASE_GAZDE_PESTE(true),
+    CARTONASE_OASPETI_PESTE(true),
+    CORNERE_REPRIZA1_PESTE(true),
+    CORNERE_REPRIZA2_PESTE(true),
     EGAL_PAUZA(false),
     EGAL_FINAL(false);
 

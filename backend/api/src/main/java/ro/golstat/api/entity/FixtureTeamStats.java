@@ -38,6 +38,12 @@ public class FixtureTeamStats {
     private BigDecimal ballPossession;
     private Integer yellowCards;
     private Integer redCards;
+    /**
+     * Cartonasele dupa regula pietelor de pariuri, din incidente: galbene + rosii + al doilea galben
+     * (eliminarea dupa doua galbene = 2 cartonase, nu 3 ca in statisticile furnizorului), fara staff.
+     * {@code null} cand meciul n-are incidente — atunci se folosesc galbene + rosii.
+     */
+    private Integer cartonase;
     private Integer goalkeeperSaves;
     private Integer passesTotal;
     private Integer passesAccurate;

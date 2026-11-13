@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ApiError, getPrevizualizare } from '../api/client';
+import { ApiError, getPrevizualizare, type FiltruCompetitie } from '../api/client';
 import type { PrevizualizareMeciDto } from '../api/types';
 import { FormaEchipe } from '../components/previzualizare/FormaEchipe';
 import { HeaderMeci } from '../components/previzualizare/HeaderMeci';
@@ -9,6 +9,7 @@ import { ProbabilitateRezultat } from '../components/previzualizare/Probabilitat
 import { SectiuneStatistici } from '../components/previzualizare/SectiuneStatistici';
 import { StatisticiCheie } from '../components/previzualizare/StatisticiCheie';
 import { EchipaDeStart } from '../components/lineup/EchipaDeStart';
+import { citesteFiltruCompetitie, salveazaFiltruCompetitie } from '../lib/filtruCompetitie';
 import { PageLayout } from '../components/layout/PageLayout';
 import { Card } from '../components/ui/Card';
 import { EmptyState } from '../components/ui/EmptyState';
@@ -33,6 +34,12 @@ export function PrevizualizarePage() {
   const [eroare, setEroare] = useState<ApiError | null>(null);
   const [incercare, setIncercare] = useState(0);
   const [tab, setTab] = useState<string>('prezentare');
+  const [competitie, setCompetitie] = useState<FiltruCompetitie>(citesteFiltruCompetitie);
+
+  // alt meci: nu lasam pe ecran datele celui vechi cat se incarca (pastrarea lor e doar pentru filtrul de competitie)
+  useEffect(() => {
+    setDate(null);
+  }, [id]);
 
   useEffect(() => {
     if (!Number.isInteger(id) || id <= 0) {
@@ -43,7 +50,7 @@ export function PrevizualizarePage() {
     let anulat = false;
     setLoading(true);
     setEroare(null);
-    getPrevizualizare(id)
+    getPrevizualizare(id, competitie)
       .then((rezultat) => {
         if (!anulat) setDate(rezultat);
       })
@@ -59,7 +66,12 @@ export function PrevizualizarePage() {
     return () => {
       anulat = true;
     };
-  }, [id, incercare]);
+  }, [id, incercare, competitie]);
+
+  function schimbaCompetitie(valoare: FiltruCompetitie) {
+    salveazaFiltruCompetitie(valoare);
+    setCompetitie(valoare);
+  }
 
   return (
     <PageLayout>
@@ -71,7 +83,7 @@ export function PrevizualizarePage() {
         <span className="font-semibold text-ink">Previzualizare meci</span>
       </nav>
 
-      {loading && (
+      {loading && !date && (
         <div className="flex justify-center py-20">
           <Spinner size={36} />
         </div>
@@ -102,8 +114,8 @@ export function PrevizualizarePage() {
         </Card>
       )}
 
-      {!loading && !eroare && date && (
-        <div className="space-y-5">
+      {!eroare && date && (
+        <div className={`space-y-5 transition-opacity ${loading ? 'opacity-60' : ''}`} aria-busy={loading}>
           <HeaderMeci predictie={date.predictie} />
 
           <Taburi taburi={TABURI} activ={tab} onSchimba={setTab} />
@@ -156,6 +168,11 @@ export function PrevizualizarePage() {
                 statistici={date.statistici}
                 gazde={date.predictie.echipaGazde}
                 oaspeti={date.predictie.echipaOaspeti}
+                formaGazde={date.formaGazde}
+                formaOaspeti={date.formaOaspeti}
+                arbitru={date.arbitru}
+                competitie={competitie}
+                onCompetitie={schimbaCompetitie}
               />
             )}
           </div>

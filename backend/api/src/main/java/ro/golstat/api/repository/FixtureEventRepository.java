@@ -13,6 +13,8 @@ public interface FixtureEventRepository extends JpaRepository<FixtureEvent, Long
     /** Sterge toate evenimentele unui meci — folosit la re-colectare (replace idempotent). */
     long deleteByFixtureId(Long fixtureId);
 
+    List<FixtureEvent> findByFixtureId(Long fixtureId);
+
     /** Cronologia unui meci ordonata dupa minut (coalesce 0), minut extra, apoi id (ordine stabila). */
     @Query("""
             select e from FixtureEvent e
@@ -42,6 +44,7 @@ public interface FixtureEventRepository extends JpaRepository<FixtureEvent, Long
             join Fixture f on f.id = e.fixtureId
             where e.teamId = :teamId
               and e.type = :goal
+              and coalesce(e.detail, '') <> 'Missed Penalty'
               and f.leagueId = :leagueId
               and f.seasonYear = :season
               and f.statusShort in :terminal
@@ -55,14 +58,17 @@ public interface FixtureEventRepository extends JpaRepository<FixtureEvent, Long
 
     /**
      * Minutele golurilor PRIMITE de o echipa (goluri marcate de adversar in meciurile ei), pe liga/sezon,
-     * doar din meciuri TERMINALE — pentru distributia goluri marcate vs primite.
+     * doar din meciuri TERMINALE — pentru distributia goluri marcate vs primite. Aceeasi grupare a
+     * minutelor ca {@link #goalMinutes}, ca cele doua distributii sa fie comparabile.
      */
     @Query("""
-            select e.timeElapsed + coalesce(e.timeExtra, 0) from FixtureEvent e
+            select case when e.timeElapsed >= 90 and coalesce(e.timeExtra, 0) > 0 then 91 else e.timeElapsed end
+            from FixtureEvent e
             join Fixture f on f.id = e.fixtureId
             where (f.homeTeamId = :teamId or f.awayTeamId = :teamId)
               and e.teamId <> :teamId
               and e.type = :goal
+              and coalesce(e.detail, '') <> 'Missed Penalty'
               and f.leagueId = :leagueId
               and f.seasonYear = :season
               and f.statusShort in :terminal

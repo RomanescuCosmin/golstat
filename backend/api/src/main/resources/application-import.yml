@@ -1,0 +1,19 @@
+# Profil `import`: import one-shot din bzzoiro la pornire (impreuna cu `bzzoiro` si `mysql`).
+# Ruleaza cu:  SPRING_PROFILES_ACTIVE=mysql,bzzoiro,import  si  BZZOIRO_API_KEY=<cheia>
+# Cost: ~3 requesturi per meci terminat (statistici + incidente + formatii) + cateva de catalog.
+# O tinta cu `doar-reprize: true` completeaza o liga deja importata: 1 request per meci fara reprize.
+# O tinta cu `doar-incidente: true` re-citeste incidentele doar la meciurile cu cartonase nepotrivite
+# (galbene + rosii din statistici > cartonasele din incidente): 1 request per meci suspect.
+golstat:
+  # cheia si ligile (id aplicatie → id bzzoiro) sunt in application-bzzoiro.yml
+  live:
+    enabled: false   # in timpul importului nu pornim si bucla live
+  import:
+    zile-inainte: 14
+    # ATENTIE: fiecare pornire cu profilul `import` ruleaza tot ce e aici. Tintele complete re-descarca
+    # liga intreaga; cele `doar-reprize` sar meciurile care au deja reprizele, deci sunt ieftine la reluare.
+    # Importate deja complet (sezon 2026, cu reprize): 39, 140, 135, 61, 88, 283, 78, 40, 179, 144, 103,
+    # 2, 3, 848, 5. Pentru a le actualiza, adauga-le aici cu `doar-reprize: true` (ieftin) sau complet.
+    # 2026-11-13: incidentele re-citite (`doar-incidente`) pentru toate cele 15 competitii.
+    # 2026-11-13: importate si 94, 203, 119, 345, 207 (Portugalia, Turcia, Danemarca, Cehia, Elvetia).
+    tinte: []

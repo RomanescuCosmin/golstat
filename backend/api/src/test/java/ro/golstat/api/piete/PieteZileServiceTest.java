@@ -22,6 +22,7 @@ import ro.golstat.api.repository.InjuryRepository;
 import ro.golstat.api.repository.PlayerRepository;
 import ro.golstat.api.stats.CountLeagueAverageService;
 import ro.golstat.api.stats.FerestreBatchService;
+import ro.golstat.api.stats.ForteAdversariService;
 import ro.golstat.api.stats.LeagueAverageService;
 import ro.golstat.api.stats.MatchHistoryService;
 import ro.golstat.api.stats.RefereeService;
@@ -336,8 +337,9 @@ class PieteZileServiceTest {
 
     private static PieteZileService piete(DateDeTest date) {
         return new PieteZileService(date.fixtures, date.teams, date.leagues, date.teamStats,
-                new FerestreBatchService(date.fixtures, date.teamStats, date.standings),
-                new LeagueAverageService(date.fixtures), new CountLeagueAverageService(date.teamStats));
+                new FerestreBatchService(date.fixtures, date.teamStats, date.standings, date.halfStats),
+                new LeagueAverageService(date.fixtures), new CountLeagueAverageService(date.teamStats, date.halfStats),
+                new ForteAdversariService(date.fixtures));
     }
 
     private static MatchPreviewService preview(DateDeTest date) {
@@ -352,12 +354,13 @@ class PieteZileServiceTest {
         when(players.findAllById(any())).thenReturn(List.of());
 
         return new MatchPreviewService(
-                new PredictionService(date.fixtures, date.teams, history, new LeagueAverageService(date.fixtures)),
-                date.fixtures, history, new StatsHistoryService(date.fixtures, date.teamStats),
-                new CountLeagueAverageService(date.teamStats), new LeagueAverageService(date.fixtures),
+                new PredictionService(date.fixtures, date.teams, history, new LeagueAverageService(date.fixtures),
+                        new ForteAdversariService(date.fixtures)),
+                date.fixtures, history, new StatsHistoryService(date.fixtures, date.teamStats, date.halfStats),
+                new CountLeagueAverageService(date.teamStats, date.halfStats), new LeagueAverageService(date.fixtures),
                 new RefereeService(date.teamStats), date.teams,
                 lineups, lineupPlayers, injuries, players, date.teamStats,
-                mock(FixtureEventRepository.class));
+                mock(FixtureEventRepository.class), date.halfStats, new ForteAdversariService(date.fixtures));
     }
 
     // --- ajutoare de aserție ---

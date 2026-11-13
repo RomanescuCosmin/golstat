@@ -8,6 +8,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import ro.golstat.api.entity.Fixture;
 import ro.golstat.api.entity.FixtureTeamStats;
 import ro.golstat.api.repository.FixtureRepository;
+import ro.golstat.api.repository.FixtureTeamHalfStatsRepository;
 import ro.golstat.api.repository.FixtureTeamStatsRepository;
 import ro.golstat.stats.model.EventCountSample;
 
@@ -30,6 +31,7 @@ class StatsHistoryServiceTest {
 
     @Mock FixtureRepository fixtures;
     @Mock FixtureTeamStatsRepository teamStats;
+    @Mock FixtureTeamHalfStatsRepository halfStats;
     @InjectMocks StatsHistoryService service;
 
     private static Fixture fixture(long id, long home, long away) {

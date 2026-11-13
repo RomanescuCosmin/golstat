@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import ro.golstat.api.entity.Fixture;
 import ro.golstat.api.stats.GoalAverage;
+import ro.golstat.api.stats.GoluriEchipaRow;
 import ro.golstat.api.stats.LeagueSeason;
 
 import java.time.OffsetDateTime;
@@ -29,6 +30,21 @@ public interface FixtureRepository extends JpaRepository<Fixture, Long> {
                                     @Param("terminal") Collection<String> terminal,
                                     @Param("before") OffsetDateTime before,
                                     Pageable pageable);
+
+    /** Ca {@link #findRecentForTeam}, doar meciurile dintr-o competitie (filtrul „doar aceasta competitie“). */
+    @Query("""
+            select f from Fixture f
+            where (f.homeTeamId = :teamId or f.awayTeamId = :teamId)
+              and f.leagueId = :leagueId
+              and f.statusShort in :terminal
+              and f.kickoff < :before
+            order by f.kickoff desc
+            """)
+    List<Fixture> findRecentForTeamInLeague(@Param("teamId") long teamId,
+                                            @Param("leagueId") long leagueId,
+                                            @Param("terminal") Collection<String> terminal,
+                                            @Param("before") OffsetDateTime before,
+                                            Pageable pageable);
 
     /**
      * Ca {@link #findRecentForTeam}, dar pentru MULTE echipe intr-un singur query — istoricul comun
@@ -58,10 +74,45 @@ public interface FixtureRepository extends JpaRepository<Fixture, Long> {
             where f.leagueId = :leagueId
               and f.seasonYear = :season
               and f.statusShort in :terminal
+              and f.kickoff < :before
             """)
     GoalAverage avgGoals(@Param("leagueId") long leagueId,
                          @Param("season") int season,
-                         @Param("terminal") Collection<String> terminal);
+                         @Param("terminal") Collection<String> terminal,
+                         @Param("before") OffsetDateTime before);
+
+    /** Golurile echipelor ca GAZDE (scor la 90 min) din meciurile terminate inainte de {@code before}. */
+    @Query("""
+            select f.homeTeamId as teamId, sum(coalesce(f.scoreFtHome, f.goalsHome)) as marcate,
+                   sum(coalesce(f.scoreFtAway, f.goalsAway)) as primite, count(f) as meciuri
+            from Fixture f
+            where f.homeTeamId in :echipe and f.statusShort in :terminal and f.kickoff < :before
+            group by f.homeTeamId
+            """)
+    List<GoluriEchipaRow> goluriCaGazde(@Param("echipe") Collection<Long> echipe,
+                                        @Param("terminal") Collection<String> terminal,
+                                        @Param("before") OffsetDateTime before);
+
+    /** Ca {@link #goluriCaGazde}, pentru meciurile jucate ca OASPETI. */
+    @Query("""
+            select f.awayTeamId as teamId, sum(coalesce(f.scoreFtAway, f.goalsAway)) as marcate,
+                   sum(coalesce(f.scoreFtHome, f.goalsHome)) as primite, count(f) as meciuri
+            from Fixture f
+            where f.awayTeamId in :echipe and f.statusShort in :terminal and f.kickoff < :before
+            group by f.awayTeamId
+            """)
+    List<GoluriEchipaRow> goluriCaOaspeti(@Param("echipe") Collection<Long> echipe,
+                                          @Param("terminal") Collection<String> terminal,
+                                          @Param("before") OffsetDateTime before);
+
+    /** Golurile pe echipa pe meci, toate competitiile — referinta „adversar obisnuit" la forta adversarilor. */
+    @Query("""
+            select avg(coalesce(f.scoreFtHome, f.goalsHome) + coalesce(f.scoreFtAway, f.goalsAway)) / 2.0
+            from Fixture f
+            where f.statusShort in :terminal and f.kickoff < :before
+            """)
+    Double goluriPeEchipaPeMeci(@Param("terminal") Collection<String> terminal,
+                                @Param("before") OffsetDateTime before);
 
     /**
      * Ligile care au meciuri TERMINALE, fiecare cu cel mai recent sezon jucat.

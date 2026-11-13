@@ -7,6 +7,7 @@ import {
   fixtureLive,
   meciCentral,
   previzualizareMeci,
+  rezultatEchipe,
   statisticiAvansate,
 } from '../test/factories';
 import { randeazaCuRuta } from '../test/rutare';
@@ -100,6 +101,7 @@ describe('MatchCenterPage', () => {
             totalCartonase: 5,
             totalSuturi: 25,
             totalSuturiPePoarta: 9,
+            echipe: rezultatEchipe(),
           },
         }),
       }),

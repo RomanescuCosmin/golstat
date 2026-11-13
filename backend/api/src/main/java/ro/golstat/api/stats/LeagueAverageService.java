@@ -4,6 +4,7 @@ import org.springframework.stereotype.Service;
 import ro.golstat.api.repository.FixtureRepository;
 import ro.golstat.common.GolstatConstants;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 
 /**
@@ -30,11 +31,17 @@ public class LeagueAverageService {
         this.fixtures = fixtures;
     }
 
+    /** Mediile din meciurile jucate PANA ACUM (pagini de statistici „la zi"). */
     public LeagueAverages averages(Long leagueId, Integer season) {
+        return averages(leagueId, season, OffsetDateTime.now());
+    }
+
+    /** Mediile din meciurile terminate inainte de {@code before} — la un meci, kickoff-ul lui (fara informatie din viitor). */
+    public LeagueAverages averages(Long leagueId, Integer season, OffsetDateTime before) {
         if (leagueId == null || season == null) {
             return new LeagueAverages(DEFAULT_GAZDE, DEFAULT_OASPETI);
         }
-        GoalAverage agg = fixtures.avgGoals(leagueId, season, TERMINAL);
+        GoalAverage agg = fixtures.avgGoals(leagueId, season, TERMINAL, before);
         double gazde = value(agg != null ? agg.getAvgGazde() : null, DEFAULT_GAZDE);
         double oaspeti = value(agg != null ? agg.getAvgOaspeti() : null, DEFAULT_OASPETI);
         return new LeagueAverages(gazde, oaspeti);

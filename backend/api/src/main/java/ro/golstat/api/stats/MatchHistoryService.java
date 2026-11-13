@@ -40,6 +40,17 @@ public class MatchHistoryService {
                 .toList();
     }
 
+    /** {@code leagueId} null = toate competitiile; altfel doar meciurile din competitia data. */
+    public List<MatchSample> lastMatches(long teamId, OffsetDateTime before, int limit, Long leagueId) {
+        if (leagueId == null) {
+            return lastMatches(teamId, before, limit);
+        }
+        return fixtures.findRecentForTeamInLeague(teamId, leagueId, TERMINAL, before, PageRequest.of(0, limit))
+                .stream()
+                .map(f -> MatchSampleMapper.toSample(f, teamId, opponentRank(f, teamId)))
+                .toList();
+    }
+
     /**
      * Ca {@link #lastMatches}, dar FARA rangul adversarului (rang null). Rangul se ia cu un lookup pe
      * {@code standings} per meci (N+1) si e folosit doar de filtrele pe clasament din piete secundare,

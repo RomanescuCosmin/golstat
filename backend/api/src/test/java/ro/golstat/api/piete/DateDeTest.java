@@ -6,6 +6,7 @@ import ro.golstat.api.entity.League;
 import ro.golstat.api.entity.Standing;
 import ro.golstat.api.entity.Team;
 import ro.golstat.api.repository.FixtureRepository;
+import ro.golstat.api.repository.FixtureTeamHalfStatsRepository;
 import ro.golstat.api.repository.FixtureTeamStatsRepository;
 import ro.golstat.api.repository.LeagueRepository;
 import ro.golstat.api.repository.StandingRepository;
@@ -53,6 +54,7 @@ final class DateDeTest {
 
     final FixtureRepository fixtures = mock(FixtureRepository.class);
     final FixtureTeamStatsRepository teamStats = mock(FixtureTeamStatsRepository.class);
+    final FixtureTeamHalfStatsRepository halfStats = mock(FixtureTeamHalfStatsRepository.class);
     final StandingRepository standings = mock(StandingRepository.class);
     final TeamRepository teams = mock(TeamRepository.class);
     final LeagueRepository leagues = mock(LeagueRepository.class);
@@ -108,7 +110,7 @@ final class DateDeTest {
             return List.of();
         });
 
-        when(fixtures.avgGoals(anyLong(), org.mockito.ArgumentMatchers.anyInt(), any())).thenAnswer(i -> {
+        when(fixtures.avgGoals(anyLong(), org.mockito.ArgumentMatchers.anyInt(), any(), any())).thenAnswer(i -> {
             apeluri.incrementAndGet();
             long leagueId = i.getArgument(0);
             int season = i.getArgument(1);
@@ -130,7 +132,7 @@ final class DateDeTest {
             return statistici.stream().filter(s -> ids.contains(s.getFixtureId())).toList();
         });
 
-        when(teamStats.avgCounts(anyLong(), org.mockito.ArgumentMatchers.anyInt(), any())).thenAnswer(i -> {
+        when(teamStats.avgCounts(anyLong(), org.mockito.ArgumentMatchers.anyInt(), any(), any())).thenAnswer(i -> {
             apeluri.incrementAndGet();
             long leagueId = i.getArgument(0);
             int season = i.getArgument(1);
@@ -154,13 +156,13 @@ final class DateDeTest {
                     medie(randuri, FixtureTeamStats::getShotsOnGoal));
         });
 
-        when(teamStats.refereeCardAverage(any(), any())).thenAnswer(i -> {
+        when(teamStats.refereeCardAverage(any(), any(), any())).thenAnswer(i -> {
             apeluri.incrementAndGet();
             String referee = i.getArgument(0);
             return arbitru(referee);
         });
 
-        when(teamStats.refereeCardAverages(any(), any())).thenAnswer(i -> {
+        when(teamStats.refereeCardAverages(any(), any(), any())).thenAnswer(i -> {
             apeluri.incrementAndGet();
             Collection<String> nume = i.getArgument(0);
             List<RefereeCardAverageRow> out = new ArrayList<>();
@@ -262,6 +264,12 @@ final class DateDeTest {
             public Double getAvgSuturiPePoarta() {
                 return suturiPePoarta;
             }
+            public Double getAvgCornereGazde() { return null; }
+            public Double getAvgCornereOaspeti() { return null; }
+            public Double getAvgFaulturiGazde() { return null; }
+            public Double getAvgFaulturiOaspeti() { return null; }
+            public Double getAvgCartonaseGazde() { return null; }
+            public Double getAvgCartonaseOaspeti() { return null; }
         };
     }
 

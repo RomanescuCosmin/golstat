@@ -57,6 +57,7 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.never;
@@ -127,6 +128,57 @@ class IngestServiceTest {
         ingest.ingestEvents(List.of(event(100, 1), event(100, 2)));
         verify(events).deleteByFixtureId(100L);
         verify(events, times(2)).save(any(FixtureEvent.class));
+    }
+
+    @Test
+    void ingestEvents_numaraCartonaseleDupaRegulaPietelor() {
+        // gazdele (1): galben + al doilea galben al aceluiasi jucator + galben → 3 (furnizorul ar da 4);
+        // oaspetii (2): rosu direct + cartonas de staff (fara jucator, nu se numara) → 1
+        when(events.findByFixtureId(100L)).thenReturn(List.of(
+                card(1L, 7L, "Yellow Card"), card(1L, 7L, "Second Yellow card"), card(1L, 8L, "Yellow Card"),
+                card(2L, 9L, "Red Card"), card(2L, null, "Yellow Card"), goal(2L)));
+        FixtureTeamStats gazde = randStatistici(100L, 1L);
+        FixtureTeamStats oaspeti = randStatistici(100L, 2L);
+        when(teamStats.findByFixtureIdIn(List.of(100L))).thenReturn(List.of(gazde, oaspeti));
+
+        ingest.ingestEvents(List.of(event(100, 1)));
+
+        assertEquals(3, gazde.getCartonase());
+        assertEquals(1, oaspeti.getCartonase());
+    }
+
+    @Test
+    void ingestEvents_echipaFaraCartonase_primeste0() {
+        when(events.findByFixtureId(100L)).thenReturn(List.of(card(1L, 7L, "Yellow Card")));
+        FixtureTeamStats oaspeti = randStatistici(100L, 2L);
+        when(teamStats.findByFixtureIdIn(List.of(100L))).thenReturn(List.of(oaspeti));
+
+        ingest.ingestEvents(List.of(event(100, 1)));
+
+        assertEquals(0, oaspeti.getCartonase());
+    }
+
+    private static FixtureEvent card(Long teamId, Long playerId, String detail) {
+        FixtureEvent e = new FixtureEvent();
+        e.setFixtureId(100L);
+        e.setTeamId(teamId);
+        e.setPlayerId(playerId);
+        e.setType("Card");
+        e.setDetail(detail);
+        return e;
+    }
+
+    private static FixtureEvent goal(Long teamId) {
+        FixtureEvent e = card(teamId, 5L, "Normal Goal");
+        e.setType("Goal");
+        return e;
+    }
+
+    private static FixtureTeamStats randStatistici(long fixtureId, long teamId) {
+        FixtureTeamStats s = new FixtureTeamStats();
+        s.setFixtureId(fixtureId);
+        s.setTeamId(teamId);
+        return s;
     }
 
     @Test

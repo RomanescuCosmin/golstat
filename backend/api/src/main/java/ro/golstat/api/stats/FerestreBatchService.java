@@ -2,10 +2,12 @@ package ro.golstat.api.stats;
 
 import org.springframework.stereotype.Service;
 import ro.golstat.api.entity.Fixture;
+import ro.golstat.api.entity.FixtureTeamHalfStats;
 import ro.golstat.api.entity.FixtureTeamStats;
 import ro.golstat.api.entity.Standing;
 import ro.golstat.api.preview.StatisticiAvansateBuilder;
 import ro.golstat.api.repository.FixtureRepository;
+import ro.golstat.api.repository.FixtureTeamHalfStatsRepository;
 import ro.golstat.api.repository.FixtureTeamStatsRepository;
 import ro.golstat.api.repository.StandingRepository;
 import ro.golstat.common.GolstatConstants;
@@ -46,9 +48,11 @@ public class FerestreBatchService {
     private final FixtureRepository fixtures;
     private final FixtureTeamStatsRepository teamStats;
     private final StandingRepository standings;
+    private final FixtureTeamHalfStatsRepository halfStats;
 
     public FerestreBatchService(FixtureRepository fixtures, FixtureTeamStatsRepository teamStats,
-                                StandingRepository standings) {
+                                StandingRepository standings, FixtureTeamHalfStatsRepository halfStats) {
+        this.halfStats = halfStats;
         this.fixtures = fixtures;
         this.teamStats = teamStats;
         this.standings = standings;
@@ -61,6 +65,12 @@ public class FerestreBatchService {
      * kickoff lipsesc din harta
      */
     public Map<Long, FerestreMeci> ferestre(List<Fixture> meciuri, int fereastra, int istoricFetch) {
+        return ferestre(meciuri, fereastra, istoricFetch, false);
+    }
+
+    /** {@code doarCompetitia} = istoricul fiecarei echipe doar din competitia meciului evaluat. */
+    public Map<Long, FerestreMeci> ferestre(List<Fixture> meciuri, int fereastra, int istoricFetch,
+                                            boolean doarCompetitia) {
         List<Fixture> valide = meciuri.stream()
                 .filter(f -> f.getHomeTeamId() != null && f.getAwayTeamId() != null && f.getKickoff() != null)
                 .toList();
@@ -81,14 +91,16 @@ public class FerestreBatchService {
         List<Fixture> istoric = fixtures.findTerminalForTeams(echipe, TERMINAL, celMaiTarziu);
         Map<Long, List<Fixture>> istoricPerEchipa = grupeazaPerEchipa(istoric, echipe);
         Map<Long, Map<Long, FixtureTeamStats>> statsPerMeci = statistici(istoric);
+        Map<Long, Map<String, FixtureTeamHalfStats>> reprizePerMeci = reprize(istoric);
         Map<String, Integer> ranguri = ranguri();
 
         Map<Long, FerestreMeci> out = new HashMap<>();
         for (Fixture f : valide) {
-            IstoricEchipa gazde = istoricEchipa(f.getHomeTeamId(), f.getKickoff(),
-                    istoricPerEchipa, statsPerMeci, ranguri, istoricFetch);
-            IstoricEchipa oaspeti = istoricEchipa(f.getAwayTeamId(), f.getKickoff(),
-                    istoricPerEchipa, statsPerMeci, ranguri, istoricFetch);
+            Long liga = doarCompetitia ? f.getLeagueId() : null;
+            IstoricEchipa gazde = istoricEchipa(f.getHomeTeamId(), f.getKickoff(), liga,
+                    istoricPerEchipa, statsPerMeci, reprizePerMeci, ranguri, istoricFetch);
+            IstoricEchipa oaspeti = istoricEchipa(f.getAwayTeamId(), f.getKickoff(), liga,
+                    istoricPerEchipa, statsPerMeci, reprizePerMeci, ranguri, istoricFetch);
             out.put(f.getId(), new FerestreMeci(
                     StatisticiAvansateBuilder.ferestre(gazde.mostre(), gazde.counturi(),
                             MatchLocation.HOME, fereastra),
@@ -103,18 +115,20 @@ public class FerestreBatchService {
     private record IstoricEchipa(List<MatchSample> mostre, IstoricCounturi counturi) {
     }
 
-    private IstoricEchipa istoricEchipa(long teamId, OffsetDateTime kickoff,
+    private IstoricEchipa istoricEchipa(long teamId, OffsetDateTime kickoff, Long liga,
                                         Map<Long, List<Fixture>> istoricPerEchipa,
                                         Map<Long, Map<Long, FixtureTeamStats>> statsPerMeci,
+                                        Map<Long, Map<String, FixtureTeamHalfStats>> reprizePerMeci,
                                         Map<String, Integer> ranguri, int istoricFetch) {
         List<Fixture> aleEchipei = istoricPerEchipa.getOrDefault(teamId, List.of()).stream()
                 .filter(f -> f.getKickoff() != null && f.getKickoff().isBefore(kickoff))
+                .filter(f -> liga == null || liga.equals(f.getLeagueId()))
                 .limit(istoricFetch)
                 .toList();
         List<MatchSample> mostre = aleEchipei.stream()
                 .map(f -> MatchSampleMapper.toSample(f, teamId, rangAdversar(f, teamId, ranguri)))
                 .toList();
-        return new IstoricEchipa(mostre, CountSampleMapper.istoric(teamId, aleEchipei, statsPerMeci));
+        return new IstoricEchipa(mostre, CountSampleMapper.istoric(teamId, aleEchipei, statsPerMeci, reprizePerMeci));
     }
 
     /** Istoricul deja ordonat descrescator; fiecare meci intra la echipa lui (sau la ambele). */
@@ -144,6 +158,15 @@ public class FerestreBatchService {
                             .putIfAbsent(s.getTeamId(), s));
         }
         return out;
+    }
+
+    private Map<Long, Map<String, FixtureTeamHalfStats>> reprize(List<Fixture> istoric) {
+        List<Long> ids = istoric.stream().map(Fixture::getId).distinct().toList();
+        List<FixtureTeamHalfStats> randuri = new ArrayList<>();
+        for (int i = 0; i < ids.size(); i += BUCATA) {
+            randuri.addAll(halfStats.findByFixtureIdIn(ids.subList(i, Math.min(i + BUCATA, ids.size()))));
+        }
+        return CountSampleMapper.reprizePerMeci(randuri);
     }
 
     /** Tot clasamentul intr-o harta — inlocuieste N+1-ul per meci din {@link MatchHistoryService}. */

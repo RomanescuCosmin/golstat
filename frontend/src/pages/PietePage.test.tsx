@@ -252,7 +252,7 @@ describe('PietePage', () => {
     await screen.findByText('Arsenal');
 
     // implicit: toate campionatele
-    expect(screen.getByRole('button', { name: /Toate/ })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: /^Toate$/ })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByText(/3 meciuri peste 30%/)).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: /Premier League/ }));
@@ -281,11 +281,11 @@ describe('PietePage', () => {
     await screen.findByText('Arsenal');
 
     await userEvent.click(screen.getByRole('button', { name: /Premier League/ }));
-    expect(screen.getByRole('button', { name: /Toate/ })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByRole('button', { name: /^Toate$/ })).toHaveAttribute('aria-pressed', 'false');
 
-    await userEvent.click(screen.getByRole('button', { name: /Toate/ }));
+    await userEvent.click(screen.getByRole('button', { name: /^Toate$/ }));
     expect(screen.getByText(/3 meciuri peste 30%/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Toate/ })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: /^Toate$/ })).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('selectia de campionat se pastreaza cand schimbi piata sau pragul', async () => {
@@ -342,5 +342,21 @@ describe('PietePage', () => {
     const sectiuni = container.querySelectorAll('section');
     expect(within(sectiuni[0] as HTMLElement).getByText(/21 iulie 2026/)).toBeInTheDocument();
     expect(within(sectiuni[1] as HTMLElement).getByText(/22 iulie 2026/)).toBeInTheDocument();
+  });
+});
+
+describe('PietePage — perioada', () => {
+  it('perioada aleasa de utilizator ajunge la server', async () => {
+    mockGet.mockResolvedValue(pieteZile());
+    randeaza();
+    await userEvent.click(await screen.findByRole('button', { name: 'Alege perioada' }));
+    const zile = screen
+      .getAllByRole('button')
+      .filter((b) => /^\d{4}-\d{2}-\d{2}$/.test(b.getAttribute('aria-label') ?? '') && !b.hasAttribute('disabled'));
+    // aceeasi zi de doua ori = perioada de o zi (merge si in ultima zi a lunii)
+    const zi = zile[0].getAttribute('aria-label')!;
+    await userEvent.click(zile[0]);
+    await userEvent.click(screen.getByRole('button', { name: zi }));
+    await waitFor(() => expect(mockGet).toHaveBeenLastCalledWith(3, 'toate', { de: zi, pana: zi }));
   });
 });

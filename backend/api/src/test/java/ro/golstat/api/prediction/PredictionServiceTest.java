@@ -1,5 +1,6 @@
 package ro.golstat.api.prediction;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -9,11 +10,13 @@ import ro.golstat.api.entity.Fixture;
 import ro.golstat.api.entity.Team;
 import ro.golstat.api.repository.FixtureRepository;
 import ro.golstat.api.repository.TeamRepository;
+import ro.golstat.api.stats.ForteAdversariService;
 import ro.golstat.api.stats.LeagueAverageService;
 import ro.golstat.api.stats.LeagueAverages;
 import ro.golstat.api.stats.MatchHistoryService;
 import ro.golstat.common.GolstatConstants;
 import ro.golstat.stats.match.MatchContext;
+import ro.golstat.stats.goals.ForteAdversari;
 import ro.golstat.stats.model.MatchSample;
 
 import java.time.LocalDate;
@@ -29,6 +32,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -40,7 +44,13 @@ class PredictionServiceTest {
     @Mock TeamRepository teams;
     @Mock MatchHistoryService history;
     @Mock LeagueAverageService leagueAverages;
+    @Mock ForteAdversariService forteAdversari;
     @InjectMocks PredictionService service;
+
+    @BeforeEach
+    void forteNeutre() {
+        lenient().when(forteAdversari.pentru(any(), any())).thenReturn(ForteAdversari.fara());
+    }
 
     private static MatchSample sample(int day, boolean home, int gf, int ga) {
         return new MatchSample(LocalDate.of(2025, 5, day), home, gf, ga, 0, 0, null);
@@ -67,34 +77,22 @@ class PredictionServiceTest {
     }
 
     @Test
-    void buildContext_enoughLocationMatches_usesLocationWindowsAndSplitLeagueAverages() {
-        List<MatchSample> home = List.of(sample(1, true, 2, 1), sample(2, true, 1, 1),
-                sample(3, true, 3, 0), sample(4, true, 2, 2));
-        List<MatchSample> away = List.of(sample(1, false, 1, 2), sample(2, false, 0, 0),
-                sample(3, false, 2, 1), sample(4, false, 1, 1));
+    void buildContext_usesLast7OnLocationAndSplitLeagueAverages() {
+        // gazda: 2 meciuri acasa + 3 in deplasare → forma doar pe cele 2 de acasa
+        List<MatchSample> home = List.of(sample(1, true, 2, 1), sample(2, true, 1, 0),
+                sample(3, false, 0, 2), sample(4, false, 1, 1), sample(5, false, 2, 2));
+        // oaspetii: 3 in deplasare + 1 acasa → forma pe cele 3 din deplasare
+        List<MatchSample> away = List.of(sample(1, false, 1, 1), sample(2, true, 0, 0),
+                sample(3, false, 2, 1), sample(4, false, 1, 2));
 
         MatchContext ctx = PredictionService.buildContext(home, away, new LeagueAverages(1.6, 1.2));
 
         assertEquals(1.6, ctx.mediaLigaGazde(), 1e-9);
         assertEquals(1.2, ctx.mediaLigaOaspeti(), 1e-9);
-        assertEquals(4, ctx.gazdaAcasa().sampleSize());
-        assertEquals(4, ctx.oaspetiDeplasare().sampleSize());
-    }
-
-    @Test
-    void buildContext_tooFewLocationMatches_fallsBackToNeutralGround() {
-        // gazda are doar 2 meciuri ACASA (+ 3 in deplasare) → sub prag → teren neutru
-        List<MatchSample> home = List.of(sample(1, true, 2, 1), sample(2, true, 1, 0),
-                sample(3, false, 0, 2), sample(4, false, 1, 1), sample(5, false, 2, 2));
-        List<MatchSample> away = List.of(sample(1, false, 1, 1), sample(2, false, 0, 0),
-                sample(3, false, 2, 1), sample(4, false, 1, 2));
-
-        MatchContext ctx = PredictionService.buildContext(home, away, new LeagueAverages(1.6, 1.2));
-
-        double neutru = (1.6 + 1.2) / 2.0;
-        assertEquals(neutru, ctx.mediaLigaGazde(), 1e-9);
-        assertEquals(neutru, ctx.mediaLigaOaspeti(), 1e-9);
-        assertEquals(5, ctx.gazdaAcasa().sampleSize(), "fara filtru de locatie → toate meciurile");
+        assertEquals(2, ctx.formaGazde().sampleSize());
+        assertEquals(3, ctx.formaOaspeti().sampleSize());
+        assertEquals(3.0 / 2, ctx.formaGazde().avgGoalsFor(), 1e-9);
+        assertEquals(4.0 / 3, ctx.formaOaspeti().avgGoalsAgainst(), 1e-9);
     }
 
     @Test
@@ -106,7 +104,7 @@ class PredictionServiceTest {
                 sample(1, true, 2, 1), sample(2, true, 3, 1), sample(3, true, 2, 0)));
         when(history.lastMatches(eq(20L), any(), anyInt())).thenReturn(List.of(
                 sample(1, false, 1, 1), sample(2, false, 0, 2), sample(3, false, 1, 2)));
-        when(leagueAverages.averages(39L, 2025)).thenReturn(new LeagueAverages(1.6, 1.2));
+        when(leagueAverages.averages(eq(39L), eq(2025), any())).thenReturn(new LeagueAverages(1.6, 1.2));
 
         Optional<PredictieMeciDto> result = service.predict(100L);
 
@@ -128,7 +126,7 @@ class PredictionServiceTest {
         when(teams.findAllById(List.of(10L, 20L)))
                 .thenReturn(List.of(team(10L, "FC Gazde", "http://logo/10.png")));
         when(history.lastMatches(anyLong(), any(), anyInt())).thenReturn(List.of());
-        when(leagueAverages.averages(39L, 2025)).thenReturn(new LeagueAverages(1.6, 1.2));
+        when(leagueAverages.averages(eq(39L), eq(2025), any())).thenReturn(new LeagueAverages(1.6, 1.2));
 
         PredictieMeciDto dto = service.predict(100L).orElseThrow();
 
@@ -148,7 +146,7 @@ class PredictionServiceTest {
         when(teams.findAllById(List.of(10L, 20L))).thenReturn(List.of(
                 team(10L, "FC Gazde", "http://logo/10.png"), team(20L, "FC Oaspeti", "http://logo/20.png")));
         when(history.lastMatches(anyLong(), any(), anyInt())).thenReturn(List.of());
-        when(leagueAverages.averages(39L, 2025)).thenReturn(new LeagueAverages(1.6, 1.2));
+        when(leagueAverages.averages(eq(39L), eq(2025), any())).thenReturn(new LeagueAverages(1.6, 1.2));
 
         PredictieMeciDto dto = service.predict(100L).orElseThrow();
 
@@ -162,7 +160,7 @@ class PredictionServiceTest {
         when(fixtures.findById(100L)).thenReturn(Optional.of(nsFixture()));
         when(teams.findAllById(List.of(10L, 20L))).thenReturn(List.of());
         when(history.lastMatches(anyLong(), any(), anyInt())).thenReturn(List.of());
-        when(leagueAverages.averages(39L, 2025)).thenReturn(new LeagueAverages(1.6, 1.2));
+        when(leagueAverages.averages(eq(39L), eq(2025), any())).thenReturn(new LeagueAverages(1.6, 1.2));
 
         assertNull(service.predict(100L).orElseThrow().rezultat());
     }

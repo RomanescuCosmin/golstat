@@ -6,6 +6,7 @@ import ro.golstat.common.dto.FixtureEventDto;
 import ro.golstat.common.dto.FixtureLineupDto;
 import ro.golstat.common.dto.FixtureLiveDto;
 import ro.golstat.common.dto.FixturePlayerStatsDto;
+import ro.golstat.common.dto.FixtureTeamHalfStatsDto;
 import ro.golstat.common.dto.FixtureTeamStatsDto;
 import ro.golstat.common.dto.InjuryDto;
 import ro.golstat.common.dto.LeagueDto;
@@ -37,6 +38,11 @@ public interface DataProvider {
 
     /** Statisticile de meci per echipa (posesie, suturi, cornere, faulturi, cartonase...). */
     List<FixtureTeamStatsDto> fixtureStatistics(long fixtureId);
+
+    /** Statisticile pe REPRIZE ale unui meci (per echipa si repriza); gol daca furnizorul nu le are. */
+    default List<FixtureTeamHalfStatsDto> fixtureHalfStatistics(long fixtureId) {
+        return List.of();
+    }
 
     /** Formatiile unui meci (startXI + rezerve + antrenor per echipa); apar aproape de kickoff. */
     List<FixtureLineupDto> fixtureLineups(long fixtureId);

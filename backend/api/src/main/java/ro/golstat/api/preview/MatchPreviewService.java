@@ -1,16 +1,19 @@
 package ro.golstat.api.preview;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import ro.golstat.api.entity.Fixture;
 import ro.golstat.api.entity.FixtureLineup;
 import ro.golstat.api.entity.FixtureLineupPlayer;
+import ro.golstat.api.entity.FixtureTeamHalfStats;
 import ro.golstat.api.entity.FixtureTeamStats;
 import ro.golstat.api.entity.Injury;
 import ro.golstat.api.entity.Player;
 import ro.golstat.api.entity.Team;
 import ro.golstat.api.prediction.PredictieMeciDto;
 import ro.golstat.api.prediction.PredictieMeciDto.EchipaDto;
+import ro.golstat.api.prediction.PredictieMeciMapper;
 import ro.golstat.api.prediction.PredictionNotFoundException;
 import ro.golstat.api.prediction.PredictionService;
 import ro.golstat.api.preview.StatisticiAvansateBuilder.FerestreEchipa;
@@ -18,6 +21,7 @@ import ro.golstat.api.repository.FixtureEventRepository;
 import ro.golstat.api.repository.FixtureLineupPlayerRepository;
 import ro.golstat.api.repository.FixtureLineupRepository;
 import ro.golstat.api.repository.FixtureRepository;
+import ro.golstat.api.repository.FixtureTeamHalfStatsRepository;
 import ro.golstat.api.repository.FixtureTeamStatsRepository;
 import ro.golstat.api.repository.InjuryRepository;
 import ro.golstat.api.repository.PlayerRepository;
@@ -25,17 +29,23 @@ import ro.golstat.api.repository.TeamRepository;
 import ro.golstat.api.stats.CountLeagueAverageService;
 import ro.golstat.api.stats.CountLeagueAverages;
 import ro.golstat.api.stats.IstoricCounturi;
+import ro.golstat.api.stats.ForteAdversariService;
 import ro.golstat.api.stats.LeagueAverageService;
 import ro.golstat.api.stats.LeagueAverages;
 import ro.golstat.api.stats.MatchHistoryService;
 import ro.golstat.api.stats.RefereeService;
+import ro.golstat.api.stats.RefereeProfile;
 import ro.golstat.api.stats.StatsHistoryService;
+import ro.golstat.common.FormatieGrid;
 import ro.golstat.common.GolstatConstants;
 import ro.golstat.stats.form.MatchWindow;
+import ro.golstat.stats.match.MatchGoalModel;
+import ro.golstat.stats.match.MatchPrediction;
 import ro.golstat.stats.model.MatchLocation;
 import ro.golstat.stats.model.MatchSample;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -86,6 +96,12 @@ public class MatchPreviewService {
     private final PlayerRepository players;
     private final FixtureTeamStatsRepository teamStats;
     private final FixtureEventRepository events;
+    private final FixtureTeamHalfStatsRepository halfStats;
+    private final ForteAdversariService forteAdversari;
+
+    /** Adresa pozelor de jucator la furnizor, cu {id}; goala = doar pozele din baza. */
+    @Value("${golstat.foto-jucator-url:}")
+    private String fotoJucatorUrl;
 
     public MatchPreviewService(PredictionService predictions, FixtureRepository fixtures,
                                MatchHistoryService history, StatsHistoryService statsHistory,
@@ -93,7 +109,10 @@ public class MatchPreviewService {
                                RefereeService referees, TeamRepository teams,
                                FixtureLineupRepository lineups, FixtureLineupPlayerRepository lineupPlayers,
                                InjuryRepository injuries, PlayerRepository players,
-                               FixtureTeamStatsRepository teamStats, FixtureEventRepository events) {
+                               FixtureTeamStatsRepository teamStats, FixtureEventRepository events,
+                               FixtureTeamHalfStatsRepository halfStats, ForteAdversariService forteAdversari) {
+        this.halfStats = halfStats;
+        this.forteAdversari = forteAdversari;
         this.predictions = predictions;
         this.fixtures = fixtures;
         this.history = history;
@@ -112,48 +131,81 @@ public class MatchPreviewService {
 
     /** Previzualizarea unui meci dupa id; {@link PredictionNotFoundException} daca nu are predictie. */
     public PrevizualizareMeciDto previzualizare(long fixtureId) {
+        return previzualizare(fixtureId, false);
+    }
+
+    /**
+     * {@code doarCompetitia} = ferestrele de forma iau doar meciurile din competitia acestui meci (filtrul
+     * „Doar {competitia}“ din interfata); altfel toate competitiile. Predictia se recalculeaza pe aceleasi
+     * ferestre, ca blocul de 1X2 sa nu contrazica procentele de dedesubt.
+     */
+    public PrevizualizareMeciDto previzualizare(long fixtureId, boolean doarCompetitia) {
         PredictieMeciDto predictie = predictions.predict(fixtureId)
                 .orElseThrow(() -> new PredictionNotFoundException(fixtureId));
         Fixture meci = fixtures.findById(fixtureId)
                 .orElseThrow(() -> new PredictionNotFoundException(fixtureId));
+        Long liga = doarCompetitia ? meci.getLeagueId() : null;
 
         List<MatchSample> istoricGazde =
-                history.lastMatches(meci.getHomeTeamId(), meci.getKickoff(), HISTORY_FETCH);
+                history.lastMatches(meci.getHomeTeamId(), meci.getKickoff(), HISTORY_FETCH, liga);
         List<MatchSample> istoricOaspeti =
-                history.lastMatches(meci.getAwayTeamId(), meci.getKickoff(), HISTORY_FETCH);
+                history.lastMatches(meci.getAwayTeamId(), meci.getKickoff(), HISTORY_FETCH, liga);
         IstoricCounturi counturiGazde =
-                statsHistory.istoric(meci.getHomeTeamId(), meci.getKickoff(), HISTORY_FETCH);
+                statsHistory.istoric(meci.getHomeTeamId(), meci.getKickoff(), HISTORY_FETCH, liga);
         IstoricCounturi counturiOaspeti =
-                statsHistory.istoric(meci.getAwayTeamId(), meci.getKickoff(), HISTORY_FETCH);
-        CountLeagueAverages mediiCounturi = countAverages.averages(meci.getLeagueId(), meci.getSeasonYear());
-        LeagueAverages mediiGoluri = leagueAverages.averages(meci.getLeagueId(), meci.getSeasonYear());
-        double factorArbitru = referees.factor(meci.getReferee(), mediiCounturi.cartonasePeMeci());
+                statsHistory.istoric(meci.getAwayTeamId(), meci.getKickoff(), HISTORY_FETCH, liga);
+        CountLeagueAverages mediiCounturi = countAverages.averages(meci.getLeagueId(), meci.getSeasonYear(), meci.getKickoff());
+        LeagueAverages mediiGoluri = leagueAverages.averages(meci.getLeagueId(), meci.getSeasonYear(), meci.getKickoff());
+        double factorArbitru = referees.factor(meci.getReferee(), mediiCounturi.cartonasePeMeci(), meci.getKickoff());
+        MatchPrediction modelGoluri = MatchGoalModel.predict(
+                PredictionService.buildContext(istoricGazde, istoricOaspeti, mediiGoluri,
+                        forteAdversari.pentru(List.of(istoricGazde, istoricOaspeti), meci.getKickoff())));
+        if (doarCompetitia) {
+            predictie = PredictieMeciMapper.toDto(meci, modelGoluri,
+                    teams.findById(meci.getHomeTeamId()).orElse(null),
+                    teams.findById(meci.getAwayTeamId()).orElse(null));
+        }
 
         StatisticiAvansateDto statistici = StatisticiAvansateBuilder.build(
                 ferestre(istoricGazde, counturiGazde, MatchLocation.HOME),
                 ferestre(istoricOaspeti, counturiOaspeti, MatchLocation.AWAY),
-                mediiCounturi, mediiGoluri.mediaLigaGazde() + mediiGoluri.mediaLigaOaspeti(),
-                factorArbitru, egalModel(predictie), rezultatStatistici(meci));
+                mediiCounturi, factorArbitru,
+                modelGoluri, rezultatStatistici(meci));
 
+        Map<Long, EchipaDto> adversari = adversari(istoricGazde, istoricOaspeti);
         return new PrevizualizareMeciDto(predictie,
-                forma(istoricGazde, MatchLocation.HOME),
-                forma(istoricOaspeti, MatchLocation.AWAY),
+                forma(istoricGazde, MatchLocation.HOME, adversari),
+                forma(istoricOaspeti, MatchLocation.AWAY, adversari),
                 intalniriDirecte(meci),
                 statistici,
                 new StatisticiCheieDto(statisticiEchipa(counturiGazde.statisticiEchipa()),
                         statisticiEchipa(counturiOaspeti.statisticiEchipa())),
-                echipeDeStart(meci));
+                echipeDeStart(meci),
+                arbitru(meci, mediiCounturi.cartonasePeMeci(), factorArbitru));
+    }
+
+    /** Cardul arbitrului: istoricul lui din meciurile terminate dinaintea acestui meci. */
+    private ArbitruDto arbitru(Fixture meci, double cartonaseMediaLigii, double factor) {
+        if (meci.getReferee() == null || meci.getReferee().isBlank()) {
+            return null;
+        }
+        RefereeProfile profil = teamStats.refereeProfile(meci.getReferee(), TERMINAL, meci.getKickoff());
+        int meciuri = profil != null && profil.getMatches() != null ? profil.getMatches().intValue() : 0;
+        return new ArbitruDto(meci.getReferee(), meciuri,
+                meciuri > 0 ? rotunjitSauNull(profil.getAvgCards()) : null,
+                meciuri > 0 ? rotunjitSauNull(profil.getAvgFouls()) : null,
+                meciuri > 0 && profil.getReds() != null ? profil.getReds().intValue() : 0,
+                rotunjit(cartonaseMediaLigii), rotunjit(factor));
+    }
+
+    private static Double rotunjitSauNull(Double x) {
+        return x != null ? Math.round(x * 100.0) / 100.0 : null;
     }
 
     /** Ferestrele unei echipe pentru analiza pe piete: ultimele {@value #FEREASTRA}, locatie + general. */
     private static FerestreEchipa ferestre(List<MatchSample> istoric, IstoricCounturi counturi,
                                            MatchLocation locatie) {
         return StatisticiAvansateBuilder.ferestre(istoric, counturi, locatie, FEREASTRA);
-    }
-
-    /** P(egal la final) 0..1 din modelul de goluri al meciului; null cand predictia nu o are. */
-    private static Double egalModel(PredictieMeciDto predictie) {
-        return predictie.egal() != null ? predictie.egal().procent() / 100.0 : null;
     }
 
     /**
@@ -200,7 +252,29 @@ public class MatchPreviewService {
                 totalCount(gazdeStats, oaspetiStats, FixtureTeamStats::getFouls),
                 cartonase(meci, gazdeStats, oaspetiStats),
                 totalCount(gazdeStats, oaspetiStats, FixtureTeamStats::getShotsTotal),
-                totalCount(gazdeStats, oaspetiStats, FixtureTeamStats::getShotsOnGoal));
+                totalCount(gazdeStats, oaspetiStats, FixtureTeamStats::getShotsOnGoal),
+                rezultatEchipe(meci, gazde90, oaspeti90, gazdeStats, oaspetiStats));
+    }
+
+    private StatisticiAvansateDto.RezultatEchipeDto rezultatEchipe(Fixture meci, int gazde90, int oaspeti90,
+                                                                   FixtureTeamStats gazde, FixtureTeamStats oaspeti) {
+        Map<String, FixtureTeamHalfStats> reprize = halfStats.findByFixtureIdIn(List.of(meci.getId())).stream()
+                .filter(r -> r.getTeamId() != null && r.getHalf() != null)
+                .collect(Collectors.toMap(r -> r.getTeamId() + ":" + r.getHalf(), Function.identity(), (a, b) -> a));
+        return new StatisticiAvansateDto.RezultatEchipeDto(gazde90, oaspeti90,
+                gazde != null ? gazde.getCornerKicks() : null,
+                oaspeti != null ? oaspeti.getCornerKicks() : null,
+                gazde != null ? StatsHistoryService.totalCartonase(gazde) : null,
+                oaspeti != null ? StatsHistoryService.totalCartonase(oaspeti) : null,
+                cornereRepriza(reprize, meci.getHomeTeamId(), 1),
+                cornereRepriza(reprize, meci.getAwayTeamId(), 1),
+                cornereRepriza(reprize, meci.getHomeTeamId(), 2),
+                cornereRepriza(reprize, meci.getAwayTeamId(), 2));
+    }
+
+    private static Integer cornereRepriza(Map<String, FixtureTeamHalfStats> reprize, Long teamId, int repriza) {
+        FixtureTeamHalfStats r = reprize.get(teamId + ":" + repriza);
+        return r != null ? r.getCornerKicks() : null;
     }
 
     /**
@@ -230,24 +304,45 @@ public class MatchPreviewService {
     }
 
     static FormaEchipaDto forma(List<MatchSample> istoric, MatchLocation locatie) {
-        return new FormaEchipaDto(
-                fereastraForma(MatchWindow.lastN(istoric, FEREASTRA, locatie)),
-                fereastraForma(MatchWindow.lastN(istoric, FEREASTRA)));
+        return forma(istoric, locatie, Map.of());
     }
 
-    private static FormaEchipaDto.FereastraFormaDto fereastraForma(List<MatchSample> fereastra) {
+    static FormaEchipaDto forma(List<MatchSample> istoric, MatchLocation locatie, Map<Long, EchipaDto> adversari) {
+        return new FormaEchipaDto(
+                fereastraForma(MatchWindow.lastN(istoric, FEREASTRA, locatie), adversari),
+                fereastraForma(MatchWindow.lastN(istoric, FEREASTRA), adversari));
+    }
+
+    /** Adversarii din ultimele meciuri ale ambelor echipe, cu nume si emblema — un singur query. */
+    private Map<Long, EchipaDto> adversari(List<MatchSample> a, List<MatchSample> b) {
+        List<Long> ids = Stream.concat(a.stream(), b.stream())
+                .map(MatchSample::opponentId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        return teams.findAllById(ids).stream()
+                .collect(Collectors.toMap(Team::getId, t -> new EchipaDto(t.getId(), t.getName(), t.getLogo())));
+    }
+
+    private static FormaEchipaDto.FereastraFormaDto fereastraForma(List<MatchSample> fereastra,
+                                                                   Map<Long, EchipaDto> adversari) {
         List<FormaMeciDto> meciuri = fereastra.stream()
-                .map(MatchPreviewService::formaMeci)
+                .map(s -> formaMeci(s, adversari))
                 .toList();
         double marcate = fereastra.stream().mapToInt(MatchSample::goalsFor).average().orElse(0.0);
         double primite = fereastra.stream().mapToInt(MatchSample::goalsAgainst).average().orElse(0.0);
         return new FormaEchipaDto.FereastraFormaDto(meciuri, rotunjit(marcate), rotunjit(primite));
     }
 
-    private static FormaMeciDto formaMeci(MatchSample s) {
+    private static FormaMeciDto formaMeci(MatchSample s, Map<Long, EchipaDto> adversari) {
         String rezultat = s.goalsFor() > s.goalsAgainst() ? "V"
                 : s.goalsFor() == s.goalsAgainst() ? "E" : "I";
-        return new FormaMeciDto(s.date(), s.home(), s.goalsFor(), s.goalsAgainst(), rezultat);
+        EchipaDto adversar = s.opponentId() == null ? null
+                : adversari.getOrDefault(s.opponentId(), new EchipaDto(s.opponentId(), null, null));
+        return new FormaMeciDto(s.date(), s.home(), s.goalsFor(), s.goalsAgainst(), rezultat, adversar);
     }
 
     /**
@@ -310,25 +405,47 @@ public class MatchPreviewService {
                 .collect(Collectors.toMap(Player::getId, Player::getPhoto));
     }
 
-    private static EchipaDeStartDto.EchipaLineupDto echipaLineup(LineupEchipa echipa,
+    private EchipaDeStartDto.EchipaLineupDto echipaLineup(LineupEchipa echipa,
                                                                  Map<Long, String> fotografii,
                                                                  List<EchipaDeStartDto.IndisponibilDto> indisponibili) {
         return new EchipaDeStartDto.EchipaLineupDto(
                 echipa.lineup().getFormation(),
-                jucatoriDto(echipa.jucatori(), false, fotografii),
-                jucatoriDto(echipa.jucatori(), true, fotografii),
+                jucatoriDto(echipa.jucatori(), false, fotografii, echipa.lineup().getFormation()),
+                jucatoriDto(echipa.jucatori(), true, fotografii, null),
                 indisponibili);
     }
 
-    private static List<EchipaDeStartDto.JucatorDto> jucatoriDto(List<FixtureLineupPlayer> jucatori,
-                                                                 boolean rezerve,
-                                                                 Map<Long, String> fotografii) {
-        return jucatori.stream()
+    private List<EchipaDeStartDto.JucatorDto> jucatoriDto(List<FixtureLineupPlayer> jucatori,
+                                                          boolean rezerve,
+                                                          Map<Long, String> fotografii,
+                                                          String formatie) {
+        List<FixtureLineupPlayer> lista = jucatori.stream()
                 .filter(p -> Boolean.TRUE.equals(p.getIsSubstitute()) == rezerve)
-                .map(p -> new EchipaDeStartDto.JucatorDto(p.getPlayerId(), p.getPlayerName(),
-                        p.getNumber(), p.getPosition(), p.getGrid(),
-                        p.getPlayerId() != null ? fotografii.get(p.getPlayerId()) : null))
+                .sorted(Comparator.comparingInt(p -> FormatieGrid.rand(p.getPosition())))
                 .toList();
+        // formatiile salvate fara grid (bzzoiro, inainte de calculul la import): il deducem din post + formatie
+        List<String> grid = !rezerve && lista.stream().anyMatch(p -> p.getGrid() == null)
+                ? FormatieGrid.grid(lista.stream().map(FixtureLineupPlayer::getPosition).toList(), formatie)
+                : null;
+        List<EchipaDeStartDto.JucatorDto> out = new ArrayList<>();
+        for (int i = 0; i < lista.size(); i++) {
+            FixtureLineupPlayer p = lista.get(i);
+            out.add(new EchipaDeStartDto.JucatorDto(p.getPlayerId(), p.getPlayerName(), p.getNumber(),
+                    p.getPosition(), grid != null ? grid.get(i) : p.getGrid(), foto(p.getPlayerId(), fotografii)));
+        }
+        return out;
+    }
+
+    /** Poza din baza; altfel adresa furnizorului ({@code golstat.foto-jucator-url}, cu {id}), daca e configurata. */
+    private String foto(Long playerId, Map<Long, String> fotografii) {
+        if (playerId == null) {
+            return null;
+        }
+        String dinBaza = fotografii.get(playerId);
+        if (dinBaza != null || fotoJucatorUrl == null || fotoJucatorUrl.isBlank()) {
+            return dinBaza;
+        }
+        return fotoJucatorUrl.replace("{id}", String.valueOf(playerId));
     }
 
     /** Cea mai recenta raportare per jucator, doar din fereastra recenta, grupata pe echipa. */

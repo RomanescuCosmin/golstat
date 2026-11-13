@@ -172,6 +172,11 @@ public class CollectionService {
                 if (!teamStats.isEmpty()) {
                     statisticiMeciDisponibile = Boolean.TRUE;
                     publisher.publish(GolstatConstants.KafkaTopics.FIXTURE_TEAM_STATS, String.valueOf(fixture.id()), teamStats);
+                    var reprize = provider.fixtureHalfStatistics(fixture.id());
+                    if (!reprize.isEmpty()) {
+                        publisher.publish(GolstatConstants.KafkaTopics.FIXTURE_TEAM_HALF_STATS,
+                                String.valueOf(fixture.id()), reprize);
+                    }
                 } else if (statisticiMeciDisponibile == null && ++sondeStatsGoale >= MAX_SONDE_GOALE) {
                     statisticiMeciDisponibile = Boolean.FALSE;
                     log.info("Liga {} sezon {}: {} sonde goale — sarim statisticile de meci",

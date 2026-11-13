@@ -14,17 +14,15 @@ class MatchGoalModelTest {
     }
 
     @Test
-    void lambda_attackTimesDefenceOverLeagueAverage_withShrinkage() {
-        // gazde: atac 2.0, aparare 0.9 (n=10); oaspeti: atac 1.4, aparare 1.8 (n=10)
-        // medii liga: gazde 1.5, oaspeti 1.1; K=3
+    void lambda_doarDinCeleDouaEchipe() {
+        // gazde acasa: marcheaza 2.0, primesc 0.9; oaspeti in deplasare: marcheaza 1.4, primesc 1.8
         MatchContext ctx = new MatchContext(
                 form(10, 2.0, 0.9), form(10, 1.4, 1.8), 1.5, 1.1);
         MatchPrediction p = MatchGoalModel.predict(ctx);
 
-        // λGazde = 1.5 × (10·(2.0/1.5)+3)/13 × (10·(1.8/1.5)+3)/13 = 1.5 × 1.256410 × 1.153846
-        assertEquals(2.174556, p.lambdaGazde(), 1e-4);
-        // λOaspeti = 1.1 × (10·(1.4/1.1)+3)/13 × (10·(0.9/1.1)+3)/13
-        assertEquals(1.144648, p.lambdaOaspeti(), 1e-4);
+        // λGazde = (2.0 + 1.8) / 2; λOaspeti = (1.4 + 0.9) / 2 — media ligii nu intra
+        assertEquals(1.9, p.lambdaGazde(), 1e-12);
+        assertEquals(1.15, p.lambdaOaspeti(), 1e-12);
         assertTrue(p.sansaGazde() > p.sansaOaspeti(), "gazda net favorita");
         assertEquals(10, p.esantionGazde());
         assertEquals(10, p.esantionOaspeti());

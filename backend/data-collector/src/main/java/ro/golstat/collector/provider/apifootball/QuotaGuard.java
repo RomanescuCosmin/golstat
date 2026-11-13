@@ -16,7 +16,7 @@ import java.time.ZoneOffset;
  * pastram {@code synchronized} ca rezervarea "citeste-apoi-incrementeaza" sa ramana atomica.
  */
 @Service
-@Profile("!stub")
+@Profile("!stub & !bzzoiro")
 public class QuotaGuard {
 
     private static final String QUOTA_PREFIX = "golstat:af:quota:";

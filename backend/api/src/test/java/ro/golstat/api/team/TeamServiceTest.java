@@ -284,6 +284,12 @@ class TeamServiceTest {
             public Double getAvgCartonase() { return cartonase; }
             public Double getAvgSuturi() { return null; }
             public Double getAvgSuturiPePoarta() { return null; }
+            public Double getAvgCornereGazde() { return null; }
+            public Double getAvgCornereOaspeti() { return null; }
+            public Double getAvgFaulturiGazde() { return null; }
+            public Double getAvgFaulturiOaspeti() { return null; }
+            public Double getAvgCartonaseGazde() { return null; }
+            public Double getAvgCartonaseOaspeti() { return null; }
         };
     }
 
@@ -302,11 +308,11 @@ class TeamServiceTest {
         when(events.goalMinutes(anyLong(), anyLong(), anyInt(), any(), any())).thenReturn(List.of());
         when(playerSeasonStats.findByTeamIdAndLeagueIdAndSeasonYear(1L, 39L, 2023)).thenReturn(List.of());
         // media ligii goluri = (5.0+5.0)/2 = 5.0 → 100×6/(2×5) = 60%
-        when(fixtures.avgGoals(eq(39L), eq(2023), any())).thenReturn(golAvg(5.0, 5.0));
+        when(fixtures.avgGoals(eq(39L), eq(2023), any(), any())).thenReturn(golAvg(5.0, 5.0));
         // cornere echipa 10 (medie), liga 3 → 100×10/6 = 166 → plafon 100; faulturi liga null → omis
         when(teamStats.findForTeamSeason(eq(1L), eq(39L), eq(2023), any()))
                 .thenReturn(List.of(teamStat(10, null, 2, 0)));
-        when(teamStats.avgCounts(eq(39L), eq(2023), any())).thenReturn(countAvg(3.0, null, 4.0));
+        when(teamStats.avgCounts(eq(39L), eq(2023), any(), any())).thenReturn(countAvg(3.0, null, 4.0));
 
         PaginaEchipaDto dto = service.pagina(1L, 39L, 2023);
 

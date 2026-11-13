@@ -33,7 +33,7 @@ describe('PrevizualizarePage', () => {
     expect(await screen.findByText('Probabilitate rezultat')).toBeInTheDocument();
     expect(screen.getAllByText('Manchester United').length).toBeGreaterThan(0);
     expect(screen.getByRole('tab', { name: /Prezentare/ })).toHaveAttribute('aria-selected', 'true');
-    expect(mockGetPrevizualizare).toHaveBeenCalledWith(1001);
+    expect(mockGetPrevizualizare).toHaveBeenCalledWith(1001, 'toate');
   });
 
   test('taburile comuta continutul (Rezultate → întâlniri directe)', async () => {

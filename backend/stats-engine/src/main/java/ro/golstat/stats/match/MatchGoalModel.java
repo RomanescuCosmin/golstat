@@ -3,36 +3,33 @@ package ro.golstat.stats.match;
 import ro.golstat.stats.goals.GoalStats;
 import ro.golstat.stats.market.OverUnder;
 import ro.golstat.stats.math.ScoreGrid;
-import ro.golstat.stats.math.Shrinkage;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Modelul de goluri la nivel de MECI. Cei doi λ vin din formula clasica atac × aparare, ancorata pe
- * media ligii:
+ * Modelul de goluri la nivel de MECI, doar din cele doua echipe (decizia utilizatorului, 2026-11-13):
  *
  * <pre>
- *   λGazde   = MediaLigaGazde   × FortaAtacGazde   × SlabiciuneApararaOaspeti
- *   λOaspeti = MediaLigaOaspeti × FortaAtacOaspeti × SlabiciuneApararaGazde
+ *   λGazde   = (marcate de gazde acasa + primite de oaspeti in deplasare) / 2
+ *   λOaspeti = (marcate de oaspeti in deplasare + primite de gazde acasa) / 2
  * </pre>
  *
- * unde factorii sunt rate relative la media ligii (ex. {@code avgGoalsFor / mediaLiga}), fiecare
- * tras spre {@code 1.0} (media ligii) prin {@link Shrinkage} — esantion mic ⇒ factor ≈ 1, deci λ
- * cade pe media ligii. Cei doi λ intra in {@link ScoreGrid} (Dixon-Coles) → over/under, BTTS, 1X2.
- *
- * <p>Java pur, determinist. Nu decide ferestrele (acasa/deplasare) si nu calculeaza media ligii —
- * alea vin gata in {@link MatchContext}.
+ * pe ultimele 7 meciuri pe locatie, cu golurile deja cantarite dupa forta adversarilor
+ * ({@code GoalForm.of(window, forte)}). Media ligii intra doar cand o echipa n-are niciun meci pe locatie.
+ * Cei doi λ intra in {@link ScoreGrid} (Dixon-Coles) → over/under, GG, 1X2 — aceeasi sursa pentru
+ * predictie si pentru analiza pe piete. Backtest pe 826 de meciuri: bate modelul ancorat pe media ligii
+ * la 1X2, GG si golurile pe echipa.
  */
 public final class MatchGoalModel {
-
-    /** Constanta de shrinkage a factorilor spre media ligii (aliniata cu {@code GoalLineBlend.K}). */
-    public static final double K = 3;
 
     /** Corectia Dixon-Coles: usor negativa → putin mai multe egaluri mici (0-0, 1-1). */
     public static final double RHO = -0.1;
 
     public static final int MAX_GOALS = 10;
+
+    /** Podea pentru λ: o echipa cu 0 goluri in fereastra tot nu are sansa zero sa marcheze. */
+    static final double LAMBDA_MINIM = 0.05;
 
     private static final double[] STANDARD_LINES = {0.5, 1.5, 2.5, 3.5, 4.5};
 
@@ -44,17 +41,15 @@ public final class MatchGoalModel {
     }
 
     public static MatchPrediction predict(MatchContext ctx, double... lines) {
-        GoalStats gazde = ctx.gazdaAcasa();
-        GoalStats oaspeti = ctx.oaspetiDeplasare();
+        GoalStats gazde = ctx.formaGazde();
+        GoalStats oaspeti = ctx.formaOaspeti();
+        double gazdeMarcate = gazde.hasData() ? gazde.avgGoalsFor() : ctx.mediaLigaGazde();
+        double gazdePrimite = gazde.hasData() ? gazde.avgGoalsAgainst() : ctx.mediaLigaOaspeti();
+        double oaspetiMarcate = oaspeti.hasData() ? oaspeti.avgGoalsFor() : ctx.mediaLigaOaspeti();
+        double oaspetiPrimite = oaspeti.hasData() ? oaspeti.avgGoalsAgainst() : ctx.mediaLigaGazde();
 
-        double lambdaGazde = lambda(
-                ctx.mediaLigaGazde(),
-                gazde.avgGoalsFor(), gazde.sampleSize(),
-                oaspeti.avgGoalsAgainst(), oaspeti.sampleSize());
-        double lambdaOaspeti = lambda(
-                ctx.mediaLigaOaspeti(),
-                oaspeti.avgGoalsFor(), oaspeti.sampleSize(),
-                gazde.avgGoalsAgainst(), gazde.sampleSize());
+        double lambdaGazde = Math.max((gazdeMarcate + oaspetiPrimite) / 2.0, LAMBDA_MINIM);
+        double lambdaOaspeti = Math.max((oaspetiMarcate + gazdePrimite) / 2.0, LAMBDA_MINIM);
 
         ScoreGrid grid = ScoreGrid.dixonColes(lambdaGazde, lambdaOaspeti, RHO, MAX_GOALS);
 
@@ -69,17 +64,5 @@ public final class MatchGoalModel {
                 grid.homeWin(), grid.draw(), grid.awayWin(),
                 List.copyOf(linii), grid.btts(),
                 gazde.sampleSize(), oaspeti.sampleSize());
-    }
-
-    /** λ = mediaLiga × fortaAtac × slabiciuneAparare, cu ambii factori trasi spre 1.0 la esantion mic. */
-    private static double lambda(double mediaLiga, double atac, int nAtac, double aparare, int nAparare) {
-        double fortaAtac = Shrinkage.toward(ratio(atac, mediaLiga), nAtac, 1.0, K);
-        double slabiciuneAparare = Shrinkage.toward(ratio(aparare, mediaLiga), nAparare, 1.0, K);
-        return mediaLiga * fortaAtac * slabiciuneAparare;
-    }
-
-    /** Rata relativa la media ligii; media 0 (liga fara meciuri terminale) → factor neutru 1.0. */
-    private static double ratio(double value, double mediaLiga) {
-        return mediaLiga > 0 ? value / mediaLiga : 1.0;
     }
 }

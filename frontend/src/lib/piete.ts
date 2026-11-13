@@ -60,6 +60,50 @@ export const PIETE: DefinitiePiata[] = [
     linii: [3.5, 4.5, 5.5],
   },
   {
+    grup: 'goluriEchipa',
+    eticheta: 'Goluri pe echipă',
+    icona: '⚽',
+    unitate: 'goluri',
+    optiuni: [
+      { cod: 'GOLURI_GAZDE_PESTE', eticheta: 'Gazdele peste' },
+      { cod: 'GOLURI_OASPETI_PESTE', eticheta: 'Oaspeții peste' },
+    ],
+    linii: [0.5, 1.5, 2.5],
+  },
+  {
+    grup: 'cornereEchipa',
+    eticheta: 'Cornere pe echipă',
+    icona: '🚩',
+    unitate: 'cornere',
+    optiuni: [
+      { cod: 'CORNERE_GAZDE_PESTE', eticheta: 'Gazdele peste' },
+      { cod: 'CORNERE_OASPETI_PESTE', eticheta: 'Oaspeții peste' },
+    ],
+    linii: [2.5, 3.5, 4.5, 5.5],
+  },
+  {
+    grup: 'cornereReprize',
+    eticheta: 'Cornere pe reprize',
+    icona: '🚩',
+    unitate: 'cornere',
+    optiuni: [
+      { cod: 'CORNERE_REPRIZA1_PESTE', eticheta: 'Repriza 1 peste' },
+      { cod: 'CORNERE_REPRIZA2_PESTE', eticheta: 'Repriza 2 peste' },
+    ],
+    linii: [3.5, 4.5, 5.5],
+  },
+  {
+    grup: 'cartonaseEchipa',
+    eticheta: 'Cartonașe pe echipă',
+    icona: '🟨',
+    unitate: 'cartonașe',
+    optiuni: [
+      { cod: 'CARTONASE_GAZDE_PESTE', eticheta: 'Gazdele peste' },
+      { cod: 'CARTONASE_OASPETI_PESTE', eticheta: 'Oaspeții peste' },
+    ],
+    linii: [0.5, 1.5, 2.5],
+  },
+  {
     grup: 'faulturi',
     eticheta: 'Faulturi',
     icona: '⚠️',

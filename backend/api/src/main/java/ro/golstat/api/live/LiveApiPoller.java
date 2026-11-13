@@ -53,6 +53,7 @@ public class LiveApiPoller {
     private final FixtureRepository fixtures;
     private final LiveProperties props;
     private final Clock clock;
+    private final FinalizareMeci finalizare;
     private final Set<Long> statsLeagues;
     /** Ultimul moment cand am cerut statistici per meci; curatat cand meciul nu mai e live. */
     private final Map<Long, Instant> ultimulFetchStats = new HashMap<>();
@@ -60,7 +61,9 @@ public class LiveApiPoller {
     private final Set<Long> liveAnterior = new HashSet<>();
 
     public LiveApiPoller(DataProvider provider, IngestService ingest, LiveBroadcaster broadcaster,
-                         FixtureRepository fixtures, LiveProperties props, Clock clock) {
+                         FixtureRepository fixtures, LiveProperties props, Clock clock,
+                         FinalizareMeci finalizare) {
+        this.finalizare = finalizare;
         this.provider = provider;
         this.ingest = ingest;
         this.broadcaster = broadcaster;
@@ -89,8 +92,10 @@ public class LiveApiPoller {
                 if (f == null || f.id() == null || f.leagueId() == null || !tracked.contains(f.leagueId())) {
                     continue;
                 }
+                if (!ingest.actualizeazaLive(f)) {
+                    continue;
+                }
                 liveTracked.add(f.id());
-                ingest.ingestFixture(f);
                 broadcaster.broadcast(f);   // push LIVE daca meciul e in desfasurare
 
                 if (fl.evenimente() != null && !fl.evenimente().isEmpty()) {
@@ -113,6 +118,7 @@ public class LiveApiPoller {
                 for (FixtureDto f : provider.fixturesByIds(tocmaiTerminate)) {
                     if (f != null && f.id() != null) {
                         ingest.ingestFixture(f);
+                        finalizare.finalizeaza(f);
                     }
                 }
             }

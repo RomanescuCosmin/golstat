@@ -27,4 +27,22 @@ public final class GoalForm {
                 (double) totalGoalsAgainst / n
         );
     }
+
+    /**
+     * Ca {@link #of(List)}, dar cu golurile cantarite dupa adversar ({@link ForteAdversari}): un gol marcat
+     * contra unei aparari tari conteaza mai mult, unul primit de la un atac slab conteaza mai greu.
+     * Ratele (a marcat / a primit in X din N) raman pe golurile reale.
+     */
+    public static GoalStats of(List<MatchSample> window, ForteAdversari forte) {
+        GoalStats brut = of(window);
+        if (window.isEmpty()) {
+            return brut;
+        }
+        double marcate = window.stream()
+                .mapToDouble(m -> m.goalsFor() * forte.factorMarcate(m.opponentId())).sum();
+        double primite = window.stream()
+                .mapToDouble(m -> m.goalsAgainst() * forte.factorPrimite(m.opponentId())).sum();
+        return new GoalStats(brut.sampleSize(), brut.scoredRate(), brut.concededRate(),
+                marcate / window.size(), primite / window.size());
+    }
 }

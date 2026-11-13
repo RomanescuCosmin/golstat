@@ -9,7 +9,7 @@ import java.util.Optional;
 
 /** {@link CounterStore} peste Redis ({@link StringRedisTemplate}). */
 @Component
-@Profile("!stub")
+@Profile("!stub & !bzzoiro")
 public class RedisCounterStore implements CounterStore {
 
     private final StringRedisTemplate redis;

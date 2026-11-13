@@ -10,6 +10,7 @@ export const LIGI: Liga[] = [
   { id: 2, nume: 'UEFA Champions League', regiune: 'Europa' },
   { id: 3, nume: 'UEFA Europa League', regiune: 'Europa' },
   { id: 848, nume: 'UEFA Conference League', regiune: 'Europa' },
+  { id: 5, nume: 'UEFA Nations League', regiune: 'Europa' },
   { id: 39, nume: 'Premier League', regiune: 'Anglia' },
   { id: 40, nume: 'Championship', regiune: 'Anglia' },
   { id: 41, nume: 'League One', regiune: 'Anglia' },
@@ -59,7 +60,7 @@ export const LIGI: Liga[] = [
 export const LIGI_POPULARE: number[] = [39, 140, 135, 78, 61, 2, 3, 848, 1];
 
 /** Ordinea de afisare a competitiilor in liste: top 5 campionate, apoi cupele. */
-const ORDINE_COMPETITII: number[] = [39, 140, 135, 78, 61, 2, 3, 848, 1];
+const ORDINE_COMPETITII: number[] = [39, 140, 135, 78, 61, 2, 3, 848, 5, 1];
 
 /** Ligi de amicale (API-Football): cluburi, internationale, pre-sezon. */
 const ID_AMICALE = new Set<number>([667, 10, 666]);

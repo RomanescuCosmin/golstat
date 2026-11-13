@@ -15,6 +15,7 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
 
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -40,7 +41,7 @@ class PieteControllerTest {
 
     @Test
     void zile_returneazaListaGrupataPeZi() throws Exception {
-        when(piete.piete(anyInt())).thenReturn(exemplu());
+        when(piete.piete(anyInt(), anyBoolean())).thenReturn(exemplu());
 
         mvc.perform(get("/api/v1/piete/zile?zile=3"))
                 .andExpect(status().isOk())
@@ -60,11 +61,11 @@ class PieteControllerTest {
 
     @Test
     void zile_fataParametruFoloseste3() throws Exception {
-        when(piete.piete(anyInt())).thenReturn(exemplu());
+        when(piete.piete(anyInt(), anyBoolean())).thenReturn(exemplu());
 
         mvc.perform(get("/api/v1/piete/zile")).andExpect(status().isOk());
 
-        verify(piete).piete(3);
+        verify(piete).piete(3, false);
     }
 
     @Test

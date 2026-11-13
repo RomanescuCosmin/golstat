@@ -28,6 +28,7 @@ import ro.golstat.api.repository.TeamSeasonStatsRepository;
 import ro.golstat.api.repository.VenueRepository;
 import ro.golstat.api.stats.CountAverage;
 import ro.golstat.api.stats.GoalAverage;
+import ro.golstat.api.stats.StatsHistoryService;
 import ro.golstat.common.GolstatConstants.EventType;
 import ro.golstat.common.GolstatConstants.FixtureStatus;
 import ro.golstat.common.GolstatConstants.Piata;
@@ -246,8 +247,8 @@ public class TeamService {
             return List.of();
         }
         List<FixtureTeamStats> peMeci = teamStats.findForTeamSeason(teamId, ctx.leagueId, ctx.sezon, TERMINAL);
-        GoalAverage golLiga = fixtures.avgGoals(ctx.leagueId, ctx.sezon, TERMINAL);
-        CountAverage countLiga = teamStats.avgCounts(ctx.leagueId, ctx.sezon, TERMINAL);
+        GoalAverage golLiga = fixtures.avgGoals(ctx.leagueId, ctx.sezon, TERMINAL, OffsetDateTime.now());
+        CountAverage countLiga = teamStats.avgCounts(ctx.leagueId, ctx.sezon, TERMINAL, OffsetDateTime.now());
 
         Double golEchipa = s != null && s.getGoalsForAvgTotal() != null
                 ? rotunjit(s.getGoalsForAvgTotal().doubleValue())
@@ -264,7 +265,7 @@ public class TeamService {
                 medie(peMeci, x -> caDouble(x.getFouls())),
                 countLiga != null ? countLiga.getAvgFaulturi() : null);
         adauga(rezultat, Piata.CARTONASE,
-                medie(peMeci, x -> caDouble(nz(x.getYellowCards()) + nz(x.getRedCards()))),
+                medie(peMeci, x -> caDouble(StatsHistoryService.totalCartonase(x))),
                 countLiga != null ? countLiga.getAvgCartonase() : null);
         return rezultat;
     }

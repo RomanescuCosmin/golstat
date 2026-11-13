@@ -18,26 +18,36 @@ function BadgeRezultat({ meci }: { meci: FormaMeciDto }) {
 
 function RandFereastra({ eticheta, fereastra }: { eticheta: string; fereastra: FereastraFormaDto }) {
   return (
-    <div className="flex items-center gap-2">
-      <span className="w-20 shrink-0 text-[11px] font-semibold uppercase tracking-wide text-ink2">
-        {eticheta}
-      </span>
+    <div>
+      <div className="mb-1 flex items-baseline justify-between">
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-ink2">{eticheta}</span>
+        {fereastra.meciuri.length > 0 && (
+          <span className="text-[11px] tabular-nums text-ink2" title="Goluri marcate / primite pe meci, pe această fereastră">
+            {fereastra.goluriMarcatePeMeci.toFixed(1)} / {fereastra.goluriPrimitePeMeci.toFixed(1)} gol
+          </span>
+        )}
+      </div>
       {fereastra.meciuri.length === 0 ? (
         <span className="text-xs text-ink2">Fără meciuri</span>
       ) : (
-        <div className="flex flex-wrap gap-1.5">
+        <ul className="divide-y divide-line">
           {fereastra.meciuri.map((meci, i) => (
-            <BadgeRezultat key={`${meci.data}-${i}`} meci={meci} />
+            <li key={`${meci.data}-${i}`} className="flex items-center gap-2 py-1.5 text-sm">
+              <span className="w-12 shrink-0 text-[11px] tabular-nums text-ink2">{formatDataScurta(meci.data)}</span>
+              <BadgeRezultat meci={meci} />
+              <span className="w-6 shrink-0 text-center text-[11px] text-ink2" title={meci.acasa ? 'acasă' : 'deplasare'}>
+                {meci.acasa ? 'vs' : '@'}
+              </span>
+              <TeamLogo nume={meci.adversar?.nume} logo={meci.adversar?.logo ?? null} size={20} />
+              <span className="min-w-0 flex-1 truncate text-ink">
+                {meci.adversar ? numeEchipa(meci.adversar) : 'Adversar necunoscut'}
+              </span>
+              <span className="shrink-0 font-bold tabular-nums text-ink">
+                {meci.golMarcate}-{meci.golPrimite}
+              </span>
+            </li>
           ))}
-        </div>
-      )}
-      {fereastra.meciuri.length > 0 && (
-        <span
-          className="ml-auto shrink-0 text-[11px] tabular-nums text-ink2"
-          title="Goluri marcate / primite pe meci, pe această fereastră"
-        >
-          {fereastra.goluriMarcatePeMeci.toFixed(1)} / {fereastra.goluriPrimitePeMeci.toFixed(1)} gol
-        </span>
+        </ul>
       )}
     </div>
   );

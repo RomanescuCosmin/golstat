@@ -34,7 +34,7 @@ import java.util.TreeMap;
  * — nu tragem webflux pentru un colector blocant.
  */
 @Component
-@Profile("!stub")
+@Profile("!stub & !bzzoiro")
 public class ApiFootballClient {
 
     private static final Logger log = LoggerFactory.getLogger(ApiFootballClient.class);

@@ -3,11 +3,10 @@ package ro.golstat.api.preview;
 import java.util.List;
 
 /**
- * Analiza pe piete a meciului, pe ferestrele ultimelor 7 meciuri: gazdele ACASA si oaspetii in
- * DEPLASARE (ferestrele "locatie"), plus ferestrele generale ale fiecarei echipe pentru context.
- *
- * <p>{@code probabilitate} e intotdeauna rata MODELATA 0..1 pe totalul meciului (blend empiric ↔
- * distributie cu shrinkage spre media ligii; cartonasele includ factorul de arbitru).
+ * Analiza pe piete a meciului, pe ultimele 7 meciuri: gazdele ACASA si oaspetii in DEPLASARE (ferestrele
+ * "locatie"), plus ferestrele generale ale fiecarei echipe pentru context. {@code probabilitate} e rata
+ * MODELATA 0..1 (atac × aparare pe ferestrele de locatie, ancorat pe media ligii; cartonasele includ
+ * factorul de arbitru).
  * {@link FrecventaDto} e materia prima a legendei: "peste 9.5 cornere in 4/7 meciuri acasa".
  * {@code egaluri}/{@code reprize} sunt {@code null} cand niciuna dintre echipe nu are istoric.
  */
@@ -21,8 +20,36 @@ public record StatisticiAvansateDto(
         PiataDto suturiPePoarta,
         EgaluriDto egaluri,
         ReprizeDto reprize,
-        RezultatDto rezultat
+        RezultatDto rezultat,
+        PieteEchipeDto echipe,
+        CornereReprizeDto cornereReprize
 ) {
+
+    /** Pietele PER ECHIPA (cate face fiecare echipa, nu totalul meciului). */
+    public record PieteEchipeDto(PiataEchipaDto cornere, PiataEchipaDto cartonase, PiataEchipaDto goluri) {
+    }
+
+    /**
+     * O piata per echipa: λ-ul (asteptarea) fiecarei echipe si liniile ei. Pe linie, frecventele pentru
+     * legenda: „echipa a avut peste X in a din b meciuri acasa“ si „adversarul a primit peste X in c din d“.
+     */
+    public record PiataEchipaDto(double asteptareGazde, double asteptareOaspeti,
+                                 List<LinieEchipaDto> gazde, List<LinieEchipaDto> oaspeti) {
+    }
+
+    public record LinieEchipaDto(
+            double linie,
+            double probabilitate,
+            FrecventaDto facuteLocatie,
+            FrecventaDto facuteGeneral,
+            FrecventaDto primiteAdversarLocatie
+    ) {
+    }
+
+    /** Cornerele pe reprize: totalul meciului si per echipa, pentru repriza 1 si repriza 2. */
+    public record CornereReprizeDto(PiataDto repriza1, PiataDto repriza2,
+                                    PiataEchipaDto echipeRepriza1, PiataEchipaDto echipeRepriza2) {
+    }
 
     /** O piata cu linii Over/Under si mediile fiecarei echipe pe ferestrele ei. */
     public record PiataDto(List<LinieDto> linii, MediiEchipaDto gazde, MediiEchipaDto oaspeti) {
@@ -104,7 +131,23 @@ public record StatisticiAvansateDto(
             Integer totalFaulturi,
             Integer totalCartonase,
             Integer totalSuturi,
-            Integer totalSuturiPePoarta
+            Integer totalSuturiPePoarta,
+            RezultatEchipeDto echipe
+    ) {
+    }
+
+    /** Valorile reale per echipa si pe reprize; {@code null} pe camp = nu avem statistica. */
+    public record RezultatEchipeDto(
+            int goluriGazde,
+            int goluriOaspeti,
+            Integer cornereGazde,
+            Integer cornereOaspeti,
+            Integer cartonaseGazde,
+            Integer cartonaseOaspeti,
+            Integer cornereRepriza1Gazde,
+            Integer cornereRepriza1Oaspeti,
+            Integer cornereRepriza2Gazde,
+            Integer cornereRepriza2Oaspeti
     ) {
     }
 }

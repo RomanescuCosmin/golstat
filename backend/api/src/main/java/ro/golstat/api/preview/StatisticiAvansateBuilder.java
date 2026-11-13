@@ -3,21 +3,29 @@ package ro.golstat.api.preview;
 import ro.golstat.api.preview.StatisticiAvansateDto.EgaluriDto;
 import ro.golstat.api.preview.StatisticiAvansateDto.FrecventaDto;
 import ro.golstat.api.preview.StatisticiAvansateDto.GgDto;
+import ro.golstat.api.preview.StatisticiAvansateDto.CornereReprizeDto;
 import ro.golstat.api.preview.StatisticiAvansateDto.LinieDto;
+import ro.golstat.api.preview.StatisticiAvansateDto.LinieEchipaDto;
 import ro.golstat.api.preview.StatisticiAvansateDto.MediiEchipaDto;
 import ro.golstat.api.preview.StatisticiAvansateDto.PiataDto;
+import ro.golstat.api.preview.StatisticiAvansateDto.PiataEchipaDto;
+import ro.golstat.api.preview.StatisticiAvansateDto.PieteEchipeDto;
 import ro.golstat.api.preview.StatisticiAvansateDto.ReprizeDto;
 import ro.golstat.api.preview.StatisticiAvansateDto.RezultatDto;
 import ro.golstat.api.stats.CountLeagueAverages;
 import ro.golstat.api.stats.IstoricCounturi;
 import ro.golstat.stats.cards.CardMarket;
+import ro.golstat.stats.counts.EventCountForm;
 import ro.golstat.stats.counts.EventLineBlend;
+import ro.golstat.stats.counts.TeamCountModel;
+import ro.golstat.stats.counts.TeamCountModel.LambdaMeci;
 import ro.golstat.stats.form.MatchWindow;
 import ro.golstat.stats.form.WindowCounts;
-import ro.golstat.stats.goals.GoalLineBlend;
-import ro.golstat.stats.goals.GoalLineStats;
 import ro.golstat.stats.goals.HalfMarkets;
 import ro.golstat.stats.market.EventLineStats;
+import ro.golstat.stats.match.MatchPrediction;
+import ro.golstat.stats.math.NegativeBinomial;
+import ro.golstat.stats.math.Poisson;
 import ro.golstat.stats.model.EventCountSample;
 import ro.golstat.stats.model.MatchLocation;
 import ro.golstat.stats.model.MatchSample;
@@ -29,10 +37,10 @@ import java.util.stream.Stream;
 
 /**
  * Compune {@link StatisticiAvansateDto} din ferestrele deja selectate ale celor doua echipe.
- * Calcul pur — probabilitatile modelate vin din {@code stats-engine} (blend empiric ↔ distributie,
- * shrinkage spre media ligii, factor de arbitru la cartonase), frecventele empirice din
- * {@link WindowCounts}. Ferestrele "locatie" ale ambelor echipe, concatenate, dau fereastra
- * modelului pe meci.
+ * Calcul pur. Goluri / GG / egal vin din predictia meciului; cornerele, faulturile si cartonasele
+ * din {@code TeamCountModel} (λ gazde + λ oaspeti pe ultimele 7 meciuri acasa / in deplasare, ancorat pe
+ * media ligii, factor de arbitru la cartonase); suturile din blend-ul pe ferestrele de locatie. Frecventele
+ * empirice ({@link WindowCounts}) raman pe ferestrele de locatie / generale, ca materie pentru legenda.
  */
 public final class StatisticiAvansateBuilder {
 
@@ -42,13 +50,16 @@ public final class StatisticiAvansateBuilder {
     public static final double[] LINII_CARTONASE = CardMarket.STANDARD_LINES;
     static final double[] LINII_SUTURI = {22.5, 24.5, 26.5};
     static final double[] LINII_SUTURI_POARTA = {7.5, 8.5, 9.5};
-    /** Dispersiile Negative Binomial calibrate in stats-engine (vezi EventLineBlendTest / CardMarketTest). */
+    public static final double[] LINII_ECHIPA_CORNERE = {2.5, 3.5, 4.5, 5.5};
+    public static final double[] LINII_ECHIPA_CARTONASE = {0.5, 1.5, 2.5};
+    public static final double[] LINII_ECHIPA_GOLURI = {0.5, 1.5, 2.5};
+    public static final double[] LINII_REPRIZA_CORNERE = {3.5, 4.5, 5.5};
+    public static final double[] LINII_REPRIZA_ECHIPA_CORNERE = {1.5, 2.5};
+    /** Dispersiile Negative Binomial: faulturi 30, cartonase 8 — valorile cu care a rulat backtest-ul. */
     static final double DISPERSIE_FAULTURI = 30;
     static final double DISPERSIE_CARTONASE = 8;
     /** Suturile totale variaza cu ritmul meciului ca faulturile — aceeasi supra-dispersie. */
     static final double DISPERSIE_SUTURI = 30;
-    /** Constanta de incredere la blend-ul de egal final: {@code w = n/(n+K)}, ca in motor. */
-    static final int K = 3;
 
     /** Ferestrele unei echipe: goluri + counturi, fiecare pe locatie si general. */
     public record FerestreEchipa(
@@ -63,7 +74,22 @@ public final class StatisticiAvansateBuilder {
             List<EventCountSample> suturiLocatie,
             List<EventCountSample> suturiGeneral,
             List<EventCountSample> suturiPePoartaLocatie,
-            List<EventCountSample> suturiPePoartaGeneral
+            List<EventCountSample> suturiPePoartaGeneral,
+            List<EventCountSample> cornereRepriza1Locatie,
+            List<EventCountSample> cornereRepriza1General,
+            List<EventCountSample> cornereRepriza2Locatie,
+            List<EventCountSample> cornereRepriza2General,
+            Forma forma
+    ) {
+    }
+
+    /** Ferestrele pe care lucreaza modelul atac × aparare: ultimele meciuri pe locatia echipei. */
+    public record Forma(
+            List<EventCountSample> cornere,
+            List<EventCountSample> faulturi,
+            List<EventCountSample> cartonase,
+            List<EventCountSample> cornereRepriza1,
+            List<EventCountSample> cornereRepriza2
     ) {
     }
 
@@ -88,36 +114,46 @@ public final class StatisticiAvansateBuilder {
                 MatchWindow.lastN(counturi.suturi(), fereastra, locatie),
                 MatchWindow.lastN(counturi.suturi(), fereastra),
                 MatchWindow.lastN(counturi.suturiPePoarta(), fereastra, locatie),
-                MatchWindow.lastN(counturi.suturiPePoarta(), fereastra));
+                MatchWindow.lastN(counturi.suturiPePoarta(), fereastra),
+                MatchWindow.lastN(counturi.cornereRepriza1(), fereastra, locatie),
+                MatchWindow.lastN(counturi.cornereRepriza1(), fereastra),
+                MatchWindow.lastN(counturi.cornereRepriza2(), fereastra, locatie),
+                MatchWindow.lastN(counturi.cornereRepriza2(), fereastra),
+                new Forma(
+                        MatchWindow.lastN(counturi.cornere(), fereastra, locatie),
+                        MatchWindow.lastN(counturi.faulturi(), fereastra, locatie),
+                        MatchWindow.lastN(counturi.cartonase(), fereastra, locatie),
+                        MatchWindow.lastN(counturi.cornereRepriza1(), fereastra, locatie),
+                        MatchWindow.lastN(counturi.cornereRepriza2(), fereastra, locatie)));
     }
 
     /**
-     * {@code egalFinalModel} = P(egal) 0..1 din modelul de goluri al meciului; null daca lipseste.
+     * {@code modelGoluri} = predictia meciului ({@code MatchGoalModel}): liniile de goluri, GG si egalul
+     * final vin de aici, ca pagina sa arate aceeasi cifra in predictie si in analiza pe piete.
      * {@code rezultat} = totalurile reale ale meciului (doar la meciuri terminate), pentru hit/miss.
      */
     public static StatisticiAvansateDto build(FerestreEchipa gazde, FerestreEchipa oaspeti,
-                                              CountLeagueAverages mediiCounturi, double mediaGoluriLiga,
-                                              double factorArbitru, Double egalFinalModel, RezultatDto rezultat) {
-        GoalLineStats modelGoluri = GoalLineBlend.of(
-                concat(gazde.goluriLocatie(), oaspeti.goluriLocatie()), mediaGoluriLiga, LINII_GOLURI);
+                                              CountLeagueAverages mediiCounturi, double factorArbitru,
+                                              MatchPrediction modelGoluri, RezultatDto rezultat) {
+        LambdaMeci cornere = lambdas(mediiCounturi.cornere(), gazde.forma().cornere(), oaspeti.forma().cornere());
+        LambdaMeci faulturi = lambdas(mediiCounturi.faulturi(), gazde.forma().faulturi(), oaspeti.forma().faulturi());
+        LambdaMeci cartonase = lambdas(mediiCounturi.cartonase(),
+                gazde.forma().cartonase(), oaspeti.forma().cartonase());
         return new StatisticiAvansateDto(
                 goluri(gazde, oaspeti, modelGoluri),
                 gg(gazde, oaspeti, modelGoluri),
                 counturi(gazde.cornereLocatie(), gazde.cornereGeneral(),
                         oaspeti.cornereLocatie(), oaspeti.cornereGeneral(),
-                        EventLineBlend.poisson(
-                                concat(gazde.cornereLocatie(), oaspeti.cornereLocatie()),
-                                mediiCounturi.cornerePeMeci(), LINII_CORNERE)),
+                        TeamCountModel.poisson(cornere.total(),
+                                esantion(gazde.forma().cornere(), oaspeti.forma().cornere()), LINII_CORNERE)),
                 counturi(gazde.faulturiLocatie(), gazde.faulturiGeneral(),
                         oaspeti.faulturiLocatie(), oaspeti.faulturiGeneral(),
-                        EventLineBlend.overDispersed(
-                                concat(gazde.faulturiLocatie(), oaspeti.faulturiLocatie()),
-                                mediiCounturi.faulturiPeMeci(), DISPERSIE_FAULTURI, LINII_FAULTURI)),
+                        TeamCountModel.overDispersed(faulturi.total(), DISPERSIE_FAULTURI,
+                                esantion(gazde.forma().faulturi(), oaspeti.forma().faulturi()), LINII_FAULTURI)),
                 counturi(gazde.cartonaseLocatie(), gazde.cartonaseGeneral(),
                         oaspeti.cartonaseLocatie(), oaspeti.cartonaseGeneral(),
-                        CardMarket.of(concat(gazde.cartonaseLocatie(), oaspeti.cartonaseLocatie()),
-                                mediiCounturi.cartonasePeMeci(), factorArbitru,
-                                DISPERSIE_CARTONASE, LINII_CARTONASE)),
+                        TeamCountModel.overDispersed(cartonase.total() * factorArbitru, DISPERSIE_CARTONASE,
+                                esantion(gazde.forma().cartonase(), oaspeti.forma().cartonase()), LINII_CARTONASE)),
                 counturi(gazde.suturiLocatie(), gazde.suturiGeneral(),
                         oaspeti.suturiLocatie(), oaspeti.suturiGeneral(),
                         EventLineBlend.overDispersed(
@@ -128,14 +164,104 @@ public final class StatisticiAvansateBuilder {
                         EventLineBlend.poisson(
                                 concat(gazde.suturiPePoartaLocatie(), oaspeti.suturiPePoartaLocatie()),
                                 mediiCounturi.suturiPePoartaPeMeci(), LINII_SUTURI_POARTA)),
-                egaluri(gazde.goluriLocatie(), oaspeti.goluriLocatie(), egalFinalModel),
+                egaluri(gazde.goluriLocatie(), oaspeti.goluriLocatie(), modelGoluri.sansaEgal()),
                 reprize(gazde.goluriLocatie(), oaspeti.goluriLocatie()),
-                rezultat);
+                rezultat,
+                new PieteEchipeDto(
+                        piataEchipa(cornere.gazde(), cornere.oaspeti(), LINII_ECHIPA_CORNERE, Poisson::probabilityOver,
+                                gazde.cornereLocatie(), gazde.cornereGeneral(),
+                                oaspeti.cornereLocatie(), oaspeti.cornereGeneral(),
+                                EventCountSample::countFor, EventCountSample::countAgainst),
+                        piataEchipa(cartonase.gazde() * factorArbitru, cartonase.oaspeti() * factorArbitru,
+                                LINII_ECHIPA_CARTONASE,
+                                (l, linie) -> NegativeBinomial.probabilityOver(l, DISPERSIE_CARTONASE, linie),
+                                gazde.cartonaseLocatie(), gazde.cartonaseGeneral(),
+                                oaspeti.cartonaseLocatie(), oaspeti.cartonaseGeneral(),
+                                EventCountSample::countFor, EventCountSample::countAgainst),
+                        piataEchipa(modelGoluri.lambdaGazde(), modelGoluri.lambdaOaspeti(), LINII_ECHIPA_GOLURI,
+                                Poisson::probabilityOver,
+                                gazde.goluriLocatie(), gazde.goluriGeneral(),
+                                oaspeti.goluriLocatie(), oaspeti.goluriGeneral(),
+                                MatchSample::goalsFor, MatchSample::goalsAgainst)),
+                cornereReprize(gazde, oaspeti, mediiCounturi));
     }
 
-    private static PiataDto goluri(FerestreEchipa gazde, FerestreEchipa oaspeti, GoalLineStats model) {
+    /** λ pe repriza: aceeasi formula atac × aparare, pe cornerele din repriza respectiva. */
+    private static CornereReprizeDto cornereReprize(FerestreEchipa gazde, FerestreEchipa oaspeti,
+                                                    CountLeagueAverages medii) {
+        LambdaMeci r1 = lambdas(medii.cornereRepriza1(),
+                gazde.forma().cornereRepriza1(), oaspeti.forma().cornereRepriza1());
+        LambdaMeci r2 = lambdas(medii.cornereRepriza2(),
+                gazde.forma().cornereRepriza2(), oaspeti.forma().cornereRepriza2());
+        return new CornereReprizeDto(
+                counturi(gazde.cornereRepriza1Locatie(), gazde.cornereRepriza1General(),
+                        oaspeti.cornereRepriza1Locatie(), oaspeti.cornereRepriza1General(),
+                        TeamCountModel.poisson(r1.total(), esantion(gazde.forma().cornereRepriza1(),
+                                oaspeti.forma().cornereRepriza1()), LINII_REPRIZA_CORNERE)),
+                counturi(gazde.cornereRepriza2Locatie(), gazde.cornereRepriza2General(),
+                        oaspeti.cornereRepriza2Locatie(), oaspeti.cornereRepriza2General(),
+                        TeamCountModel.poisson(r2.total(), esantion(gazde.forma().cornereRepriza2(),
+                                oaspeti.forma().cornereRepriza2()), LINII_REPRIZA_CORNERE)),
+                piataEchipa(r1.gazde(), r1.oaspeti(), LINII_REPRIZA_ECHIPA_CORNERE, Poisson::probabilityOver,
+                        gazde.cornereRepriza1Locatie(), gazde.cornereRepriza1General(),
+                        oaspeti.cornereRepriza1Locatie(), oaspeti.cornereRepriza1General(),
+                        EventCountSample::countFor, EventCountSample::countAgainst),
+                piataEchipa(r2.gazde(), r2.oaspeti(), LINII_REPRIZA_ECHIPA_CORNERE, Poisson::probabilityOver,
+                        gazde.cornereRepriza2Locatie(), gazde.cornereRepriza2General(),
+                        oaspeti.cornereRepriza2Locatie(), oaspeti.cornereRepriza2General(),
+                        EventCountSample::countFor, EventCountSample::countAgainst));
+    }
+
+    /** P(X > linie) pentru o asteptare data. */
+    @FunctionalInterface
+    private interface Distributie {
+        double peste(double lambda, double linie);
+    }
+
+    /**
+     * Piata per echipa: probabilitatea din λ-ul echipei; frecventele = cate a facut echipa (locatie /
+     * general) si cate a primit adversarul pe locatia lui.
+     */
+    private static <T> PiataEchipaDto piataEchipa(double lambdaGazde, double lambdaOaspeti, double[] linii,
+                                                  Distributie distributie,
+                                                  List<T> gazdeLoc, List<T> gazdeGen,
+                                                  List<T> oaspetiLoc, List<T> oaspetiGen,
+                                                  ToIntFunction<T> facute, ToIntFunction<T> primite) {
+        List<LinieEchipaDto> gazde = Arrays.stream(linii)
+                .mapToObj(linie -> new LinieEchipaDto(linie, distributie.peste(lambdaGazde, linie),
+                        peste(gazdeLoc, facute, linie), peste(gazdeGen, facute, linie),
+                        peste(oaspetiLoc, primite, linie)))
+                .toList();
+        List<LinieEchipaDto> oaspeti = Arrays.stream(linii)
+                .mapToObj(linie -> new LinieEchipaDto(linie, distributie.peste(lambdaOaspeti, linie),
+                        peste(oaspetiLoc, facute, linie), peste(oaspetiGen, facute, linie),
+                        peste(gazdeLoc, primite, linie)))
+                .toList();
+        return new PiataEchipaDto(rotunjit(lambdaGazde), rotunjit(lambdaOaspeti), gazde, oaspeti);
+    }
+
+    private static <T> FrecventaDto peste(List<T> fereastra, ToIntFunction<T> valoare, double linie) {
+        int reusite = (int) fereastra.stream().filter(m -> valoare.applyAsInt(m) > linie).count();
+        return new FrecventaDto(reusite, fereastra.size());
+    }
+
+    private static double rotunjit(double x) {
+        return Math.round(x * 100.0) / 100.0;
+    }
+
+    private static LambdaMeci lambdas(CountLeagueAverages.PeLocatie medii,
+                                      List<EventCountSample> gazde, List<EventCountSample> oaspeti) {
+        return TeamCountModel.lambdas(medii.gazde(), medii.oaspeti(),
+                EventCountForm.of(gazde), EventCountForm.of(oaspeti));
+    }
+
+    private static int esantion(List<?> gazde, List<?> oaspeti) {
+        return gazde.size() + oaspeti.size();
+    }
+
+    private static PiataDto goluri(FerestreEchipa gazde, FerestreEchipa oaspeti, MatchPrediction model) {
         List<LinieDto> linii = Arrays.stream(LINII_GOLURI)
-                .mapToObj(linie -> new LinieDto(linie, model.line(linie).overRate(),
+                .mapToObj(linie -> new LinieDto(linie, model.linie(linie).overRate(),
                         frecventaGol(gazde.goluriLocatie(), linie),
                         frecventaGol(gazde.goluriGeneral(), linie),
                         frecventaGol(oaspeti.goluriLocatie(), linie),
@@ -146,8 +272,8 @@ public final class StatisticiAvansateBuilder {
                 mediiGol(oaspeti.goluriLocatie(), oaspeti.goluriGeneral()));
     }
 
-    private static GgDto gg(FerestreEchipa gazde, FerestreEchipa oaspeti, GoalLineStats model) {
-        return new GgDto(model.bttsRate(),
+    private static GgDto gg(FerestreEchipa gazde, FerestreEchipa oaspeti, MatchPrediction model) {
+        return new GgDto(model.btts(),
                 new FrecventaDto(WindowCounts.scored(gazde.goluriLocatie()), gazde.goluriLocatie().size()),
                 new FrecventaDto(WindowCounts.conceded(gazde.goluriLocatie()), gazde.goluriLocatie().size()),
                 new FrecventaDto(WindowCounts.scored(oaspeti.goluriLocatie()), oaspeti.goluriLocatie().size()),
@@ -168,17 +294,12 @@ public final class StatisticiAvansateBuilder {
     }
 
     private static EgaluriDto egaluri(List<MatchSample> gazdeLoc, List<MatchSample> oaspetiLoc,
-                                      Double egalFinalModel) {
-        int n = gazdeLoc.size() + oaspetiLoc.size();
-        if (n == 0) {
+                                      double egalFinalModel) {
+        if (gazdeLoc.isEmpty() && oaspetiLoc.isEmpty()) {
             return null;
         }
         HalfMarkets.HalfMarketStats reprize = HalfMarkets.of(gazdeLoc, oaspetiLoc);
-        int egaleFt = WindowCounts.drawsFullTime(gazdeLoc) + WindowCounts.drawsFullTime(oaspetiLoc);
-        double empiric = (double) egaleFt / n;
-        double w = (double) n / (n + K);
-        double egalFinal = egalFinalModel != null ? w * empiric + (1 - w) * egalFinalModel : empiric;
-        return new EgaluriDto(reprize.htDrawRate(), egalFinal,
+        return new EgaluriDto(reprize.htDrawRate(), egalFinalModel,
                 new FrecventaDto(WindowCounts.drawsHalfTime(gazdeLoc), gazdeLoc.size()),
                 new FrecventaDto(WindowCounts.drawsHalfTime(oaspetiLoc), oaspetiLoc.size()),
                 new FrecventaDto(WindowCounts.drawsFullTime(gazdeLoc), gazdeLoc.size()),

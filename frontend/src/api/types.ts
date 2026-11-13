@@ -73,6 +73,8 @@ export interface FormaMeciDto {
   golMarcate: number;
   golPrimite: number;
   rezultat: 'V' | 'E' | 'I';
+  /** Cu cine s-a jucat (nume + emblemă); `null` când nu-l știm. */
+  adversar?: EchipaDto | null;
 }
 
 /** O fereastra de forma: ultimele meciuri (cele mai recente primele) + medii de goluri. */
@@ -186,7 +188,7 @@ export interface EchipaDeStartDto {
   probabila: boolean;
 }
 
-/* ──────────────── Statistici avansate (analiza pe piete, ferestre de 7) ──────────────── */
+/* ──────── Statistici avansate (analiza pe piete: ultimele 7 acasa / in deplasare) ──────── */
 
 /** "In `reusite` din `total` meciuri" — materia prima a legendei; `total` 0 = fara date. */
 export interface FrecventaDto {
@@ -265,6 +267,55 @@ export interface RezultatStatisticiDto {
   totalCartonase: number | null;
   totalSuturi: number | null;
   totalSuturiPePoarta: number | null;
+  /** Valorile reale per echipa si pe reprize (`null` pe camp = lipseste statistica). */
+  echipe: RezultatEchipeDto;
+}
+
+export interface RezultatEchipeDto {
+  goluriGazde: number;
+  goluriOaspeti: number;
+  cornereGazde: number | null;
+  cornereOaspeti: number | null;
+  cartonaseGazde: number | null;
+  cartonaseOaspeti: number | null;
+  cornereRepriza1Gazde: number | null;
+  cornereRepriza1Oaspeti: number | null;
+  cornereRepriza2Gazde: number | null;
+  cornereRepriza2Oaspeti: number | null;
+}
+
+/**
+ * O linie a unei piete PER ECHIPA: probabilitatea (0..1) ca echipa sa treaca linia + frecventele
+ * pentru legenda: cat a facut echipa (locatie / general) si cat a primit adversarul pe locatia lui.
+ */
+export interface LinieEchipaDto {
+  linie: number;
+  probabilitate: number;
+  facuteLocatie: FrecventaDto;
+  facuteGeneral: FrecventaDto;
+  primiteAdversarLocatie: FrecventaDto;
+}
+
+/** O piata per echipa: asteptarea (λ) fiecarei echipe si liniile ei. */
+export interface PiataEchipaDto {
+  asteptareGazde: number;
+  asteptareOaspeti: number;
+  gazde: LinieEchipaDto[];
+  oaspeti: LinieEchipaDto[];
+}
+
+export interface PieteEchipeDto {
+  cornere: PiataEchipaDto;
+  cartonase: PiataEchipaDto;
+  goluri: PiataEchipaDto;
+}
+
+/** Cornerele pe reprize: totalul meciului si per echipa, repriza 1 si 2. */
+export interface CornereReprizeDto {
+  repriza1: PiataStatDto;
+  repriza2: PiataStatDto;
+  echipeRepriza1: PiataEchipaDto;
+  echipeRepriza2: PiataEchipaDto;
 }
 
 /** Oglinda `ro.golstat.api.preview.StatisticiAvansateDto`. */
@@ -281,6 +332,8 @@ export interface StatisticiAvansateDto {
   reprize: ReprizeDto | null;
   /** Totalurile reale ale meciului; `null` la meciuri viitoare. */
   rezultat: RezultatStatisticiDto | null;
+  echipe: PieteEchipeDto;
+  cornereReprize: CornereReprizeDto;
 }
 
 /** Oglinda `ro.golstat.api.preview.PrevizualizareMeciDto`. */
@@ -293,6 +346,22 @@ export interface PrevizualizareMeciDto {
   statisticiCheie: StatisticiCheieDto;
   /** `null` pana exista macar o formatie per echipa. */
   echipeDeStart: EchipaDeStartDto | null;
+  /** `null` cand meciul n-are arbitru cunoscut. */
+  arbitru: ArbitruDto | null;
+}
+
+/**
+ * Cardul arbitrului, din meciurile lui terminate pe care le avem. `factorCartonase` = cat de sever e
+ * fata de media ligii (1 = neutru) — exact factorul aplicat procentelor de cartonase.
+ */
+export interface ArbitruDto {
+  nume: string;
+  meciuri: number;
+  cartonasePeMeci: number | null;
+  faulturiPeMeci: number | null;
+  eliminari: number;
+  cartonaseMediaLigii: number;
+  factorCartonase: number;
 }
 
 /* ─────────────────────────── Match Center ─────────────────────────── */
@@ -704,13 +773,22 @@ export type CodPiata =
   | 'CORNERE_PESTE'
   | 'FAULTURI_PESTE'
   | 'CARTONASE_PESTE'
+  | 'GOLURI_GAZDE_PESTE'
+  | 'GOLURI_OASPETI_PESTE'
+  | 'CORNERE_GAZDE_PESTE'
+  | 'CORNERE_OASPETI_PESTE'
+  | 'CARTONASE_GAZDE_PESTE'
+  | 'CARTONASE_OASPETI_PESTE'
+  | 'CORNERE_REPRIZA1_PESTE'
+  | 'CORNERE_REPRIZA2_PESTE'
   | 'EGAL_PAUZA'
   | 'EGAL_FINAL';
 
 /**
  * O piață a unui meci. ATENȚIE: `probabilitate` e FRACȚIE 0..1 (ca `LinieStatDto.probabilitate`,
  * NU ca `ProcentCota.procent`) — se formatează cu `formatRata`. `linie` e `null` la piețele binare.
- * `esantion` = câte meciuri stau în spate; serverul nu trimite niciodată piețe cu eșantion 0.
+ * `esantion` = pe câte meciuri s-a calculat (ultimele 7 acasă + ultimele 7 în deplasare ale celor
+ * două echipe, sau cele cu statistica respectivă); serverul nu trimite piețe cu eșantion 0.
  */
 export interface CotaPiata {
   piata: CodPiata;
