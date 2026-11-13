@@ -14,8 +14,14 @@ public record MatchSample(
         int goalsAgainst,        // goluri primite de noi (final)
         int goalsForHt,          // goluri marcate de noi pana la pauza
         int goalsAgainstHt,      // goluri primite de noi pana la pauza
-        Integer opponentRank     // pozitia adversarului in clasament (null = necunoscut)
+        Integer opponentRank,    // pozitia adversarului in clasament (null = necunoscut)
+        Long opponentId          // adversarul (null = necunoscut) — pentru forta adversarilor
 ) implements TeamMatch {
+
+    public MatchSample(LocalDate date, boolean home, int goalsFor, int goalsAgainst, int goalsForHt,
+                       int goalsAgainstHt, Integer opponentRank) {
+        this(date, home, goalsFor, goalsAgainst, goalsForHt, goalsAgainstHt, opponentRank, null);
+    }
     public int goalsForSecondHalf() {
         return goalsFor - goalsForHt;
     }

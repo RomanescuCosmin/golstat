@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ApiError, getPieteZile } from '../api/client';
+import { ApiError, getPieteZile, type FiltruCompetitie, type Perioada } from '../api/client';
+import { ComutatorCompetitie } from '../components/ui/ComutatorCompetitie';
+import { CalendarPerioada } from '../components/ui/CalendarPerioada';
+import { citesteFiltruCompetitie, salveazaFiltruCompetitie } from '../lib/filtruCompetitie';
 import type { CodPiata, PieteZile } from '../api/types';
 import { FiltrePiete } from '../components/piete/FiltrePiete';
 import { SectiuneZiPiete } from '../components/piete/SectiuneZiPiete';
@@ -19,7 +22,16 @@ import {
   numaraRanduri,
 } from '../lib/piete';
 
-const ZILE = 3;
+/** Data locală ISO (YYYY-MM-DD), decalată cu `zile`. */
+function dataIso(zile = 0): string {
+  const d = new Date();
+  d.setDate(d.getDate() + zile);
+  const z = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`;
+}
+
+/** Perioada maximă acceptată de server (zile). */
+const MAX_ZILE = 14;
 
 /**
  * Lista de piețe pe zilele următoare: alegi o piață (ex. peste 2.5 goluri) și vezi toate meciurile
@@ -33,6 +45,8 @@ export function PietePage() {
   const [loading, setLoading] = useState(true);
   const [eroare, setEroare] = useState<ApiError | null>(null);
   const [incercare, setIncercare] = useState(0);
+  const [competitie, setCompetitie] = useState<FiltruCompetitie>(citesteFiltruCompetitie);
+  const [perioada, setPerioada] = useState<Perioada>(() => ({ de: dataIso(), pana: dataIso(2) }));
 
   const [grup, setGrup] = useState('goluri');
   const [cod, setCod] = useState<CodPiata>('GOLURI_PESTE');
@@ -46,7 +60,7 @@ export function PietePage() {
     let anulat = false;
     setLoading(true);
     setEroare(null);
-    getPieteZile(ZILE)
+    getPieteZile(3, competitie, perioada)
       .then((rezultat) => {
         if (!anulat) setDate(rezultat);
       })
@@ -62,7 +76,12 @@ export function PietePage() {
     return () => {
       anulat = true;
     };
-  }, [incercare]);
+  }, [incercare, competitie, perioada]);
+
+  function schimbaCompetitie(valoare: FiltruCompetitie) {
+    salveazaFiltruCompetitie(valoare);
+    setCompetitie(valoare);
+  }
 
   const ligi = useMemo(
     () => ligiDisponibile(date?.zile ?? [], cod, linie, prag),
@@ -93,8 +112,12 @@ export function PietePage() {
       <div className="mb-5">
         <h1 className="text-2xl font-extrabold text-ink">Piețe</h1>
         <p className="mt-1 text-sm text-ink2">
-          Cele mai bune șanse din următoarele {ZILE} zile.
+          Cele mai bune șanse din perioada aleasă (maxim {MAX_ZILE} zile).
         </p>
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <CalendarPerioada valoare={perioada} onSchimba={setPerioada} maxZile={MAX_ZILE} />
+          <ComutatorCompetitie valoare={competitie} onSchimba={schimbaCompetitie} />
+        </div>
       </div>
 
       <Card className="mb-6 p-4 sm:p-5">
@@ -141,7 +164,7 @@ export function PietePage() {
             mesaj={
               selectate.length > 0
                 ? `Niciun meci din campionatele alese nu atinge ${prag}% pe piața selectată. Coboară pragul sau adaugă campionate.`
-                : `Nicio partidă din următoarele ${ZILE} zile nu atinge ${prag}% pe piața aleasă. Coboară pragul sau schimbă piața.`
+                : `Nicio partidă din perioada aleasă nu atinge ${prag}% pe piața aleasă. Coboară pragul sau schimbă piața.`
             }
           />
         </Card>

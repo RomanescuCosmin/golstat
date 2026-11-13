@@ -9,15 +9,16 @@ import ro.golstat.api.piete.PieteZileDto.CotaPiataDto;
 import ro.golstat.api.piete.PieteZileDto.LigaDto;
 import ro.golstat.api.piete.PieteZileDto.MeciPieteDto;
 import ro.golstat.api.piete.PieteZileDto.ZiDto;
-import ro.golstat.api.prediction.PredictieMeciDto;
 import ro.golstat.api.prediction.PredictieMeciDto.EchipaDto;
-import ro.golstat.api.prediction.PredictieMeciMapper;
 import ro.golstat.api.prediction.PredictionService;
 import ro.golstat.api.preview.StatisticiAvansateBuilder;
 import ro.golstat.api.preview.StatisticiAvansateBuilder.FerestreEchipa;
 import ro.golstat.api.preview.StatisticiAvansateDto;
+import ro.golstat.api.preview.StatisticiAvansateDto.CornereReprizeDto;
 import ro.golstat.api.preview.StatisticiAvansateDto.LinieDto;
 import ro.golstat.api.preview.StatisticiAvansateDto.PiataDto;
+import ro.golstat.api.preview.StatisticiAvansateDto.PiataEchipaDto;
+import ro.golstat.api.preview.StatisticiAvansateDto.PieteEchipeDto;
 import ro.golstat.api.repository.FixtureRepository;
 import ro.golstat.api.repository.FixtureTeamStatsRepository;
 import ro.golstat.api.repository.LeagueRepository;
@@ -26,11 +27,13 @@ import ro.golstat.api.stats.CountLeagueAverageService;
 import ro.golstat.api.stats.CountLeagueAverages;
 import ro.golstat.api.stats.FerestreBatchService;
 import ro.golstat.api.stats.FerestreMeci;
+import ro.golstat.api.stats.ForteAdversariService;
 import ro.golstat.api.stats.LeagueAverageService;
 import ro.golstat.api.stats.LeagueAverages;
 import ro.golstat.api.stats.RefereeCardAverageRow;
 import ro.golstat.common.GolstatConstants;
 import ro.golstat.stats.cards.RefereeFactor;
+import ro.golstat.stats.goals.ForteAdversari;
 import ro.golstat.stats.match.MatchGoalModel;
 import ro.golstat.stats.model.EventCountSample;
 import ro.golstat.stats.odds.Odds;
@@ -78,10 +81,13 @@ public class PieteZileService {
     private final FerestreBatchService ferestre;
     private final LeagueAverageService leagueAverages;
     private final CountLeagueAverageService countAverages;
+    private final ForteAdversariService forteAdversari;
 
     public PieteZileService(FixtureRepository fixtures, TeamRepository teams, LeagueRepository leagues,
                             FixtureTeamStatsRepository teamStats, FerestreBatchService ferestre,
-                            LeagueAverageService leagueAverages, CountLeagueAverageService countAverages) {
+                            LeagueAverageService leagueAverages, CountLeagueAverageService countAverages,
+                            ForteAdversariService forteAdversari) {
+        this.forteAdversari = forteAdversari;
         this.fixtures = fixtures;
         this.teams = teams;
         this.leagues = leagues;
@@ -91,14 +97,40 @@ public class PieteZileService {
         this.countAverages = countAverages;
     }
 
-    @Transactional(readOnly = true)
     public PieteZileDto piete(int zile) {
-        // De la ACUM (meciurile de azi care n-au inceput) pana la sfarsitul celei de-a `zile`-a zi
-        // calendaristice — altfel o fereastra rulanta de 3×24h ar atinge 4 date diferite.
+        return piete(zile, false);
+    }
+
+    /** {@code doarCompetitia}: formele echipelor doar din competitia fiecarui meci. */
+    public PieteZileDto piete(int zile, boolean doarCompetitia) {
+        // zile calendaristice intregi, de azi — altfel o fereastra rulanta de 3×24h ar atinge 4 date diferite
+        LocalDate azi = LocalDate.now(ZoneOffset.UTC);
+        return piete(azi, azi.plusDays(zile - 1L), doarCompetitia);
+    }
+
+    /** Cele mai lungi perioade alese din interfata (zile calendaristice). */
+    static final int MAX_ZILE_PERIOADA = 14;
+
+    /**
+     * Pietele meciurilor viitoare dintr-o perioada aleasa, {@code de}..{@code panaLa} inclusiv. Incepe cel
+     * mai devreme ACUM (meciurile deja incepute nu mai au piete) si e plafonata la
+     * {@value #MAX_ZILE_PERIOADA} zile, ca o perioada uriasa sa nu incarce sute de meciuri dintr-odata.
+     */
+    @Transactional(readOnly = true)
+    public PieteZileDto piete(LocalDate de, LocalDate panaLa, boolean doarCompetitia) {
         OffsetDateTime acum = OffsetDateTime.now(ZoneOffset.UTC);
-        OffsetDateTime pana = acum.toLocalDate().atStartOfDay().atOffset(ZoneOffset.UTC).plusDays(zile);
+        OffsetDateTime start = de.atStartOfDay().atOffset(ZoneOffset.UTC);
+        if (start.isBefore(acum)) {
+            start = acum;
+        }
+        LocalDate maxim = de.plusDays(MAX_ZILE_PERIOADA - 1L);
+        LocalDate ultima = panaLa.isAfter(maxim) ? maxim : panaLa;
+        OffsetDateTime pana = ultima.plusDays(1).atStartOfDay().atOffset(ZoneOffset.UTC);
+        if (!pana.isAfter(start)) {
+            return new PieteZileDto(List.of());
+        }
         List<Fixture> meciuri = fixtures
-                .findUpcomingAll(GolstatConstants.FixtureStatus.NOT_STARTED, acum, pana).stream()
+                .findUpcomingAll(GolstatConstants.FixtureStatus.NOT_STARTED, start, pana).stream()
                 .filter(f -> f.getHomeTeamId() != null && f.getAwayTeamId() != null
                         && f.getKickoff() != null && f.getLeagueId() != null && f.getSeasonYear() != null)
                 .toList();
@@ -108,8 +140,10 @@ public class PieteZileService {
 
         Map<Long, Team> echipe = echipe(meciuri);
         Map<Long, League> ligi = ligi(meciuri);
-        Map<Long, FerestreMeci> ferestrePerMeci = ferestre.ferestre(meciuri, FEREASTRA, HISTORY_FETCH);
-        Map<String, RefereeCardAverageRow> arbitri = arbitri(meciuri);
+        Map<Long, FerestreMeci> ferestrePerMeci = ferestre.ferestre(meciuri, FEREASTRA, HISTORY_FETCH, doarCompetitia);
+        Map<String, RefereeCardAverageRow> arbitri = arbitri(meciuri, acum);
+        ForteAdversari forte = forteAdversari.pentru(ferestrePerMeci.values().stream()
+                .flatMap(m -> Stream.of(m.istoricGazde(), m.istoricOaspeti())).toList(), acum);
 
         Map<String, LeagueAverages> cacheGoluri = new HashMap<>();
         Map<String, CountLeagueAverages> cacheCounturi = new HashMap<>();
@@ -120,17 +154,20 @@ public class PieteZileService {
             if (fer == null) {
                 continue;
             }
+            // meciuri viitoare: tot ce s-a terminat inainte de kickoff s-a terminat deja acum, deci "acum" da
+            // aceleasi medii ca pagina de meci (care taie la kickoff), cu un singur query per liga
             String cheie = f.getLeagueId() + ":" + f.getSeasonYear();
             LeagueAverages mediiGoluri = cacheGoluri.computeIfAbsent(cheie,
-                    k -> leagueAverages.averages(f.getLeagueId(), f.getSeasonYear()));
+                    k -> leagueAverages.averages(f.getLeagueId(), f.getSeasonYear(), acum));
             CountLeagueAverages mediiCounturi = cacheCounturi.computeIfAbsent(cheie,
-                    k -> countAverages.averages(f.getLeagueId(), f.getSeasonYear()));
+                    k -> countAverages.averages(f.getLeagueId(), f.getSeasonYear(), acum));
 
             StatisticiAvansateDto statistici = StatisticiAvansateBuilder.build(
                     fer.gazde(), fer.oaspeti(), mediiCounturi,
-                    mediiGoluri.mediaLigaGazde() + mediiGoluri.mediaLigaOaspeti(),
                     factorArbitru(f, arbitri, mediiCounturi.cartonasePeMeci()),
-                    egalModel(f, fer, mediiGoluri, echipe), null);
+                    MatchGoalModel.predict(PredictionService.buildContext(
+                            fer.istoricGazde(), fer.istoricOaspeti(), mediiGoluri, forte)),
+                    null);
 
             List<CotaPiataDto> piete = piete(fer, statistici);
             if (piete.isEmpty()) {
@@ -147,28 +184,15 @@ public class PieteZileService {
     }
 
     /**
-     * P(egal la final) 0..1 din modelul de goluri, calculat din istoricul DEJA incarcat (fara a
-     * reciti baza). Trecem prin {@link PredictieMeciMapper} intentionat: acolo procentul se rotunjeste
-     * la o zecimala, iar pagina de meci foloseste exact valoarea rotunjita — ocolirea mapper-ului ar
-     * da procente usor diferite intre cele doua pagini.
-     */
-    private static Double egalModel(Fixture f, FerestreMeci fer, LeagueAverages mediiGoluri,
-                                    Map<Long, Team> echipe) {
-        PredictieMeciDto predictie = PredictieMeciMapper.toDto(f,
-                MatchGoalModel.predict(PredictionService.buildContext(
-                        fer.istoricGazde(), fer.istoricOaspeti(), mediiGoluri)),
-                echipe.get(f.getHomeTeamId()), echipe.get(f.getAwayTeamId()));
-        return predictie.egal() != null ? predictie.egal().procent() / 100.0 : null;
-    }
-
-    /**
-     * Aplatizeaza analiza pe piete in lista compacta. Esantionul fiecarei piete = cate meciuri au
-     * ferestrele de LOCATIE ale celor doua echipe la un loc (exact fereastra pe care o vede modelul);
-     * esantion 0 → piata nu se trimite, deci meciul nu apare in filtrul respectiv.
+     * Aplatizeaza analiza pe piete in lista compacta. Esantionul fiecarei piete = cate meciuri din
+     * istoricul celor doua echipe a folosit modelul (ultimele 7 acasa / in deplasare); esantion 0 → piata nu
+     * se trimite, deci meciul nu apare in filtrul respectiv.
      */
     private static List<CotaPiataDto> piete(FerestreMeci fer, StatisticiAvansateDto statistici) {
         List<CotaPiataDto> out = new ArrayList<>();
         int esantionGoluri = fer.gazde().goluriLocatie().size() + fer.oaspeti().goluriLocatie().size();
+        int esantionCornere = esantion(fer, f -> f.forma().cornere());
+        int esantionCartonase = esantion(fer, f -> f.forma().cartonase());
 
         adaugaLinii(out, statistici.goluri(), CodPiata.GOLURI_PESTE, esantionGoluri, false);
         adaugaLinii(out, statistici.goluri(), CodPiata.GOLURI_SUB, esantionGoluri, true);
@@ -176,21 +200,44 @@ public class PieteZileService {
             adauga(out, CodPiata.GG, null, statistici.gg().probabilitate(), esantionGoluri);
             adauga(out, CodPiata.NG, null, 1 - statistici.gg().probabilitate(), esantionGoluri);
         }
-        adaugaLinii(out, statistici.cornere(), CodPiata.CORNERE_PESTE,
-                esantion(fer, FerestreEchipa::cornereLocatie), false);
+        adaugaLinii(out, statistici.cornere(), CodPiata.CORNERE_PESTE, esantionCornere, false);
         adaugaLinii(out, statistici.faulturi(), CodPiata.FAULTURI_PESTE,
-                esantion(fer, FerestreEchipa::faulturiLocatie), false);
-        adaugaLinii(out, statistici.cartonase(), CodPiata.CARTONASE_PESTE,
-                esantion(fer, FerestreEchipa::cartonaseLocatie), false);
+                esantion(fer, f -> f.forma().faulturi()), false);
+        adaugaLinii(out, statistici.cartonase(), CodPiata.CARTONASE_PESTE, esantionCartonase, false);
         if (statistici.egaluri() != null && esantionGoluri > 0) {
             adauga(out, CodPiata.EGAL_PAUZA, null, statistici.egaluri().egalPauza(), esantionGoluri);
             adauga(out, CodPiata.EGAL_FINAL, null, statistici.egaluri().egalFinal(), esantionGoluri);
+        }
+        PieteEchipeDto echipe = statistici.echipe();
+        if (echipe != null) {
+            adaugaEchipa(out, echipe.goluri(), CodPiata.GOLURI_GAZDE_PESTE, CodPiata.GOLURI_OASPETI_PESTE,
+                    esantionGoluri);
+            adaugaEchipa(out, echipe.cornere(), CodPiata.CORNERE_GAZDE_PESTE, CodPiata.CORNERE_OASPETI_PESTE,
+                    esantionCornere);
+            adaugaEchipa(out, echipe.cartonase(), CodPiata.CARTONASE_GAZDE_PESTE,
+                    CodPiata.CARTONASE_OASPETI_PESTE, esantionCartonase);
+        }
+        CornereReprizeDto reprize = statistici.cornereReprize();
+        if (reprize != null) {
+            adaugaLinii(out, reprize.repriza1(), CodPiata.CORNERE_REPRIZA1_PESTE,
+                    esantion(fer, f -> f.forma().cornereRepriza1()), false);
+            adaugaLinii(out, reprize.repriza2(), CodPiata.CORNERE_REPRIZA2_PESTE,
+                    esantion(fer, f -> f.forma().cornereRepriza2()), false);
         }
         return List.copyOf(out);
     }
 
     private static int esantion(FerestreMeci fer, Function<FerestreEchipa, List<EventCountSample>> piata) {
         return piata.apply(fer.gazde()).size() + piata.apply(fer.oaspeti()).size();
+    }
+
+    private static void adaugaEchipa(List<CotaPiataDto> out, PiataEchipaDto piata, CodPiata gazde,
+                                     CodPiata oaspeti, int esantion) {
+        if (piata == null || esantion == 0) {
+            return;
+        }
+        piata.gazde().forEach(l -> adauga(out, gazde, l.linie(), l.probabilitate(), esantion));
+        piata.oaspeti().forEach(l -> adauga(out, oaspeti, l.linie(), l.probabilitate(), esantion));
     }
 
     private static void adaugaLinii(List<CotaPiataDto> out, PiataDto piata, CodPiata cod,
@@ -227,7 +274,7 @@ public class PieteZileService {
     }
 
     /** Mediile de cartonase ale tuturor arbitrilor din fereastra, intr-un singur query agregat. */
-    private Map<String, RefereeCardAverageRow> arbitri(List<Fixture> meciuri) {
+    private Map<String, RefereeCardAverageRow> arbitri(List<Fixture> meciuri, OffsetDateTime acum) {
         Set<String> nume = meciuri.stream()
                 .map(Fixture::getReferee)
                 .filter(r -> r != null && !r.isBlank())
@@ -235,7 +282,7 @@ public class PieteZileService {
         if (nume.isEmpty()) {
             return Map.of();
         }
-        return teamStats.refereeCardAverages(nume, TERMINAL).stream()
+        return teamStats.refereeCardAverages(nume, TERMINAL, acum).stream()
                 .filter(r -> r.getReferee() != null)
                 .collect(Collectors.toMap(RefereeCardAverageRow::getReferee, Function.identity(), (a, b) -> a));
     }

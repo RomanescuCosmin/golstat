@@ -1,5 +1,6 @@
 package ro.golstat.api.preview;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -22,6 +23,7 @@ import ro.golstat.api.repository.FixtureEventRepository;
 import ro.golstat.api.repository.FixtureLineupPlayerRepository;
 import ro.golstat.api.repository.FixtureLineupRepository;
 import ro.golstat.api.repository.FixtureRepository;
+import ro.golstat.api.repository.FixtureTeamHalfStatsRepository;
 import ro.golstat.api.repository.FixtureTeamStatsRepository;
 import ro.golstat.api.repository.InjuryRepository;
 import ro.golstat.api.repository.PlayerRepository;
@@ -29,6 +31,7 @@ import ro.golstat.api.repository.TeamRepository;
 import ro.golstat.api.stats.CountLeagueAverageService;
 import ro.golstat.api.stats.CountLeagueAverages;
 import ro.golstat.api.stats.IstoricCounturi;
+import ro.golstat.api.stats.ForteAdversariService;
 import ro.golstat.api.stats.LeagueAverageService;
 import ro.golstat.api.stats.LeagueAverages;
 import ro.golstat.api.stats.MatchHistoryService;
@@ -36,10 +39,15 @@ import ro.golstat.api.stats.RefereeService;
 import ro.golstat.api.stats.StatsHistoryService;
 import ro.golstat.common.GolstatConstants;
 import ro.golstat.stats.cards.RefereeFactor;
+import ro.golstat.stats.goals.GoalForm;
 import ro.golstat.stats.goals.HalfMarkets;
+import ro.golstat.stats.match.MatchContext;
+import ro.golstat.stats.match.MatchGoalModel;
 import ro.golstat.stats.math.NegativeBinomial;
 import ro.golstat.stats.math.Poisson;
+import ro.golstat.stats.math.ScoreGrid;
 import ro.golstat.stats.model.EventCountSample;
+import ro.golstat.stats.goals.ForteAdversari;
 import ro.golstat.stats.model.MatchSample;
 
 import java.math.BigDecimal;
@@ -59,6 +67,8 @@ import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -73,6 +83,7 @@ class MatchPreviewServiceTest {
     @Mock StatsHistoryService statsHistory;
     @Mock CountLeagueAverageService countAverages;
     @Mock LeagueAverageService leagueAverages;
+    @Mock ForteAdversariService forteAdversari;
     @Mock RefereeService referees;
     @Mock TeamRepository teams;
     @Mock FixtureLineupRepository lineups;
@@ -81,7 +92,13 @@ class MatchPreviewServiceTest {
     @Mock PlayerRepository players;
     @Mock FixtureTeamStatsRepository teamStats;
     @Mock FixtureEventRepository events;
+    @Mock FixtureTeamHalfStatsRepository halfStats;
     @InjectMocks MatchPreviewService service;
+
+    @BeforeEach
+    void forteNeutre() {
+        lenient().when(forteAdversari.pentru(any(), any())).thenReturn(ForteAdversari.fara());
+    }
 
     private static MatchSample sample(int day, boolean home, int gf, int ga) {
         return sample(day, home, gf, ga, 0, 0);
@@ -159,17 +176,17 @@ class MatchPreviewServiceTest {
     private void stubHappyPath() {
         when(predictions.predict(100L)).thenReturn(Optional.of(predictie()));
         when(fixtures.findById(100L)).thenReturn(Optional.of(nsFixture()));
-        when(statsHistory.istoric(anyLong(), any(), anyInt())).thenReturn(IstoricCounturi.gol());
-        when(countAverages.averages(any(), any())).thenReturn(new CountLeagueAverages(10.0, 24.0, 4.0, 25.0, 9.0));
-        when(leagueAverages.averages(anyLong(), anyInt())).thenReturn(new LeagueAverages(1.5, 1.1));
-        when(referees.factor(any(), anyDouble())).thenReturn(RefereeFactor.NEUTRAL);
+        when(statsHistory.istoric(anyLong(), any(), anyInt(), isNull())).thenReturn(IstoricCounturi.gol());
+        when(countAverages.averages(any(), any(), any())).thenReturn(new CountLeagueAverages(10.0, 24.0, 4.0, 25.0, 9.0));
+        when(leagueAverages.averages(anyLong(), anyInt(), any())).thenReturn(new LeagueAverages(1.5, 1.1));
+        when(referees.factor(any(), anyDouble(), any())).thenReturn(RefereeFactor.NEUTRAL);
     }
 
     @Test
     void previzualizare_forma_peLocatieSiGenerala() {
         stubHappyPath();
         // 9 meciuri, 5 acasa + 4 in deplasare: locatia ia cele 5 de acasa, generala ultimele 7
-        when(history.lastMatches(eq(10L), eq(KICKOFF), eq(FETCH))).thenReturn(List.of(
+        when(history.lastMatches(eq(10L), eq(KICKOFF), eq(FETCH), isNull())).thenReturn(List.of(
                 sample(9, true, 2, 1),   // V acasa
                 sample(8, false, 0, 2),  // I deplasare
                 sample(7, true, 1, 1),   // E acasa
@@ -179,7 +196,7 @@ class MatchPreviewServiceTest {
                 sample(3, false, 1, 1),  // E deplasare
                 sample(2, true, 1, 0),   // V acasa
                 sample(1, false, 0, 0))); // E deplasare (in afara ferestrei generale de 7)
-        when(history.lastMatches(eq(20L), eq(KICKOFF), eq(FETCH))).thenReturn(List.of());
+        when(history.lastMatches(eq(20L), eq(KICKOFF), eq(FETCH), isNull())).thenReturn(List.of());
         when(fixtures.findHeadToHead(anyLong(), anyLong(), any(), any(), any())).thenReturn(List.of());
         when(teams.findAllById(any())).thenReturn(List.of());
 
@@ -202,7 +219,7 @@ class MatchPreviewServiceTest {
     @Test
     void previzualizare_h2h_mapatCorect_inclusivGazdeInversate() {
         stubHappyPath();
-        when(history.lastMatches(anyLong(), any(), anyInt())).thenReturn(List.of());
+        when(history.lastMatches(anyLong(), any(), anyInt(), isNull())).thenReturn(List.of());
         // meciul 2: gazdele/oaspetii inversati fata de meciul previzualizat; fara scoreFt → cade pe goals
         when(fixtures.findHeadToHead(eq(10L), eq(20L), any(), eq(KICKOFF), any())).thenReturn(List.of(
                 playedFixture(1L, 10L, 20L, 2, 1, 2, 1),
@@ -229,7 +246,7 @@ class MatchPreviewServiceTest {
     @Test
     void previzualizare_h2hPreferaScorulLa90_nuPrelungirile() {
         stubHappyPath();
-        when(history.lastMatches(anyLong(), any(), anyInt())).thenReturn(List.of());
+        when(history.lastMatches(anyLong(), any(), anyInt(), isNull())).thenReturn(List.of());
         // meci de cupa terminat 2-2 la 90 min si 3-2 dupa prelungiri (goals include prelungirile)
         when(fixtures.findHeadToHead(anyLong(), anyLong(), any(), any(), any()))
                 .thenReturn(List.of(playedFixture(3L, 10L, 20L, 2, 2, 3, 2)));
@@ -246,14 +263,14 @@ class MatchPreviewServiceTest {
     @Test
     void previzualizare_fereastraGoala_pietePeMediaLigii_faraCrash() {
         stubHappyPath();
-        when(history.lastMatches(anyLong(), any(), anyInt())).thenReturn(List.of());
+        when(history.lastMatches(anyLong(), any(), anyInt(), isNull())).thenReturn(List.of());
         when(fixtures.findHeadToHead(anyLong(), anyLong(), any(), any(), any())).thenReturn(List.of());
         when(teams.findAllById(any())).thenReturn(List.of());
 
         PrevizualizareMeciDto dto = service.previzualizare(100L);
         StatisticiAvansateDto statistici = dto.statistici();
 
-        // n=0 → blend-ul cade integral pe modelul cu media ligii; liniile cerute de piata
+        // fara istoric → λ-urile cad pe media ligii; liniile cerute de piata
         assertEquals(List.of(7.5, 8.5, 9.5, 10.5),
                 statistici.cornere().linii().stream().map(StatisticiAvansateDto.LinieDto::linie).toList());
         assertEquals(Poisson.probabilityOver(10.0, 8.5), overRate(statistici.cornere(), 8.5), 1e-9);
@@ -261,10 +278,11 @@ class MatchPreviewServiceTest {
                 overRate(statistici.faulturi(), 24.5), 1e-9);
         assertEquals(NegativeBinomial.probabilityOver(4.0, StatisticiAvansateBuilder.DISPERSIE_CARTONASE, 4.5),
                 overRate(statistici.cartonase(), 4.5), 1e-9);
-        // goluri: media ligii 1.5 + 1.1 = 2.6
+        // goluri: fara forma λ = mediile ligii 1.5 / 1.1, grila Dixon-Coles a predictiei
         assertEquals(List.of(1.5, 2.5, 3.5),
                 statistici.goluri().linii().stream().map(StatisticiAvansateDto.LinieDto::linie).toList());
-        assertEquals(Poisson.probabilityOver(2.6, 2.5), overRate(statistici.goluri(), 2.5), 1e-9);
+        assertEquals(ScoreGrid.dixonColes(1.5, 1.1, MatchGoalModel.RHO, MatchGoalModel.MAX_GOALS)
+                        .probabilityOverTotal(2.5), overRate(statistici.goluri(), 2.5), 1e-9);
         // frecventele goale si mediile null = "fara date"
         StatisticiAvansateDto.LinieDto linie = statistici.cornere().linii().get(0);
         assertEquals(new FrecventaDto(0, 0), linie.gazdeLocatie());
@@ -282,7 +300,7 @@ class MatchPreviewServiceTest {
     @Test
     void previzualizare_cornere_blendNumericSiFrecvente() {
         stubHappyPath();
-        when(history.lastMatches(anyLong(), any(), anyInt())).thenReturn(List.of());
+        when(history.lastMatches(anyLong(), any(), anyInt(), isNull())).thenReturn(List.of());
         when(fixtures.findHeadToHead(anyLong(), anyLong(), any(), any(), any())).thenReturn(List.of());
         when(teams.findAllById(any())).thenReturn(List.of());
         // gazdele: 5 meciuri ACASA cu totaluri 9 cornere; oaspetii fara date → fereastra combinata n=5
@@ -293,16 +311,16 @@ class MatchPreviewServiceTest {
         List<EventCountSample> suturi = List.of(
                 count(9, true, 13, 11), count(8, true, 13, 11), count(7, true, 13, 11),
                 count(6, true, 13, 11), count(5, true, 13, 11));
-        when(statsHistory.istoric(eq(10L), eq(KICKOFF), eq(FETCH))).thenReturn(new IstoricCounturi(
+        when(statsHistory.istoric(eq(10L), eq(KICKOFF), eq(FETCH), isNull())).thenReturn(new IstoricCounturi(
                 cornere, List.of(), List.of(), suturi, List.of(),
                 List.of(randStatistici(55, 12, 5, 6, 2, 0), randStatistici(45, 10, 3, 4, 1, 1))));
 
         PrevizualizareMeciDto dto = service.previzualizare(100L);
         StatisticiAvansateDto.PiataDto piata = dto.statistici().cornere();
 
-        // w = 5/(5+3); toate totalurile 9 > 8.5 → empiric 1; model Poisson(9)
+        // λ gazde = 5 × (5/5) × 1 = 5; λ oaspeti = 5 × 1 × (5·(4/5)+3)/8 = 4.375 (gazdele primesc 4) → Poisson(9.375)
+        assertEquals(Poisson.probabilityOver(9.375, 8.5), overRate(piata, 8.5), 1e-9);
         double w = 5.0 / 8.0;
-        assertEquals(w * 1.0 + (1 - w) * Poisson.probabilityOver(9.0, 8.5), overRate(piata, 8.5), 1e-9);
         // frecvente pentru legenda: 9 > 8.5 in 5/5 acasa, 9 < 9.5 → 0/5
         StatisticiAvansateDto.LinieDto peste85 = piata.linii().get(1);
         assertEquals(8.5, peste85.linie());
@@ -311,6 +329,17 @@ class MatchPreviewServiceTest {
         assertEquals(new FrecventaDto(0, 0), peste85.oaspetiLocatie());
         StatisticiAvansateDto.LinieDto peste95 = piata.linii().get(2);
         assertEquals(new FrecventaDto(0, 5), peste95.gazdeLocatie());
+        // piata per echipa: λ gazde 5 (bat 5 acasa, adversarul fara date), λ oaspeti 4.375 (vezi mai sus)
+        StatisticiAvansateDto.PiataEchipaDto echipe = dto.statistici().echipe().cornere();
+        assertEquals(5.0, echipe.asteptareGazde(), 1e-9);
+        assertEquals(4.38, echipe.asteptareOaspeti(), 1e-9);
+        StatisticiAvansateDto.LinieEchipaDto gazde45 = echipe.gazde().get(2);
+        assertEquals(4.5, gazde45.linie());
+        assertEquals(Poisson.probabilityOver(5.0, 4.5), gazde45.probabilitate(), 1e-9);
+        assertEquals(new FrecventaDto(5, 5), gazde45.facuteLocatie());
+        assertEquals(new FrecventaDto(0, 0), gazde45.primiteAdversarLocatie());
+        // oaspetii: „gazdele au primit peste 4.5" — 4 cornere primite pe meci → 0/5
+        assertEquals(new FrecventaDto(0, 5), echipe.oaspeti().get(2).primiteAdversarLocatie());
         // mediile echipei: proprii 5, total meci 9
         assertEquals(5.0, piata.gazde().proprieLocatie(), 1e-9);
         assertEquals(9.0, piata.gazde().totalLocatie(), 1e-9);
@@ -339,11 +368,11 @@ class MatchPreviewServiceTest {
     @Test
     void previzualizare_cornere_fereastraPeLocatie_ignoraMeciurileDinDeplasare() {
         stubHappyPath();
-        when(history.lastMatches(anyLong(), any(), anyInt())).thenReturn(List.of());
+        when(history.lastMatches(anyLong(), any(), anyInt(), isNull())).thenReturn(List.of());
         when(fixtures.findHeadToHead(anyLong(), anyLong(), any(), any(), any())).thenReturn(List.of());
         when(teams.findAllById(any())).thenReturn(List.of());
         // gazdele: 2 meciuri acasa (total 12) + 2 in deplasare (total 6): locatia vede doar 12-urile
-        when(statsHistory.istoric(eq(10L), eq(KICKOFF), eq(FETCH))).thenReturn(new IstoricCounturi(
+        when(statsHistory.istoric(eq(10L), eq(KICKOFF), eq(FETCH), isNull())).thenReturn(new IstoricCounturi(
                 List.of(count(9, true, 7, 5), count(8, false, 3, 3),
                         count(7, true, 7, 5), count(6, false, 3, 3)),
                 List.of(), List.of(), List.of(), List.of(), List.of()));
@@ -365,17 +394,17 @@ class MatchPreviewServiceTest {
     void previzualizare_goluriGgEgaluriReprize_numericCunoscut() {
         when(predictions.predict(100L)).thenReturn(Optional.of(predictie(new ProcentCota(30.0, 3.33))));
         when(fixtures.findById(100L)).thenReturn(Optional.of(nsFixture()));
-        when(statsHistory.istoric(anyLong(), any(), anyInt())).thenReturn(IstoricCounturi.gol());
-        when(countAverages.averages(any(), any())).thenReturn(new CountLeagueAverages(10.0, 24.0, 4.0, 25.0, 9.0));
-        when(leagueAverages.averages(anyLong(), anyInt())).thenReturn(new LeagueAverages(1.5, 1.1));
-        when(referees.factor(any(), anyDouble())).thenReturn(RefereeFactor.NEUTRAL);
+        when(statsHistory.istoric(anyLong(), any(), anyInt(), isNull())).thenReturn(IstoricCounturi.gol());
+        when(countAverages.averages(any(), any(), any())).thenReturn(new CountLeagueAverages(10.0, 24.0, 4.0, 25.0, 9.0));
+        when(leagueAverages.averages(anyLong(), anyInt(), any())).thenReturn(new LeagueAverages(1.5, 1.1));
+        when(referees.factor(any(), anyDouble(), any())).thenReturn(RefereeFactor.NEUTRAL);
         when(fixtures.findHeadToHead(anyLong(), anyLong(), any(), any(), any())).thenReturn(List.of());
         when(teams.findAllById(any())).thenReturn(List.of());
         // gazdele acasa: 2-1 (pauza 1-0), 1-1 (pauza 0-0); oaspetii in deplasare: 0-0, 2-2 (pauza 1-1)
         List<MatchSample> gazde = List.of(sample(9, true, 2, 1, 1, 0), sample(8, true, 1, 1, 0, 0));
         List<MatchSample> oaspeti = List.of(sample(9, false, 0, 0, 0, 0), sample(8, false, 2, 2, 1, 1));
-        when(history.lastMatches(eq(10L), eq(KICKOFF), eq(FETCH))).thenReturn(gazde);
-        when(history.lastMatches(eq(20L), eq(KICKOFF), eq(FETCH))).thenReturn(oaspeti);
+        when(history.lastMatches(eq(10L), eq(KICKOFF), eq(FETCH), isNull())).thenReturn(gazde);
+        when(history.lastMatches(eq(20L), eq(KICKOFF), eq(FETCH), isNull())).thenReturn(oaspeti);
 
         StatisticiAvansateDto statistici = service.previzualizare(100L).statistici();
 
@@ -396,8 +425,10 @@ class MatchPreviewServiceTest {
         assertEquals(reprize.htDrawRate(), statistici.egaluri().egalPauza(), 1e-9);
         assertEquals(new FrecventaDto(1, 2), statistici.egaluri().pauzaGazde());
         assertEquals(new FrecventaDto(2, 2), statistici.egaluri().pauzaOaspeti());
-        // egal final: empiric 3/4 (1-1, 0-0, 2-2), model 0.30 → w=4/7: 4/7*0.75 + 3/7*0.30
-        assertEquals(4.0 / 7.0 * 0.75 + 3.0 / 7.0 * 0.30, statistici.egaluri().egalFinal(), 1e-9);
+        // egal final: direct din modelul de goluri al meciului (aceeasi cifra ca predictia)
+        double egalModel = MatchGoalModel.predict(new MatchContext(GoalForm.of(gazde), GoalForm.of(oaspeti), 1.5, 1.1))
+                .sansaEgal();
+        assertEquals(egalModel, statistici.egaluri().egalFinal(), 1e-9);
         assertEquals(new FrecventaDto(1, 2), statistici.egaluri().finalGazde());
         assertEquals(new FrecventaDto(2, 2), statistici.egaluri().finalOaspeti());
 
@@ -416,11 +447,11 @@ class MatchPreviewServiceTest {
         Fixture meci = nsFixture();
         meci.setReferee("M. Oliver");
         when(fixtures.findById(100L)).thenReturn(Optional.of(meci));
-        when(statsHistory.istoric(anyLong(), any(), anyInt())).thenReturn(IstoricCounturi.gol());
-        when(countAverages.averages(any(), any())).thenReturn(new CountLeagueAverages(10.0, 24.0, 4.0, 25.0, 9.0));
-        when(leagueAverages.averages(anyLong(), anyInt())).thenReturn(new LeagueAverages(1.5, 1.1));
-        when(referees.factor("M. Oliver", 4.0)).thenReturn(1.3);
-        when(history.lastMatches(anyLong(), any(), anyInt())).thenReturn(List.of());
+        when(statsHistory.istoric(anyLong(), any(), anyInt(), isNull())).thenReturn(IstoricCounturi.gol());
+        when(countAverages.averages(any(), any(), any())).thenReturn(new CountLeagueAverages(10.0, 24.0, 4.0, 25.0, 9.0));
+        when(leagueAverages.averages(anyLong(), anyInt(), any())).thenReturn(new LeagueAverages(1.5, 1.1));
+        when(referees.factor(eq("M. Oliver"), eq(4.0), any())).thenReturn(1.3);
+        when(history.lastMatches(anyLong(), any(), anyInt(), isNull())).thenReturn(List.of());
         when(fixtures.findHeadToHead(anyLong(), anyLong(), any(), any(), any())).thenReturn(List.of());
         when(teams.findAllById(any())).thenReturn(List.of());
 
@@ -451,11 +482,11 @@ class MatchPreviewServiceTest {
         meci.setScoreHtHome(1);
         meci.setScoreHtAway(0);
         when(fixtures.findById(100L)).thenReturn(Optional.of(meci));
-        when(statsHistory.istoric(anyLong(), any(), anyInt())).thenReturn(IstoricCounturi.gol());
-        when(countAverages.averages(any(), any())).thenReturn(new CountLeagueAverages(10.0, 24.0, 4.0, 25.0, 9.0));
-        when(leagueAverages.averages(anyLong(), anyInt())).thenReturn(new LeagueAverages(1.5, 1.1));
-        when(referees.factor(any(), anyDouble())).thenReturn(RefereeFactor.NEUTRAL);
-        when(history.lastMatches(anyLong(), any(), anyInt())).thenReturn(List.of());
+        when(statsHistory.istoric(anyLong(), any(), anyInt(), isNull())).thenReturn(IstoricCounturi.gol());
+        when(countAverages.averages(any(), any(), any())).thenReturn(new CountLeagueAverages(10.0, 24.0, 4.0, 25.0, 9.0));
+        when(leagueAverages.averages(anyLong(), anyInt(), any())).thenReturn(new LeagueAverages(1.5, 1.1));
+        when(referees.factor(any(), anyDouble(), any())).thenReturn(RefereeFactor.NEUTRAL);
+        when(history.lastMatches(anyLong(), any(), anyInt(), isNull())).thenReturn(List.of());
         when(fixtures.findHeadToHead(anyLong(), anyLong(), any(), any(), any())).thenReturn(List.of());
         when(teams.findAllById(any())).thenReturn(List.of());
         // statisticile reale ale meciului: gazde 6 cornere / oaspeti 4 → total 10; cartonase 2+0 si 1+1 → 4
@@ -494,11 +525,11 @@ class MatchPreviewServiceTest {
         meci.setScoreHtHome(0);
         meci.setScoreHtAway(0);
         when(fixtures.findById(100L)).thenReturn(Optional.of(meci));
-        when(statsHistory.istoric(anyLong(), any(), anyInt())).thenReturn(IstoricCounturi.gol());
-        when(countAverages.averages(any(), any())).thenReturn(new CountLeagueAverages(10.0, 24.0, 4.0, 25.0, 9.0));
-        when(leagueAverages.averages(anyLong(), anyInt())).thenReturn(new LeagueAverages(1.5, 1.1));
-        when(referees.factor(any(), anyDouble())).thenReturn(RefereeFactor.NEUTRAL);
-        when(history.lastMatches(anyLong(), any(), anyInt())).thenReturn(List.of());
+        when(statsHistory.istoric(anyLong(), any(), anyInt(), isNull())).thenReturn(IstoricCounturi.gol());
+        when(countAverages.averages(any(), any(), any())).thenReturn(new CountLeagueAverages(10.0, 24.0, 4.0, 25.0, 9.0));
+        when(leagueAverages.averages(anyLong(), anyInt(), any())).thenReturn(new LeagueAverages(1.5, 1.1));
+        when(referees.factor(any(), anyDouble(), any())).thenReturn(RefereeFactor.NEUTRAL);
+        when(history.lastMatches(anyLong(), any(), anyInt(), isNull())).thenReturn(List.of());
         when(fixtures.findHeadToHead(anyLong(), anyLong(), any(), any(), any())).thenReturn(List.of());
         when(teams.findAllById(any())).thenReturn(List.of());
         when(teamStats.findByFixtureIdIn(List.of(100L))).thenReturn(List.of());
@@ -525,11 +556,11 @@ class MatchPreviewServiceTest {
         meci.setScoreHtHome(0);
         meci.setScoreHtAway(0);
         when(fixtures.findById(100L)).thenReturn(Optional.of(meci));
-        when(statsHistory.istoric(anyLong(), any(), anyInt())).thenReturn(IstoricCounturi.gol());
-        when(countAverages.averages(any(), any())).thenReturn(new CountLeagueAverages(10.0, 24.0, 4.0, 25.0, 9.0));
-        when(leagueAverages.averages(anyLong(), anyInt())).thenReturn(new LeagueAverages(1.5, 1.1));
-        when(referees.factor(any(), anyDouble())).thenReturn(RefereeFactor.NEUTRAL);
-        when(history.lastMatches(anyLong(), any(), anyInt())).thenReturn(List.of());
+        when(statsHistory.istoric(anyLong(), any(), anyInt(), isNull())).thenReturn(IstoricCounturi.gol());
+        when(countAverages.averages(any(), any(), any())).thenReturn(new CountLeagueAverages(10.0, 24.0, 4.0, 25.0, 9.0));
+        when(leagueAverages.averages(anyLong(), anyInt(), any())).thenReturn(new LeagueAverages(1.5, 1.1));
+        when(referees.factor(any(), anyDouble(), any())).thenReturn(RefereeFactor.NEUTRAL);
+        when(history.lastMatches(anyLong(), any(), anyInt(), isNull())).thenReturn(List.of());
         when(fixtures.findHeadToHead(anyLong(), anyLong(), any(), any(), any())).thenReturn(List.of());
         when(teams.findAllById(any())).thenReturn(List.of());
         when(teamStats.findByFixtureIdIn(List.of(100L))).thenReturn(List.of());
@@ -552,11 +583,11 @@ class MatchPreviewServiceTest {
         meci.setScoreFtHome(0);
         meci.setScoreFtAway(0);
         when(fixtures.findById(100L)).thenReturn(Optional.of(meci));
-        when(statsHistory.istoric(anyLong(), any(), anyInt())).thenReturn(IstoricCounturi.gol());
-        when(countAverages.averages(any(), any())).thenReturn(new CountLeagueAverages(10.0, 24.0, 4.0, 25.0, 9.0));
-        when(leagueAverages.averages(anyLong(), anyInt())).thenReturn(new LeagueAverages(1.5, 1.1));
-        when(referees.factor(any(), anyDouble())).thenReturn(RefereeFactor.NEUTRAL);
-        when(history.lastMatches(anyLong(), any(), anyInt())).thenReturn(List.of());
+        when(statsHistory.istoric(anyLong(), any(), anyInt(), isNull())).thenReturn(IstoricCounturi.gol());
+        when(countAverages.averages(any(), any(), any())).thenReturn(new CountLeagueAverages(10.0, 24.0, 4.0, 25.0, 9.0));
+        when(leagueAverages.averages(anyLong(), anyInt(), any())).thenReturn(new LeagueAverages(1.5, 1.1));
+        when(referees.factor(any(), anyDouble(), any())).thenReturn(RefereeFactor.NEUTRAL);
+        when(history.lastMatches(anyLong(), any(), anyInt(), isNull())).thenReturn(List.of());
         when(fixtures.findHeadToHead(anyLong(), anyLong(), any(), any(), any())).thenReturn(List.of());
         when(teams.findAllById(any())).thenReturn(List.of());
         when(teamStats.findByFixtureIdIn(List.of(100L))).thenReturn(List.of());
@@ -619,7 +650,7 @@ class MatchPreviewServiceTest {
     @Test
     void previzualizare_faraLineups_echipaDeStartNull() {
         stubHappyPath();
-        when(history.lastMatches(anyLong(), any(), anyInt())).thenReturn(List.of());
+        when(history.lastMatches(anyLong(), any(), anyInt(), isNull())).thenReturn(List.of());
         when(fixtures.findHeadToHead(anyLong(), anyLong(), any(), any(), any())).thenReturn(List.of());
         when(teams.findAllById(any())).thenReturn(List.of());
 
@@ -629,7 +660,7 @@ class MatchPreviewServiceTest {
     @Test
     void previzualizare_lineupDoarPentruOEchipa_echipaDeStartNull() {
         stubHappyPath();
-        when(history.lastMatches(anyLong(), any(), anyInt())).thenReturn(List.of());
+        when(history.lastMatches(anyLong(), any(), anyInt(), isNull())).thenReturn(List.of());
         when(fixtures.findHeadToHead(anyLong(), anyLong(), any(), any(), any())).thenReturn(List.of());
         when(teams.findAllById(any())).thenReturn(List.of());
         when(lineups.findByFixtureId(100L)).thenReturn(List.of(lineup(10L, "4-3-3", null)));
@@ -645,11 +676,11 @@ class MatchPreviewServiceTest {
         meci.setLeagueId(39L);
         meci.setSeasonYear(2025);
         when(fixtures.findById(100L)).thenReturn(Optional.of(meci));
-        when(statsHistory.istoric(anyLong(), any(), anyInt())).thenReturn(IstoricCounturi.gol());
-        when(countAverages.averages(any(), any())).thenReturn(new CountLeagueAverages(10.0, 24.0, 4.0, 25.0, 9.0));
-        when(leagueAverages.averages(anyLong(), anyInt())).thenReturn(new LeagueAverages(1.5, 1.1));
-        when(referees.factor(any(), anyDouble())).thenReturn(RefereeFactor.NEUTRAL);
-        when(history.lastMatches(anyLong(), any(), anyInt())).thenReturn(List.of());
+        when(statsHistory.istoric(anyLong(), any(), anyInt(), isNull())).thenReturn(IstoricCounturi.gol());
+        when(countAverages.averages(any(), any(), any())).thenReturn(new CountLeagueAverages(10.0, 24.0, 4.0, 25.0, 9.0));
+        when(leagueAverages.averages(anyLong(), anyInt(), any())).thenReturn(new LeagueAverages(1.5, 1.1));
+        when(referees.factor(any(), anyDouble(), any())).thenReturn(RefereeFactor.NEUTRAL);
+        when(history.lastMatches(anyLong(), any(), anyInt(), isNull())).thenReturn(List.of());
         when(fixtures.findHeadToHead(anyLong(), anyLong(), any(), any(), any())).thenReturn(List.of());
         when(teams.findAllById(any())).thenReturn(List.of());
 
@@ -700,7 +731,7 @@ class MatchPreviewServiceTest {
     @Test
     void previzualizare_faraLineupAnuntat_construiesteEchipaProbabilaDinMeciulAnterior() {
         stubHappyPath();
-        when(history.lastMatches(anyLong(), any(), anyInt())).thenReturn(List.of());
+        when(history.lastMatches(anyLong(), any(), anyInt(), isNull())).thenReturn(List.of());
         when(fixtures.findHeadToHead(anyLong(), anyLong(), any(), any(), any())).thenReturn(List.of());
         when(teams.findAllById(any())).thenReturn(List.of());
 

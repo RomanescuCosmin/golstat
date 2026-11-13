@@ -28,7 +28,8 @@ public final class MatchSampleMapper {
         int goalsAgainstHt = home ? nz(fixture.getScoreHtAway()) : nz(fixture.getScoreHtHome());
 
         LocalDate date = fixture.getKickoff() != null ? fixture.getKickoff().toLocalDate() : null;
-        return new MatchSample(date, home, goalsFor, goalsAgainst, goalsForHt, goalsAgainstHt, opponentRank);
+        Long adversar = home ? fixture.getAwayTeamId() : fixture.getHomeTeamId();
+        return new MatchSample(date, home, goalsFor, goalsAgainst, goalsForHt, goalsAgainstHt, opponentRank, adversar);
     }
 
     /** Scorul la 90 min: prefera {@code scoreFt} (exclude prelungirile la cupe), altfel {@code goals}. */

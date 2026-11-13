@@ -5,6 +5,7 @@ import ro.golstat.api.repository.FixtureTeamStatsRepository;
 import ro.golstat.common.GolstatConstants;
 import ro.golstat.stats.cards.RefereeFactor;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 
 /**
@@ -28,11 +29,11 @@ public class RefereeService {
     }
 
     /** @param leagueAvgCards media TOTALULUI de cartonase pe meci a ligii */
-    public double factor(String referee, double leagueAvgCards) {
+    public double factor(String referee, double leagueAvgCards, OffsetDateTime before) {
         if (referee == null || referee.isBlank()) {
             return RefereeFactor.NEUTRAL;
         }
-        RefereeCardAverage agg = teamStats.refereeCardAverage(referee, TERMINAL);
+        RefereeCardAverage agg = teamStats.refereeCardAverage(referee, TERMINAL, before);
         if (agg == null || agg.getAvgCards() == null
                 || agg.getMatches() == null || agg.getMatches() == 0) {
             return RefereeFactor.NEUTRAL;

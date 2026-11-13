@@ -102,7 +102,8 @@ Confirmate cu utilizatorul pe 2026-07-20 — NU le „repara" din proprie iniți
 1. **Fără backfill retroactiv** al statisticilor lipsă (quota se păstrează pentru prezent).
 2. **Ferestrele de formă amestecă competiții și sezoane** — „ultimele 7 meciuri" ale echipei
    includ cupe, amicale, sezonul trecut (`FixtureRepository.findRecentForTeam` nu filtrează pe
-   ligă/sezon). Utilizatorul a ales explicit să rămână așa.
+   ligă/sezon). Utilizatorul a ales explicit să rămână așa ca IMPLICIT; din 2026-11-13 există comutatorul
+   „Doar competiția meciului" (`?competitie=curenta`), ales de utilizator în interfață.
 3. **HT lipsă e tratat ca 0-0** în `MatchSampleMapper` — piața „egal pauză" numără meciurile
   fără scor de pauză ca egaluri. Cunoscut, neschimbat.
 4. **`ScheduleFilter` (filtrul „jumătatea de jos a clasamentului") e calculat dar necablat** —
@@ -127,6 +128,27 @@ meciuri cu cornere/cartonașe/faulturi măsurate, modelul ar da doar media ligii
 fals-sigur, ex. „86%"). Se afișează „—", fără verdict ✓/✗ (`RandLinie`/`RandGg` în
 `SectiuneStatistici.tsx`). Pagina `/piete` filtrează deja la sursă: piețele cu eșantion 0 nu se
 trimit (`PieteZileService.adaugaLinii`).
+
+## 6b. Modelul pe piețe (2026-11-13, confirmat cu utilizatorul)
+
+- **Fereastra: ultimele 7 meciuri pe locație** — gazdele pe ultimele 7 de ACASĂ, oaspeții pe ultimele 7
+  din DEPLASARE. Regula utilizatorului de la începutul proiectului; o variantă cu 40 de meciuri pe toate
+  locațiile a fost respinsă explicit. Nu o schimba.
+- **Goluri (varianta C, aleasă de utilizator)**: `λ gazde = (marcate gazde acasă + primite oaspeți în
+  deplasare) / 2`, fără media ligii, cu fiecare gol cântărit după forța adversarului (`ForteAdversari`,
+  `GoalForm.of(window, forte)`), apoi grila Dixon-Coles. Backtest: `BacktestGoluriTest`.
+- **Counturi**: `λ = MediaLigiiPeLocație × atac × slăbiciuneAdversar` (`AttackDefence`, K=3) pentru
+  cornere/faulturi/cartonașe (`TeamCountModel`, totalul = λ gazde +
+  λ oaspeți) și cornere pe reprize. Predicția (1X2) și analiza pe piețe folosesc ACELAȘI model de goluri.
+- **Aspect**: secțiunea de statistici e o listă de piețe (pictogramă, nume, cifra principală, „›") care
+  deschide detaliul — modul de afișare cerut de utilizator după „Golden Chat App" (doar afișarea, NU
+  culorile aurii; culorile rămân cele golstat). `/piete` are selector de perioadă (azi … 7 zile).
+- **Cartonașe = regula pariurilor**: `fixture_team_stats.cartonase` se calculează din incidente la ingest
+  (galben + roșu + al doilea galben, fără staff) — furnizorul numără eliminarea după două galbene ca
+  galben + galben + roșu (3 în loc de 2). Fără incidente se folosesc galbene + roșii.
+- **Date bzzoiro în MySQL** (`golstat_bzz`, profil `mysql`): 15 competiții pe sezonul curent, cu reprize
+  (`fixture_team_half_stats`) și arbitri; importul one-shot e în `application-import.yml`
+  (moduri `doar-reprize`, `doar-incidente`).
 
 ## 7. Cum rulezi și verifici
 

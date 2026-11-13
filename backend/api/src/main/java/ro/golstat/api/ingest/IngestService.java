@@ -5,6 +5,8 @@ import org.springframework.transaction.annotation.Transactional;
 import ro.golstat.api.entity.Coach;
 import ro.golstat.api.entity.Country;
 import ro.golstat.api.entity.Fixture;
+import ro.golstat.api.entity.FixtureEvent;
+import ro.golstat.api.entity.FixtureTeamStats;
 import ro.golstat.api.entity.Injury;
 import ro.golstat.api.entity.League;
 import ro.golstat.api.entity.Player;
@@ -28,6 +30,7 @@ import ro.golstat.api.repository.StandingRepository;
 import ro.golstat.api.repository.TeamRepository;
 import ro.golstat.api.repository.TeamSeasonStatsRepository;
 import ro.golstat.api.repository.VenueRepository;
+import ro.golstat.common.GolstatConstants;
 import ro.golstat.common.dto.CoachDto;
 import ro.golstat.common.dto.FixtureDto;
 import ro.golstat.common.dto.FixtureEventDto;
@@ -45,6 +48,7 @@ import ro.golstat.common.dto.TeamDto;
 import ro.golstat.common.dto.TeamSeasonStatsDto;
 import ro.golstat.common.dto.VenueDto;
 
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -219,6 +223,7 @@ public class IngestService {
         for (FixtureEventDto dto : batch) {
             events.save(EntityMapper.toFixtureEvent(dto));
         }
+        actualizeazaCartonase(batch.get(0).fixtureId());
     }
 
     /** Un lot de statistici per meci (ambele echipe); upsert pe PK compus (fixtureId, teamId). */
@@ -230,6 +235,39 @@ public class IngestService {
         batch.stream().map(FixtureTeamStatsDto::teamId).filter(java.util.Objects::nonNull).distinct().forEach(this::ensureTeam);
         for (FixtureTeamStatsDto dto : batch) {
             teamStats.save(EntityMapper.toFixtureTeamStats(dto));
+        }
+        actualizeazaCartonase(batch.get(0).fixtureId());
+    }
+
+    /**
+     * Numara cartonasele fiecarei echipe din incidente, dupa regula pietelor: galben = 1, rosu = 1, al
+     * doilea galben = 1 (deci eliminarea dupa doua galbene = 2, nu 3 ca in statisticile furnizorului);
+     * cartonasele staff-ului (fara jucator) nu intra. Fara incidente pe meci, sau cu incidente dar fara
+     * niciun cartonas cand statisticile au cartonase (cronologie incompleta) → {@code null}.
+     */
+    private void actualizeazaCartonase(Long fixtureId) {
+        if (fixtureId == null) {
+            return;
+        }
+        List<FixtureEvent> incidente = events.findByFixtureId(fixtureId);
+        if (incidente.isEmpty()) {
+            return;
+        }
+        Map<Long, Integer> perEchipa = new HashMap<>();
+        for (FixtureEvent e : incidente) {
+            if (GolstatConstants.EventType.CARD.equals(e.getType()) && e.getPlayerId() != null && e.getTeamId() != null) {
+                perEchipa.merge(e.getTeamId(), 1, Integer::sum);
+            }
+        }
+        List<FixtureTeamStats> randuri = teamStats.findByFixtureIdIn(List.of(fixtureId));
+        // incidente fara niciun cartonas, dar statistici cu cartonase = cronologie incompleta: nu o credem
+        boolean statisticiCuCartonase = randuri.stream()
+                .anyMatch(s -> s.getYellowCards() != null && s.getYellowCards() > 0
+                        || s.getRedCards() != null && s.getRedCards() > 0);
+        boolean incompleta = perEchipa.isEmpty() && statisticiCuCartonase;
+        for (FixtureTeamStats s : randuri) {
+            s.setCartonase(incompleta ? null : perEchipa.getOrDefault(s.getTeamId(), 0));
+            teamStats.save(s);
         }
     }
 

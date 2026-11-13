@@ -5,6 +5,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import ro.golstat.api.repository.FixtureTeamHalfStatsRepository;
 import ro.golstat.api.repository.FixtureTeamStatsRepository;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -20,6 +21,7 @@ class CountLeagueAverageServiceTest {
     private static final double EPS = 1e-9;
 
     @Mock FixtureTeamStatsRepository teamStats;
+    @Mock FixtureTeamHalfStatsRepository halfStats;
     @InjectMocks CountLeagueAverageService service;
 
     private static CountAverage avg(Double cornere, Double faulturi, Double cartonase) {
@@ -53,12 +55,18 @@ class CountLeagueAverageServiceTest {
             public Double getAvgSuturiPePoarta() {
                 return suturiPePoarta;
             }
+            public Double getAvgCornereGazde() { return null; }
+            public Double getAvgCornereOaspeti() { return null; }
+            public Double getAvgFaulturiGazde() { return null; }
+            public Double getAvgFaulturiOaspeti() { return null; }
+            public Double getAvgCartonaseGazde() { return null; }
+            public Double getAvgCartonaseOaspeti() { return null; }
         };
     }
 
     @Test
     void dubleazaMediaPeEchipa_inTotalPeMeci() {
-        when(teamStats.avgCounts(anyLong(), anyInt(), any())).thenReturn(avg(5.1, 12.3, 2.2, 12.7, 4.6));
+        when(teamStats.avgCounts(anyLong(), anyInt(), any(), any())).thenReturn(avg(5.1, 12.3, 2.2, 12.7, 4.6));
 
         CountLeagueAverages a = service.averages(39L, 2025);
 
@@ -71,7 +79,7 @@ class CountLeagueAverageServiceTest {
 
     @Test
     void faraStatistici_cadePeFallbackGlobal() {
-        when(teamStats.avgCounts(anyLong(), anyInt(), any())).thenReturn(avg(null, null, null));
+        when(teamStats.avgCounts(anyLong(), anyInt(), any(), any())).thenReturn(avg(null, null, null));
 
         CountLeagueAverages a = service.averages(1L, 2026);
 
@@ -84,7 +92,7 @@ class CountLeagueAverageServiceTest {
 
     @Test
     void fallbackPartial() {
-        when(teamStats.avgCounts(anyLong(), anyInt(), any())).thenReturn(avg(4.8, null, null));
+        when(teamStats.avgCounts(anyLong(), anyInt(), any(), any())).thenReturn(avg(4.8, null, null));
 
         CountLeagueAverages a = service.averages(1L, 2026);
 

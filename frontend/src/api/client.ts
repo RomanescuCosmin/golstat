@@ -56,9 +56,16 @@ export function getPredictiiZi(leagueId: number, data: string): Promise<Predicti
   return request<PredictieMeciDto[]>(`/v1/predictii/meciuri?${params.toString()}`);
 }
 
+/** Ce meciuri intra in ferestrele de forma: toate competitiile sau doar competitia meciului. */
+export type FiltruCompetitie = 'toate' | 'curenta';
+
 /** Previzualizarea completa a unui meci viitor. */
-export function getPrevizualizare(fixtureId: number): Promise<PrevizualizareMeciDto> {
-  return request<PrevizualizareMeciDto>(`/v1/predictii/meciuri/${fixtureId}/previzualizare`);
+export function getPrevizualizare(
+  fixtureId: number,
+  competitie: FiltruCompetitie = 'toate',
+): Promise<PrevizualizareMeciDto> {
+  const sufix = competitie === 'curenta' ? '?competitie=curenta' : '';
+  return request<PrevizualizareMeciDto>(`/v1/predictii/meciuri/${fixtureId}/previzualizare${sufix}`);
 }
 
 /** Programul meciurilor viitoare (toate competitiile) pe urmatoarele `zile` (1..14), grupat pe zi/liga. */
@@ -113,6 +120,22 @@ export function getJucator(playerId: number): Promise<PaginaJucator> {
 }
 
 /** Probabilitățile pe piețe ale meciurilor din următoarele `zile` zile (1–7), grupate pe zi. */
-export function getPieteZile(zile = 3): Promise<PieteZile> {
-  return request<PieteZile>(`/v1/piete/zile?zile=${zile}`);
+/** Perioada aleasă de utilizator, date ISO „YYYY-MM-DD", inclusiv capetele. */
+export interface Perioada {
+  de: string;
+  pana: string;
+}
+
+export function getPieteZile(
+  zile = 3,
+  competitie: FiltruCompetitie = 'toate',
+  perioada?: Perioada,
+): Promise<PieteZile> {
+  const params = new URLSearchParams({ zile: String(zile) });
+  if (competitie === 'curenta') params.set('competitie', 'curenta');
+  if (perioada) {
+    params.set('de', perioada.de);
+    params.set('pana', perioada.pana);
+  }
+  return request<PieteZile>(`/v1/piete/zile?${params.toString()}`);
 }

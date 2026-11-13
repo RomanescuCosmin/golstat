@@ -1,387 +1,442 @@
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
+import type { FiltruCompetitie } from '../../api/client';
 import type {
+  ArbitruDto,
   EchipaDto,
-  EgaluriDto,
+  FereastraFormaDto,
+  FormaEchipaDto,
   FrecventaDto,
-  GgDto,
-  LinieStatDto,
-  MediiEchipaDto,
+  LinieEchipaDto,
+  PiataEchipaDto,
   PiataStatDto,
-  ReprizeDto,
-  RezultatStatisticiDto,
   StatisticiAvansateDto,
 } from '../../api/types';
-import { BaraProbabilitatePiata as BaraProbabilitate } from '../ui/BaraProbabilitatePiata';
+import { culoareProbabilitate } from '../ui/BaraProbabilitatePiata';
 import { numeEchipa } from '../../lib/echipa';
 import { formatRata } from '../../lib/format';
 import { Badge } from '../ui/Badge';
 import { Card } from '../ui/Card';
-import { EmptyState } from '../ui/EmptyState';
+import { ComutatorCompetitie } from '../ui/ComutatorCompetitie';
 import { Taburi, type Tab } from '../ui/Taburi';
+import { TeamLogo } from '../ui/TeamLogo';
 
 /**
- * Badge ✓/✗ la meciuri terminate: `actual` = s-a intamplat evenimentul (ex. peste linie); modelul
- * favorizeaza „da" cand `rata >= 0.5`. Nimeresc cand partea favorizata coincide cu realitatea.
- */
-function RezultatBadge({
-  rata,
-  actual,
-  etichetaDa,
-  etichetaNu,
-}: {
-  rata: number;
-  actual: boolean;
-  etichetaDa: string;
-  etichetaNu: string;
-}) {
-  const hit = (rata >= 0.5) === actual;
-  return (
-    <Badge variant={hit ? 'win' : 'loss'} className="shrink-0">
-      {hit ? '✓' : '✗'} {actual ? etichetaDa : etichetaNu}
-    </Badge>
-  );
-}
-
-/**
- * Meci terminat, dar furnizorul n-are statistica (ex. cornere la un sezon fără acoperire). Fără badge-ul
- * ăsta lipsa de date arăta identic cu un meci neînceput — și se putea citi greșit ca verdict negativ.
- */
-function FaraDateBadge() {
-  return (
-    <Badge variant="neutral" className="shrink-0">
-      – fără date
-    </Badge>
-  );
-}
-
-/**
- * Secțiunea centrală „Statistici": analiza pe piețe a meciului, pe ultimele 7 meciuri —
- * gazdele ACASĂ și oaspeții în DEPLASARE — cu probabilitatea modelată per linie (bară custom)
- * și frecvențele empirice per echipă (banda de 7 puncte), plus legenda explicită.
+ * Secțiunea „Statistici" a meciului, pe modelul aplicațiilor de statistici pe mobil: un ecran de
+ * comparație (echipele față în față + șansele meciului), apoi câte un tab pe piață cu panoul fiecărei
+ * echipe (ultimele 7 rezultate + liniile ei) și totalul meciului. Totul pe ultimele 7 meciuri:
+ * gazdele acasă, oaspeții în deplasare.
  */
 
-/** Banda celor (max) 7 meciuri: puncte pline = reușite. */
-function PuncteFrecventa({ frecventa, plin }: { frecventa: FrecventaDto; plin: string }) {
-  if (frecventa.total === 0) {
-    return <span className="text-[11px] italic text-ink2">fără date</span>;
-  }
-  return (
-    <span className="inline-flex items-center gap-1.5">
-      <span className="inline-flex gap-[3px]">
-        {Array.from({ length: frecventa.total }, (_, i) => (
-          <span
-            key={i}
-            className={`h-2 w-2 rounded-full ${i < frecventa.reusite ? plin : 'bg-ink2/20'}`}
-          />
-        ))}
-      </span>
-      <span className="text-[11px] font-bold tabular-nums text-ink">
-        {frecventa.reusite}/{frecventa.total}
-      </span>
-    </span>
-  );
-}
+const TABURI: Tab[] = [
+  { id: 'comparatie', eticheta: 'Comparație' },
+  { id: 'goluri', eticheta: 'Goluri' },
+  { id: 'cornere', eticheta: 'Cornere' },
+  { id: 'cartonase', eticheta: 'Cartonașe' },
+  { id: 'altele', eticheta: 'Egaluri, faulturi & șuturi' },
+];
 
-interface ContextEchipe {
+/** Sub atâtea meciuri în spate, cifra e doar orientativă. */
+const PRAG_ESANTION_MIC = 6;
+
+interface Echipe {
   gazde: EchipaDto;
   oaspeti: EchipaDto;
 }
 
-/**
- * Un rând de piață: eticheta + bara modelată + frecvențele ambelor echipe cu legendă.
- * Fără istoric pe piață, procentul modelat ar fi doar media ligii — afișăm „—" în loc,
- * și nu dăm verdict ✓/✗ pe un model fără date în spate.
- */
-function RandLinie({
-  eticheta,
-  rata,
-  gazdeLocatie,
-  gazdeGeneral,
-  oaspetiLocatie,
-  oaspetiGeneral,
-  descriere,
-  echipe,
-  actual,
-  meciTerminat = false,
-  etichetaDa = 'Peste',
-  etichetaNu = 'Sub',
-}: {
-  eticheta: string;
-  rata: number;
-  gazdeLocatie: FrecventaDto;
-  gazdeGeneral?: FrecventaDto;
-  oaspetiLocatie: FrecventaDto;
-  oaspetiGeneral?: FrecventaDto;
-  /** ex. "peste 9.5 cornere" — intră în legenda "în X/7 meciuri acasă". */
-  descriere: string;
-  echipe: ContextEchipe;
-  /** La meci terminat: s-a produs evenimentul (peste linie / egal / gol)? `null`/undefined = fără verdict. */
-  actual?: boolean | null;
-  /** Meciul s-a jucat: `actual` lipsă înseamnă statistică indisponibilă, nu meci viitor. */
-  meciTerminat?: boolean;
-  etichetaDa?: string;
-  etichetaNu?: string;
-}) {
-  const areIstoric = gazdeLocatie.total > 0 || oaspetiLocatie.total > 0;
-  return (
-    <div className="border-b border-line py-3 last:border-b-0 last:pb-0">
-      <div className="flex items-center gap-3">
-        <span className="w-24 shrink-0 text-sm font-semibold text-ink">{eticheta}</span>
-        <BaraProbabilitate rata={rata} areIstoric={areIstoric} />
-        <span
-          className={`w-12 shrink-0 text-right text-base font-extrabold tabular-nums ${
-            !areIstoric ? 'text-ink2' : rata >= 0.5 ? 'text-primary' : 'text-draw'
-          }`}
-        >
-          {areIstoric ? formatRata(rata) : '—'}
-        </span>
-        {actual != null && areIstoric ? (
-          <RezultatBadge rata={rata} actual={actual} etichetaDa={etichetaDa} etichetaNu={etichetaNu} />
-        ) : meciTerminat && actual == null ? (
-          <FaraDateBadge />
-        ) : null}
-      </div>
-      <div className="mt-2 grid gap-x-6 gap-y-1 sm:grid-cols-2">
-        <div className="flex min-w-0 items-center justify-between gap-2">
-          <span className="truncate text-[11px] text-ink2" title={numeEchipa(echipe.gazde) ?? undefined}>
-            {numeEchipa(echipe.gazde)} · acasă
-          </span>
-          <PuncteFrecventa frecventa={gazdeLocatie} plin="bg-primary" />
-        </div>
-        <div className="flex min-w-0 items-center justify-between gap-2">
-          <span className="truncate text-[11px] text-ink2" title={numeEchipa(echipe.oaspeti) ?? undefined}>
-            {numeEchipa(echipe.oaspeti)} · deplasare
-          </span>
-          <PuncteFrecventa frecventa={oaspetiLocatie} plin="bg-accent" />
-        </div>
-      </div>
-      <p className="mt-1.5 text-[11px] leading-snug text-ink2">
-        {legendaLinie(descriere, gazdeLocatie, gazdeGeneral, oaspetiLocatie, oaspetiGeneral, echipe)}
-      </p>
-    </div>
-  );
+function procentDin(f: FrecventaDto | null | undefined): number | null {
+  return f && f.total > 0 ? f.reusite / f.total : null;
 }
 
-function legendaLinie(
-  descriere: string,
-  gazdeLocatie: FrecventaDto,
-  gazdeGeneral: FrecventaDto | undefined,
-  oaspetiLocatie: FrecventaDto,
-  oaspetiGeneral: FrecventaDto | undefined,
-  echipe: ContextEchipe,
-): string {
-  const parti: string[] = [];
-  if (gazdeLocatie.total > 0) {
-    let p = `${numeEchipa(echipe.gazde)}: ${descriere} în ${gazdeLocatie.reusite}/${gazdeLocatie.total} meciuri acasă`;
-    if (gazdeGeneral && gazdeGeneral.total > 0) {
-      p += ` (${gazdeGeneral.reusite}/${gazdeGeneral.total} în general)`;
-    }
-    parti.push(p);
-  }
-  if (oaspetiLocatie.total > 0) {
-    let p = `${numeEchipa(echipe.oaspeti)}: ${oaspetiLocatie.reusite}/${oaspetiLocatie.total} în deplasare`;
-    if (oaspetiGeneral && oaspetiGeneral.total > 0) {
-      p += ` (${oaspetiGeneral.reusite}/${oaspetiGeneral.total} în general)`;
-    }
-    parti.push(p);
-  }
-  return parti.length > 0 ? parti.join(' · ') : 'Fără istoric — probabilitatea vine din media ligii.';
-}
-
-function formatMedie(v: number | null): string {
+function formatNumar(v: number | null | undefined): string {
   return v == null ? '—' : new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 1 }).format(v);
 }
 
-/** Antetul unui card de piață: mediile pe meci ale fiecărei echipe, pe fereastra ei. */
-function MediiPiata({ medii, echipe, unitate }: { medii: PiataStatDto; echipe: ContextEchipe; unitate: string }) {
-  const rand = (nume: string | null, m: MediiEchipaDto, locatie: string) =>
-    m.proprieLocatie == null && m.totalLocatie == null ? null : (
-      <p key={locatie} className="text-[11px] text-ink2">
-        <span className="font-semibold text-ink">{nume}</span> ({locatie}): {formatMedie(m.proprieLocatie)}{' '}
-        {unitate}/meci · total meci {formatMedie(m.totalLocatie)}
-        {m.proprieGeneral != null && ` · general ${formatMedie(m.proprieGeneral)}/meci`}
-      </p>
-    );
+function frecventa(f: FrecventaDto): string {
+  return f.total > 0 ? `${f.reusite}/${f.total}` : 'fără date';
+}
+
+/** ✓/✗ la meci terminat: modelul „zice da" de la 50% în sus. */
+function Verdict({ rata, actual }: { rata: number; actual: boolean | null | undefined }) {
+  if (actual == null) return null;
+  const hit = (rata >= 0.5) === actual;
   return (
-    <div className="mt-1 space-y-0.5">
-      {rand(numeEchipa(echipe.gazde), medii.gazde, 'acasă')}
-      {rand(numeEchipa(echipe.oaspeti), medii.oaspeti, 'deplasare')}
-    </div>
+    <Badge variant={hit ? 'win' : 'loss'} className="shrink-0">
+      {hit ? '✓' : '✗'} {actual ? 'Da' : 'Nu'}
+    </Badge>
   );
 }
 
-/** Card generic pentru o piață cu linii Over/Under. `totalReal` = totalul meciului la meci terminat. */
-function CardPiata({
-  titlu,
-  unitate,
-  piata,
-  echipe,
-  totalReal,
-  meciTerminat = false,
-  children,
+/** O linie „Peste 2.5 goluri — 58%" cu bara colorată după prag (verde ≥70, galben 50–69, roșu <50). */
+function LinieBara({
+  eticheta,
+  rata,
+  detaliu,
+  areDate = true,
+  actual,
 }: {
-  titlu: string;
-  unitate: string;
-  piata: PiataStatDto;
-  echipe: ContextEchipe;
-  totalReal?: number | null;
-  /** Meciul s-a jucat: `totalReal` lipsă înseamnă statistică indisponibilă, nu meci viitor. */
-  meciTerminat?: boolean;
-  children?: ReactNode;
+  eticheta: string;
+  rata: number;
+  detaliu?: string;
+  areDate?: boolean;
+  actual?: boolean | null;
 }) {
+  const valid = areDate && Number.isFinite(rata);
+  const culoare = culoareProbabilitate(rata);
   return (
-    <Card className="h-full p-5">
-      <div className="flex items-start justify-between gap-3">
-        <h3 className="text-base font-bold text-ink">{titlu}</h3>
-        {totalReal != null ? (
-          <span className="shrink-0 rounded-md bg-ink2/10 px-2 py-0.5 text-xs font-semibold text-ink dark:bg-ink2/15">
-            Rezultat real: {totalReal} {unitate}
-          </span>
-        ) : meciTerminat ? (
-          <span className="shrink-0 rounded-md bg-ink2/10 px-2 py-0.5 text-xs font-semibold text-ink2 dark:bg-ink2/15">
-            Fără statistici la acest meci
-          </span>
-        ) : null}
-      </div>
-      <MediiPiata medii={piata} echipe={echipe} unitate={unitate} />
-      <div className="mt-2">
-        {piata.linii.map((linie: LinieStatDto) => (
-          <RandLinie
-            key={linie.linie}
-            eticheta={`Peste ${linie.linie}`}
-            rata={linie.probabilitate}
-            gazdeLocatie={linie.gazdeLocatie}
-            gazdeGeneral={linie.gazdeGeneral}
-            oaspetiLocatie={linie.oaspetiLocatie}
-            oaspetiGeneral={linie.oaspetiGeneral}
-            descriere={`peste ${linie.linie} ${unitate}`}
-            echipe={echipe}
-            actual={totalReal != null ? totalReal > linie.linie : null}
-            meciTerminat={meciTerminat}
-          />
-        ))}
-        {children}
-      </div>
-    </Card>
-  );
-}
-
-/** Rândul GG din cardul de goluri, cu legenda marcat/primit. */
-function RandGg({ gg, echipe, actual }: { gg: GgDto; echipe: ContextEchipe; actual?: boolean | null }) {
-  const areIstoric = gg.gazdeMarcat.total > 0 || gg.oaspetiMarcat.total > 0;
-  return (
-    <div className="pt-3">
-      <div className="flex items-center gap-3">
-        <span className="w-24 shrink-0 text-sm font-semibold text-ink">GG (ambele)</span>
-        <BaraProbabilitate rata={gg.probabilitate} areIstoric={areIstoric} />
-        <span
-          className={`w-12 shrink-0 text-right text-base font-extrabold tabular-nums ${
-            !areIstoric ? 'text-ink2' : gg.probabilitate >= 0.5 ? 'text-primary' : 'text-draw'
-          }`}
-        >
-          {areIstoric ? formatRata(gg.probabilitate) : '—'}
+    <div className="py-2">
+      <div className="flex items-center justify-between gap-2 text-sm">
+        <span className="font-semibold text-ink">
+          {eticheta} <span className={valid ? culoare.text : 'text-ink2'}>— {valid ? formatRata(rata) : '—'}</span>
         </span>
-        {actual != null && areIstoric && (
-          <RezultatBadge rata={gg.probabilitate} actual={actual} etichetaDa="Da" etichetaNu="Nu" />
-        )}
+        <span className="flex items-center gap-2">
+          {detaliu && <span className="text-right text-[11px] text-ink2">{detaliu}</span>}
+          {valid && <Verdict rata={rata} actual={actual} />}
+        </span>
       </div>
-      <p className="mt-1.5 text-[11px] leading-snug text-ink2">
-        {gg.gazdeMarcat.total > 0 &&
-          `${numeEchipa(echipe.gazde)}: a marcat în ${gg.gazdeMarcat.reusite}/${gg.gazdeMarcat.total} și a primit în ${gg.gazdePrimit.reusite}/${gg.gazdePrimit.total} meciuri acasă`}
-        {gg.gazdeMarcat.total > 0 && gg.oaspetiMarcat.total > 0 && ' · '}
-        {gg.oaspetiMarcat.total > 0 &&
-          `${numeEchipa(echipe.oaspeti)}: a marcat în ${gg.oaspetiMarcat.reusite}/${gg.oaspetiMarcat.total} și a primit în ${gg.oaspetiPrimit.reusite}/${gg.oaspetiPrimit.total} în deplasare`}
-        {gg.gazdeMarcat.total === 0 && gg.oaspetiMarcat.total === 0 &&
-          'Fără istoric — probabilitatea vine din media ligii.'}
-      </p>
+      <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-ink2/15">
+        <div
+          data-testid="umplere-bara"
+          className={`h-full rounded-full ${valid ? culoare.bara : ''}`}
+          style={{ width: valid ? `${Math.round(rata * 100)}%` : '0%' }}
+        />
+      </div>
     </div>
   );
 }
 
-/** Cardul de sine stătător „Ambele echipe marchează" (folosit ca sub-tab separat). */
-function CardGg({ gg, echipe, actual }: { gg: GgDto; echipe: ContextEchipe; actual?: boolean | null }) {
+/** Ultimele rezultate: chip verde = victorie, galben = egal, roșu = înfrângere (cel mai vechi primul). */
+function UltimeleRezultate({ forma }: { forma: FereastraFormaDto | undefined }) {
+  if (!forma || forma.meciuri.length === 0) {
+    return <p className="text-xs italic text-ink2">Fără meciuri în fereastră.</p>;
+  }
+  const culoare = { V: 'bg-green-600', E: 'bg-yellow-500', I: 'bg-red-600' } as const;
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {[...forma.meciuri].reverse().map((m, i) => (
+        <span
+          key={`${m.data}-${i}`}
+          title={m.data}
+          className={`rounded-md px-2 py-1 text-xs font-bold tabular-nums text-white ${culoare[m.rezultat]}`}
+        >
+          {m.golMarcate}-{m.golPrimite}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+interface GrupLinii {
+  titlu?: string;
+  linii: LinieEchipaDto[];
+  asteptat: number;
+  real?: number | null;
+}
+
+/** Panoul unei echipe într-un tab de piață: sigla, ultimele 7 rezultate și liniile ei. */
+function PanouEchipa({
+  echipa,
+  adversar,
+  acasa,
+  forma,
+  grupuri,
+  unitate,
+}: {
+  echipa: EchipaDto;
+  adversar: EchipaDto;
+  acasa: boolean;
+  forma: FormaEchipaDto | undefined;
+  grupuri: GrupLinii[];
+  unitate: string;
+}) {
+  const loc = acasa ? 'acasă' : 'în deplasare';
   return (
     <Card className="p-5">
-      <h3 className="text-base font-bold text-ink">Ambele echipe marchează</h3>
-      <p className="mt-1 text-[11px] text-ink2">
-        Probabilitatea ca ambele echipe să înscrie, din formă + model, regresată spre media ligii.
+      <div className="flex flex-col items-center gap-2 text-center">
+        <TeamLogo nume={echipa.nume} logo={echipa.logo} size={56} />
+        <h3 className="text-lg font-extrabold text-ink">{numeEchipa(echipa)}</h3>
+        <span className="text-xs font-semibold uppercase tracking-wide text-primary">{acasa ? 'Acasă' : 'Deplasare'}</span>
+      </div>
+      <p className="mt-4 text-sm font-bold text-ink">Ultimele 7 rezultate {loc}</p>
+      <div className="mt-2">
+        <UltimeleRezultate forma={forma?.locatie} />
+      </div>
+      {grupuri.map((g, i) => (
+        <div key={g.titlu ?? i} className="mt-4">
+          <div className="flex items-baseline justify-between text-xs text-ink2">
+            <span className="font-semibold uppercase tracking-wide">{g.titlu ?? unitate}</span>
+            <span>
+              așteptat {formatNumar(g.asteptat)}
+              {g.real != null && <span className="ml-1 font-semibold text-ink">· real {g.real}</span>}
+            </span>
+          </div>
+          {g.linii.map((l) => {
+            const n = l.facuteLocatie.total + l.primiteAdversarLocatie.total;
+            return (
+              <LinieBara
+                key={l.linie}
+                eticheta={`Peste ${l.linie} ${unitate}`}
+                rata={l.probabilitate}
+                areDate={n > 0}
+                detaliu={`${frecventa(l.facuteLocatie)} ${loc} · ${numeEchipa(adversar)} a primit ${frecventa(
+                  l.primiteAdversarLocatie,
+                )}${n > 0 && n < PRAG_ESANTION_MIC ? ' · orientativ' : ''}`}
+                actual={g.real != null ? g.real > l.linie : null}
+              />
+            );
+          })}
+        </div>
+      ))}
+    </Card>
+  );
+}
+
+/** Totalul meciului pe o piață: barele modelului + frecvențele ambelor echipe pe scurt. */
+function TotalMeci({
+  titlu,
+  piata,
+  unitate,
+  echipe,
+  totalReal,
+}: {
+  titlu: string;
+  piata: PiataStatDto | null | undefined;
+  unitate: string;
+  echipe: Echipe;
+  totalReal?: number | null;
+}) {
+  if (!piata || piata.linii.length === 0) return null;
+  return (
+    <Card className="p-5">
+      <div className="flex items-baseline justify-between gap-2">
+        <h3 className="text-base font-bold text-ink">{titlu}</h3>
+        {totalReal != null && <span className="text-xs font-semibold text-ink">Real: {totalReal}</span>}
+      </div>
+      <p className="text-[11px] text-ink2">
+        {numeEchipa(echipe.gazde)}: {formatNumar(piata.gazde.totalLocatie)}/meci acasă · {numeEchipa(echipe.oaspeti)}:{' '}
+        {formatNumar(piata.oaspeti.totalLocatie)}/meci în deplasare
       </p>
-      <div className="mt-1">
-        <RandGg gg={gg} echipe={echipe} actual={actual} />
+      {piata.linii.map((l) => {
+        const n = l.gazdeLocatie.total + l.oaspetiLocatie.total;
+        return (
+          <LinieBara
+            key={l.linie}
+            eticheta={`Peste ${l.linie} ${unitate}`}
+            rata={l.probabilitate}
+            areDate={n > 0}
+            detaliu={`${frecventa(l.gazdeLocatie)} · ${frecventa(l.oaspetiLocatie)}`}
+            actual={totalReal != null ? totalReal > l.linie : null}
+          />
+        );
+      })}
+    </Card>
+  );
+}
+
+/** Reprizele și egalurile: șansa pe meci + în câte meciuri s-a întâmplat la fiecare echipă. */
+function ReprizeSiEgaluri({ s, echipe }: { s: StatisticiAvansateDto; echipe: Echipe }) {
+  const r = s.rezultat;
+  const fr = (a?: FrecventaDto, b?: FrecventaDto) =>
+    a && b ? `${numeEchipa(echipe.gazde)} ${frecventa(a)} · ${numeEchipa(echipe.oaspeti)} ${frecventa(b)}` : undefined;
+  const are = (a?: FrecventaDto, b?: FrecventaDto) => (a?.total ?? 0) + (b?.total ?? 0) > 0;
+  const randuri = [
+    { e: 'Ambele marchează', rata: s.gg.probabilitate, a: s.gg.gazdeMarcat, b: s.gg.oaspetiMarcat,
+      actual: r?.ambeleMarcheaza },
+    { e: 'Gol în repriza 1', rata: s.reprize?.golRepriza1, a: s.reprize?.repriza1Gazde,
+      b: s.reprize?.repriza1Oaspeti, actual: r?.golRepriza1 },
+    { e: 'Gol în repriza 2', rata: s.reprize?.golRepriza2, a: s.reprize?.repriza2Gazde,
+      b: s.reprize?.repriza2Oaspeti, actual: r?.golRepriza2 },
+  ];
+  return (
+    <Card className="p-5">
+      <h3 className="text-base font-bold text-ink">Reprize și GG</h3>
+      {randuri
+        .filter((x) => x.rata != null)
+        .map((x) => (
+          <LinieBara key={x.e} eticheta={x.e} rata={x.rata as number} areDate={are(x.a, x.b)}
+            detaliu={fr(x.a, x.b)} actual={x.actual} />
+        ))}
+    </Card>
+  );
+}
+
+/** Egal la pauză / la final: șansa pe meci + în câte meciuri s-a întâmplat la fiecare echipă. */
+function Egaluri({ s, echipe }: { s: StatisticiAvansateDto; echipe: Echipe }) {
+  const e = s.egaluri;
+  if (!e) return null;
+  const r = s.rezultat;
+  const fr = (a: FrecventaDto, b: FrecventaDto) =>
+    `${numeEchipa(echipe.gazde)} ${frecventa(a)} · ${numeEchipa(echipe.oaspeti)} ${frecventa(b)}`;
+  const are = e.pauzaGazde.total + e.pauzaOaspeti.total > 0;
+  return (
+    <Card className="p-5">
+      <h3 className="text-base font-bold text-ink">Egaluri</h3>
+      <LinieBara eticheta="Egal la pauză" rata={e.egalPauza} areDate={are} detaliu={fr(e.pauzaGazde, e.pauzaOaspeti)}
+        actual={r?.egalPauza} />
+      <LinieBara eticheta="Egal la final" rata={e.egalFinal} areDate={are} detaliu={fr(e.finalGazde, e.finalOaspeti)}
+        actual={r?.egalFinal} />
+    </Card>
+  );
+}
+
+/** Pastila de procent din tabelul de comparație; culoarea după prag, intensitatea crește cu procentul. */
+function PilulaProcent({ rata }: { rata: number | null }) {
+  if (rata == null) return <span className="text-sm text-ink2">—</span>;
+  return (
+    <span
+      className={`inline-block min-w-[4.5rem] rounded-lg px-2 py-1 text-center text-sm font-bold tabular-nums text-white ${
+        culoareProbabilitate(rata).bara
+      }`}
+      style={{ opacity: 0.45 + 0.55 * rata }}
+    >
+      {formatRata(rata)}
+    </span>
+  );
+}
+
+function Comparatie({
+  s,
+  echipe,
+  formaGazde,
+  formaOaspeti,
+}: {
+  s: StatisticiAvansateDto;
+  echipe: Echipe;
+  formaGazde?: FormaEchipaDto;
+  formaOaspeti?: FormaEchipaDto;
+}) {
+  const linie = (p: PiataStatDto, l: number) => p.linii.find((x) => x.linie === l);
+  const g15 = linie(s.goluri, 1.5);
+  const g25 = linie(s.goluri, 2.5);
+  const c95 = linie(s.cornere, 9.5);
+  const k45 = linie(s.cartonase, 4.5);
+  const primite = (m: PiataStatDto['gazde']) =>
+    m.totalLocatie != null && m.proprieLocatie != null ? m.totalLocatie - m.proprieLocatie : null;
+
+  // „2,2 / meci · 11 total" — media si totalul pe fereastra (fara forma: doar media din statistici)
+  const goluri = (f: FereastraFormaDto | undefined, marcate: boolean, medie: number | null) => {
+    if (!f || f.meciuri.length === 0) return formatNumar(medie);
+    const total = f.meciuri.reduce((acc, m) => acc + (marcate ? m.golMarcate : m.golPrimite), 0);
+    return `${formatNumar(marcate ? f.goluriMarcatePeMeci : f.goluriPrimitePeMeci)} / meci · ${total} total`;
+  };
+  const numere: [string, string, string][] = [
+    ['Goluri marcate (acasă / deplasare)', goluri(formaGazde?.locatie, true, s.goluri.gazde.proprieLocatie),
+      goluri(formaOaspeti?.locatie, true, s.goluri.oaspeti.proprieLocatie)],
+    ['Goluri primite (acasă / deplasare)', goluri(formaGazde?.locatie, false, primite(s.goluri.gazde)),
+      goluri(formaOaspeti?.locatie, false, primite(s.goluri.oaspeti))],
+    ['Goluri marcate (general)', goluri(formaGazde?.general, true, s.goluri.gazde.proprieGeneral),
+      goluri(formaOaspeti?.general, true, s.goluri.oaspeti.proprieGeneral)],
+    ['Goluri primite (general)', goluri(formaGazde?.general, false, null), goluri(formaOaspeti?.general, false, null)],
+    ['Cornere / meci', formatNumar(s.cornere.gazde.proprieLocatie), formatNumar(s.cornere.oaspeti.proprieLocatie)],
+    ['Cartonașe / meci', formatNumar(s.cartonase.gazde.proprieLocatie), formatNumar(s.cartonase.oaspeti.proprieLocatie)],
+  ];
+  const procente: [string, FrecventaDto | undefined, FrecventaDto | undefined][] = [
+    ['A marcat', s.gg.gazdeMarcat, s.gg.oaspetiMarcat],
+    ['A primit gol', s.gg.gazdePrimit, s.gg.oaspetiPrimit],
+    ['Gol în repriza 1', s.reprize?.repriza1Gazde, s.reprize?.repriza1Oaspeti],
+    ['Gol în repriza 2', s.reprize?.repriza2Gazde, s.reprize?.repriza2Oaspeti],
+    ['Peste 1.5 goluri', g15?.gazdeLocatie, g15?.oaspetiLocatie],
+    ['Peste 2.5 goluri', g25?.gazdeLocatie, g25?.oaspetiLocatie],
+    ['Peste 9.5 cornere', c95?.gazdeLocatie, c95?.oaspetiLocatie],
+    ['Peste 4.5 cartonașe', k45?.gazdeLocatie, k45?.oaspetiLocatie],
+  ];
+
+  const r = s.rezultat;
+  const meci: { eticheta: string; rata: number | undefined; actual?: boolean | null }[] = [
+    { eticheta: 'Peste 1.5 goluri', rata: g15?.probabilitate, actual: r ? r.totalGoluri > 1.5 : null },
+    { eticheta: 'Peste 2.5 goluri', rata: g25?.probabilitate, actual: r ? r.totalGoluri > 2.5 : null },
+    { eticheta: 'Ambele marchează', rata: s.gg.probabilitate, actual: r?.ambeleMarcheaza },
+    { eticheta: 'Gol în repriza 1', rata: s.reprize?.golRepriza1, actual: r?.golRepriza1 },
+    { eticheta: 'Gol în repriza 2', rata: s.reprize?.golRepriza2, actual: r?.golRepriza2 },
+    {
+      eticheta: 'Peste 9.5 cornere',
+      rata: c95?.probabilitate,
+      actual: r?.totalCornere != null ? r.totalCornere > 9.5 : null,
+    },
+    {
+      eticheta: 'Peste 4.5 cartonașe',
+      rata: k45?.probabilitate,
+      actual: r?.totalCartonase != null ? r.totalCartonase > 4.5 : null,
+    },
+  ];
+
+  const antetEchipa = (e: EchipaDto, loc: string) => (
+    <div className="flex flex-col items-center gap-2">
+      <TeamLogo nume={e.nume} logo={e.logo} size={48} />
+      <span className="text-sm font-extrabold uppercase text-ink">{numeEchipa(e)}</span>
+      <span className="text-[11px] text-ink2">{loc}</span>
+    </div>
+  );
+
+  return (
+    <Card className="p-5">
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 text-center">
+        {antetEchipa(echipe.gazde, 'ultimele 7 acasă')}
+        <span className="text-xs font-semibold text-ink2">vs</span>
+        {antetEchipa(echipe.oaspeti, 'ultimele 7 în deplasare')}
+      </div>
+
+      <div className="mt-5 border-t border-line pt-3">
+        {numere.map(([eticheta, a, b]) => (
+          <div key={eticheta} className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 py-1.5 text-center">
+            <span className="text-sm font-bold tabular-nums text-ink">{a}</span>
+            <span className="text-xs font-semibold text-ink2">{eticheta}</span>
+            <span className="text-sm font-bold tabular-nums text-ink">{b}</span>
+          </div>
+        ))}
+        {procente.map(([eticheta, a, b]) => (
+          <div key={eticheta} className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 py-1.5 text-center">
+            <span>
+              <PilulaProcent rata={procentDin(a)} />
+            </span>
+            <span className="text-xs font-semibold text-ink2">{eticheta}</span>
+            <span>
+              <PilulaProcent rata={procentDin(b)} />
+            </span>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-4 border-t border-line pt-3">
+        <h3 className="text-sm font-bold text-ink">Șansele meciului</h3>
+        {meci
+          .filter((m) => m.rata != null)
+          .map((m) => (
+            <LinieBara key={m.eticheta} eticheta={m.eticheta} rata={m.rata as number} actual={m.actual} />
+          ))}
       </div>
     </Card>
   );
 }
 
-/** Cardul „Egaluri & reprize": egal la pauză/final + gol în repriza 1/2. */
-function CardEgaluriReprize({
-  egaluri,
-  reprize,
-  echipe,
-  rezultat,
-}: {
-  egaluri: EgaluriDto | null;
-  reprize: ReprizeDto | null;
-  echipe: ContextEchipe;
-  rezultat: RezultatStatisticiDto | null;
-}) {
-  if (!egaluri && !reprize) return null;
+function Arbitru({ arbitru }: { arbitru: ArbitruDto }) {
+  const dif = Math.round((arbitru.factorCartonase - 1) * 100);
+  const verdict =
+    arbitru.meciuri === 0
+      ? 'fără meciuri arbitrate în baza noastră'
+      : Math.abs(dif) < 3
+        ? 'în media ligii'
+        : dif > 0
+          ? `sever: +${dif}% la cartonașe`
+          : `îngăduitor: ${dif}% la cartonașe`;
   return (
-    <Card className="h-full p-5">
-      <h3 className="text-base font-bold text-ink">Egaluri & reprize</h3>
-      <div className="mt-2">
-        {egaluri && (
-          <>
-            <RandLinie
-              eticheta="Egal pauză"
-              rata={egaluri.egalPauza}
-              gazdeLocatie={egaluri.pauzaGazde}
-              oaspetiLocatie={egaluri.pauzaOaspeti}
-              descriere="egal la pauză"
-              echipe={echipe}
-              actual={rezultat?.egalPauza}
-              etichetaDa="Egal"
-              etichetaNu="Fără egal"
-            />
-            <RandLinie
-              eticheta="Egal final"
-              rata={egaluri.egalFinal}
-              gazdeLocatie={egaluri.finalGazde}
-              oaspetiLocatie={egaluri.finalOaspeti}
-              descriere="egal la final"
-              echipe={echipe}
-              actual={rezultat != null ? rezultat.egalFinal : null}
-              etichetaDa="Egal"
-              etichetaNu="Fără egal"
-            />
-          </>
-        )}
-        {reprize && (
-          <>
-            <RandLinie
-              eticheta="Gol repriza 1"
-              rata={reprize.golRepriza1}
-              gazdeLocatie={reprize.repriza1Gazde}
-              oaspetiLocatie={reprize.repriza1Oaspeti}
-              descriere="gol în prima repriză"
-              echipe={echipe}
-              actual={rezultat?.golRepriza1}
-              etichetaDa="Gol"
-              etichetaNu="Fără gol"
-            />
-            <RandLinie
-              eticheta="Gol repriza 2"
-              rata={reprize.golRepriza2}
-              gazdeLocatie={reprize.repriza2Gazde}
-              oaspetiLocatie={reprize.repriza2Oaspeti}
-              descriere="gol în a doua repriză"
-              echipe={echipe}
-              actual={rezultat?.golRepriza2}
-              etichetaDa="Gol"
-              etichetaNu="Fără gol"
-            />
-          </>
-        )}
+    <Card className="flex flex-wrap items-center justify-between gap-3 p-4">
+      <div>
+        <p className="text-sm font-bold text-ink">⚖️ Arbitru: {arbitru.nume}</p>
+        <p className="text-xs text-ink2">
+          {verdict}
+          {arbitru.meciuri > 0 && arbitru.meciuri < PRAG_ESANTION_MIC && ' · cifră orientativă'}
+        </p>
+      </div>
+      <div className="flex gap-4 text-center text-xs text-ink2">
+        <span>
+          <b className="block text-base text-ink">{formatNumar(arbitru.cartonasePeMeci)}</b>cartonașe/meci
+        </span>
+        <span>
+          <b className="block text-base text-ink">{formatNumar(arbitru.cartonaseMediaLigii)}</b>media ligii
+        </span>
+        <span>
+          <b className="block text-base text-ink">{arbitru.meciuri}</b>meciuri
+        </span>
       </div>
     </Card>
   );
@@ -391,89 +446,144 @@ interface SectiuneStatisticiProps {
   statistici: StatisticiAvansateDto;
   gazde: EchipaDto;
   oaspeti: EchipaDto;
+  formaGazde?: FormaEchipaDto;
+  formaOaspeti?: FormaEchipaDto;
+  arbitru?: ArbitruDto | null;
+  /** Filtrul de competiție; fără `onCompetitie` comutatorul nu se afișează. */
+  competitie?: FiltruCompetitie;
+  onCompetitie?: (valoare: FiltruCompetitie) => void;
+  /** Tabul deschis la intrare (ex. „goluri" pentru verdictul meciului jucat). */
+  piataInitiala?: string | null;
 }
 
-const SUBTABURI: Tab[] = [
-  { id: 'goluri', eticheta: 'Goluri' },
-  { id: 'egaluri', eticheta: 'Pauză / final egal' },
-  { id: 'gg', eticheta: 'Ambele marchează' },
-  { id: 'cornere', eticheta: 'Cornere' },
-  { id: 'cartonase', eticheta: 'Cartonașe' },
-  { id: 'faulturi', eticheta: 'Faulturi' },
-  { id: 'suturi', eticheta: 'Șuturi' },
-  { id: 'suturiPePoarta', eticheta: 'Șuturi pe poartă' },
-];
+export function SectiuneStatistici({
+  statistici: s,
+  gazde,
+  oaspeti,
+  formaGazde,
+  formaOaspeti,
+  arbitru,
+  competitie = 'toate',
+  onCompetitie,
+  piataInitiala,
+}: SectiuneStatisticiProps) {
+  const echipe: Echipe = { gazde, oaspeti };
+  const r = s.rezultat;
+  const real = r?.echipe;
+  const [tab, setTab] = useState<string>(
+    piataInitiala && TABURI.some((t) => t.id === piataInitiala) ? piataInitiala : 'comparatie',
+  );
 
-export function SectiuneStatistici({ statistici, gazde, oaspeti }: SectiuneStatisticiProps) {
-  const echipe: ContextEchipe = { gazde, oaspeti };
-  const rezultat = statistici.rezultat;
-  const [subTab, setSubTab] = useState<string>('goluri');
+  const panouri = (
+    piata: PiataEchipaDto | undefined,
+    unitate: string,
+    realGazde?: number | null,
+    realOaspeti?: number | null,
+    reprize = false,
+  ) => {
+    if (!piata) return null;
+    const r1 = reprize ? s.cornereReprize?.echipeRepriza1 : undefined;
+    const r2 = reprize ? s.cornereReprize?.echipeRepriza2 : undefined;
+    const grupuri = (acasa: boolean): GrupLinii[] => [
+      {
+        linii: acasa ? piata.gazde : piata.oaspeti,
+        asteptat: acasa ? piata.asteptareGazde : piata.asteptareOaspeti,
+        real: acasa ? realGazde : realOaspeti,
+      },
+      ...(r1
+        ? [{
+            titlu: 'Repriza 1',
+            linii: acasa ? r1.gazde : r1.oaspeti,
+            asteptat: acasa ? r1.asteptareGazde : r1.asteptareOaspeti,
+            real: acasa ? real?.cornereRepriza1Gazde : real?.cornereRepriza1Oaspeti,
+          }]
+        : []),
+      ...(r2
+        ? [{
+            titlu: 'Repriza 2',
+            linii: acasa ? r2.gazde : r2.oaspeti,
+            asteptat: acasa ? r2.asteptareGazde : r2.asteptareOaspeti,
+            real: acasa ? real?.cornereRepriza2Gazde : real?.cornereRepriza2Oaspeti,
+          }]
+        : []),
+    ];
+    return (
+      <div className="grid gap-4 lg:grid-cols-2">
+        <PanouEchipa echipa={gazde} adversar={oaspeti} acasa forma={formaGazde} grupuri={grupuri(true)}
+          unitate={unitate} />
+        <PanouEchipa echipa={oaspeti} adversar={gazde} acasa={false} forma={formaOaspeti} grupuri={grupuri(false)}
+          unitate={unitate} />
+      </div>
+    );
+  };
+
+  const suma = (a?: number | null, b?: number | null) => (a != null && b != null ? a + b : null);
 
   function continut() {
-    switch (subTab) {
+    switch (tab) {
       case 'goluri':
         return (
-          <CardPiata titlu="Goluri" unitate="goluri" piata={statistici.goluri} echipe={echipe}
-            totalReal={rezultat?.totalGoluri} meciTerminat={rezultat != null} />
+          <>
+            {panouri(s.echipe?.goluri, 'goluri', real?.goluriGazde, real?.goluriOaspeti)}
+            <TotalMeci titlu="Goluri în meci" piata={s.goluri} unitate="goluri" echipe={echipe}
+              totalReal={r?.totalGoluri} />
+            <ReprizeSiEgaluri s={s} echipe={echipe} />
+          </>
         );
-      case 'egaluri':
-        return statistici.egaluri || statistici.reprize ? (
-          <CardEgaluriReprize egaluri={statistici.egaluri} reprize={statistici.reprize} echipe={echipe}
-            rezultat={rezultat} />
-        ) : (
-          <Card className="p-5">
-            <h3 className="text-base font-bold text-ink">Pauză / final egal</h3>
-            <EmptyState titlu="Fără date" mesaj="Nu există istoric de reprize pentru aceste echipe." />
-          </Card>
-        );
-      case 'gg':
-        return <CardGg gg={statistici.gg} echipe={echipe} actual={rezultat?.ambeleMarcheaza} />;
       case 'cornere':
         return (
-          <CardPiata titlu="Cornere" unitate="cornere" piata={statistici.cornere} echipe={echipe}
-            totalReal={rezultat?.totalCornere} meciTerminat={rezultat != null} />
+          <>
+            {panouri(s.echipe?.cornere, 'cornere', real?.cornereGazde, real?.cornereOaspeti, true)}
+            <TotalMeci titlu="Cornere în meci" piata={s.cornere} unitate="cornere" echipe={echipe}
+              totalReal={r?.totalCornere} />
+            <div className="grid gap-4 lg:grid-cols-2">
+              <TotalMeci titlu="Cornere în repriza 1" piata={s.cornereReprize?.repriza1} unitate="cornere"
+                echipe={echipe} totalReal={suma(real?.cornereRepriza1Gazde, real?.cornereRepriza1Oaspeti)} />
+              <TotalMeci titlu="Cornere în repriza 2" piata={s.cornereReprize?.repriza2} unitate="cornere"
+                echipe={echipe} totalReal={suma(real?.cornereRepriza2Gazde, real?.cornereRepriza2Oaspeti)} />
+            </div>
+          </>
         );
       case 'cartonase':
         return (
-          <CardPiata titlu="Cartonașe" unitate="cartonașe" piata={statistici.cartonase} echipe={echipe}
-            totalReal={rezultat?.totalCartonase} meciTerminat={rezultat != null} />
+          <>
+            {arbitru && <Arbitru arbitru={arbitru} />}
+            {panouri(s.echipe?.cartonase, 'cartonașe', real?.cartonaseGazde, real?.cartonaseOaspeti)}
+            <TotalMeci titlu="Cartonașe în meci" piata={s.cartonase} unitate="cartonașe" echipe={echipe}
+              totalReal={r?.totalCartonase} />
+          </>
         );
-      case 'faulturi':
+      case 'altele':
         return (
-          <CardPiata titlu="Faulturi" unitate="faulturi" piata={statistici.faulturi} echipe={echipe}
-            totalReal={rezultat?.totalFaulturi} meciTerminat={rezultat != null} />
-        );
-      case 'suturi':
-        return (
-          <CardPiata titlu="Șuturi" unitate="șuturi" piata={statistici.suturi} echipe={echipe}
-            totalReal={rezultat?.totalSuturi} meciTerminat={rezultat != null} />
-        );
-      case 'suturiPePoarta':
-        return (
-          <CardPiata titlu="Șuturi pe poartă" unitate="șuturi pe poartă" piata={statistici.suturiPePoarta}
-            echipe={echipe} totalReal={rezultat?.totalSuturiPePoarta} meciTerminat={rezultat != null} />
+          <div className="grid gap-4 lg:grid-cols-2">
+            <Egaluri s={s} echipe={echipe} />
+            <TotalMeci titlu="Faulturi" piata={s.faulturi} unitate="faulturi" echipe={echipe}
+              totalReal={r?.totalFaulturi} />
+            <TotalMeci titlu="Șuturi" piata={s.suturi} unitate="șuturi" echipe={echipe} totalReal={r?.totalSuturi} />
+            <TotalMeci titlu="Șuturi pe poartă" piata={s.suturiPePoarta} unitate="pe poartă" echipe={echipe}
+              totalReal={r?.totalSuturiPePoarta} />
+          </div>
         );
       default:
-        return null;
+        return <Comparatie s={s} echipe={echipe} formaGazde={formaGazde} formaOaspeti={formaOaspeti} />;
     }
   }
 
   return (
     <section>
-      <div className="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-lg font-extrabold text-ink">Statistici</h2>
-        <p className="text-xs text-ink2">
-          Ultimele 7 meciuri: {numeEchipa(gazde)} acasă · {numeEchipa(oaspeti)} în deplasare.
-          Procentul = probabilitatea modelată pentru acest meci (formă + model de distribuție,
-          regresat spre media ligii); punctele = frecvența empirică.
-        </p>
+        {onCompetitie && <ComutatorCompetitie valoare={competitie} onSchimba={onCompetitie} />}
       </div>
-
-      <Taburi taburi={SUBTABURI} activ={subTab} onSchimba={setSubTab} varianta="pilule" className="mb-4" />
-
-      <div key={subTab} className="animate-fade-in">
+      <Taburi taburi={TABURI} activ={tab} onSchimba={setTab} className="mb-4" />
+      <div key={tab} className="animate-fade-in space-y-4">
         {continut()}
       </div>
+      <p className="mt-4 text-[11px] text-ink2">
+        Ultimele 7 meciuri: {numeEchipa(gazde)} acasă, {numeEchipa(oaspeti)} în deplasare
+        {competitie === 'curenta' ? ', doar din competiția acestui meci' : ''}. Procentul e șansa calculată pentru
+        acest meci; la goluri fiecare gol e cântărit după forța adversarului. „4/7" = în câte meciuri s-a întâmplat.
+      </p>
     </section>
   );
 }

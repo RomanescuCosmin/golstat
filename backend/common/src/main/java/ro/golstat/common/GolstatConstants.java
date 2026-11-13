@@ -25,6 +25,7 @@ public final class GolstatConstants {
         public static final String FIXTURES = "golstat.fixtures";
         public static final String FIXTURE_EVENTS = "golstat.fixture-events";
         public static final String FIXTURE_TEAM_STATS = "golstat.fixture-team-stats";
+        public static final String FIXTURE_TEAM_HALF_STATS = "golstat.fixture-team-half-stats";
         public static final String FIXTURE_LINEUPS = "golstat.fixture-lineups";
         public static final String FIXTURE_PLAYER_STATS = "golstat.fixture-player-stats";
         public static final String INJURIES = "golstat.injuries";

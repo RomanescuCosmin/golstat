@@ -12,6 +12,7 @@ import ro.golstat.api.stats.LeagueAverageService;
 import ro.golstat.api.stats.LeagueAverages;
 import ro.golstat.common.GolstatConstants.FixtureStatus;
 
+import java.time.OffsetDateTime;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
@@ -64,7 +65,7 @@ public class StatisticiService {
 
     private StatisticiLigaDto liga(long leagueId, int sezon) {
         // doar ligi cu meciuri TERMINALE reale (altfel mediile sunt doar default-uri)
-        GoalAverage brut = fixtures.avgGoals(leagueId, sezon, FixtureStatus.TERMINAL);
+        GoalAverage brut = fixtures.avgGoals(leagueId, sezon, FixtureStatus.TERMINAL, OffsetDateTime.now());
         if (brut == null || brut.getAvgGazde() == null) {
             return null;
         }
@@ -72,7 +73,7 @@ public class StatisticiService {
         LeagueAverages g = goalAverages.averages(leagueId, sezon);
         // Cornere/faulturi/cartonase DOAR din statistici reale colectate (fara fallback la default-uri):
         // daca liga nu are fixture_team_stats, coloanele raman null si UI-ul arata "—", nu cifre inventate.
-        CountAverage cnt = teamStats.avgCounts(leagueId, sezon, FixtureStatus.TERMINAL);
+        CountAverage cnt = teamStats.avgCounts(leagueId, sezon, FixtureStatus.TERMINAL, OffsetDateTime.now());
         return new StatisticiLigaDto(
                 leagueId, lg != null ? lg.getName() : null, lg != null ? lg.getCountryName() : null,
                 lg != null ? lg.getLogo() : null, sezon,

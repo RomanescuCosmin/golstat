@@ -51,6 +51,9 @@ import type {
   StatisticiEchipaMeci,
   StatisticiLiga,
   StatisticiMeci,
+  LinieEchipaDto,
+  PiataEchipaDto,
+  RezultatEchipeDto,
 } from '../api/types';
 
 /**
@@ -338,6 +341,43 @@ export function egaluri(over: Partial<EgaluriDto> = {}): EgaluriDto {
   };
 }
 
+export function linieEchipa(over: Partial<LinieEchipaDto> = {}): LinieEchipaDto {
+  return {
+    linie: 3.5,
+    probabilitate: 0.62,
+    facuteLocatie: frecventa(5, 7),
+    facuteGeneral: frecventa(5, 7),
+    primiteAdversarLocatie: frecventa(4, 7),
+    ...over,
+  };
+}
+
+export function piataEchipa(over: Partial<PiataEchipaDto> = {}): PiataEchipaDto {
+  return {
+    asteptareGazde: 5.2,
+    asteptareOaspeti: 4.1,
+    gazde: [linieEchipa()],
+    oaspeti: [linieEchipa({ probabilitate: 0.45 })],
+    ...over,
+  };
+}
+
+export function rezultatEchipe(over: Partial<RezultatEchipeDto> = {}): RezultatEchipeDto {
+  return {
+    goluriGazde: 2,
+    goluriOaspeti: 1,
+    cornereGazde: 6,
+    cornereOaspeti: 4,
+    cartonaseGazde: 2,
+    cartonaseOaspeti: 3,
+    cornereRepriza1Gazde: 2,
+    cornereRepriza1Oaspeti: 2,
+    cornereRepriza2Gazde: 4,
+    cornereRepriza2Oaspeti: 2,
+    ...over,
+  };
+}
+
 export function statisticiAvansate(over: Partial<StatisticiAvansateDto> = {}): StatisticiAvansateDto {
   return {
     goluri: piataStat(),
@@ -357,6 +397,17 @@ export function statisticiAvansate(over: Partial<StatisticiAvansateDto> = {}): S
       repriza2Oaspeti: frecventa(5, 7),
     },
     rezultat: null,
+    echipe: {
+      cornere: piataEchipa(),
+      cartonase: piataEchipa({ gazde: [linieEchipa({ linie: 1.5 })], oaspeti: [linieEchipa({ linie: 1.5 })] }),
+      goluri: piataEchipa({ gazde: [linieEchipa({ linie: 0.5 })], oaspeti: [linieEchipa({ linie: 0.5 })] }),
+    },
+    cornereReprize: {
+      repriza1: piataStat({ linii: [linieStat({ linie: 4.5 })] }),
+      repriza2: piataStat({ linii: [linieStat({ linie: 4.5 })] }),
+      echipeRepriza1: piataEchipa({ gazde: [linieEchipa({ linie: 1.5 })], oaspeti: [linieEchipa({ linie: 1.5 })] }),
+      echipeRepriza2: piataEchipa({ gazde: [linieEchipa({ linie: 2.5 })], oaspeti: [linieEchipa({ linie: 2.5 })] }),
+    },
     ...over,
   };
 }
@@ -393,6 +444,7 @@ export function previzualizareMeci(over: Partial<PrevizualizareMeciDto> = {}): P
     statistici: statisticiAvansate(),
     statisticiCheie: statisticiCheie(),
     echipeDeStart: echipeDeStart(),
+    arbitru: null,
     ...over,
   };
 }

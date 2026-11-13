@@ -1,0 +1,34 @@
+# Profil `bzzoiro`: furnizorul bzzoiro (import + LIVE). Porneste aplicatia cu:
+#   SPRING_PROFILES_ACTIVE=mysql,bzzoiro  si  BZZOIRO_API_KEY=<cheia>
+golstat:
+  bzzoiro:
+    api-key: ${BZZOIRO_API_KEY:}
+    # id liga in aplicatie (API-Football, cunoscut de frontend) -> id liga la bzzoiro
+    ligi:
+      39: 1      # Premier League
+      140: 3     # La Liga
+      135: 4     # Serie A
+      61: 6      # Ligue 1
+      88: 10     # Eredivisie
+      283: 23    # Liga I (Superliga)
+      78: 5      # Bundesliga
+      40: 12     # Championship
+      179: 13    # Premiership Scotia
+      144: 14    # Pro League Belgia
+      103: 54    # Eliteserien (an calendaristic)
+      2: 7       # UEFA Champions League
+      3: 8       # UEFA Europa League
+      848: 83    # UEFA Conference League
+      5: 64      # UEFA Nations League
+      94: 2      # Liga Portugal Betclic
+      203: 11    # Super Lig Turcia
+      119: 84    # Superliga Danemarca
+      345: 99    # Czech First League
+      207: 15    # Super League Elvetia
+  # LIVE fara Redis: memoria aplicatiei ajunge pe o singura instanta. Doar cand exista meciuri in fereastra
+  # [kickoff - 15 min, kickoff + 140 min]: 1 request/minut pentru TOATE meciurile live (status=inprogress),
+  # statistici live la 5 min per meci, iar la fluierul final statistici + reprize + incidente + formatii.
+  live:
+    enabled: true
+    poll-ms: 60000
+    stats-every-ms: 300000

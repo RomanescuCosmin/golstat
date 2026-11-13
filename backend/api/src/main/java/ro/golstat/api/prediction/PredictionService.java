@@ -7,9 +7,11 @@ import ro.golstat.api.repository.FixtureRepository;
 import ro.golstat.api.repository.TeamRepository;
 import ro.golstat.api.stats.LeagueAverageService;
 import ro.golstat.api.stats.LeagueAverages;
+import ro.golstat.api.stats.ForteAdversariService;
 import ro.golstat.api.stats.MatchHistoryService;
 import ro.golstat.common.GolstatConstants;
 import ro.golstat.stats.form.MatchWindow;
+import ro.golstat.stats.goals.ForteAdversari;
 import ro.golstat.stats.goals.GoalForm;
 import ro.golstat.stats.match.MatchContext;
 import ro.golstat.stats.match.MatchGoalModel;
@@ -19,6 +21,7 @@ import ro.golstat.stats.model.MatchSample;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,31 +32,30 @@ import java.util.stream.Stream;
 
 /**
  * Produce predictia unui meci viitor ({@code NS}) sau terminat ({@code FT}/{@code AET}/{@code PEN}):
- * construieste forma pe locatie a celor doua echipe ({@link MatchHistoryService}) + media ligii
+ * construieste forma celor doua echipe ({@link MatchHistoryService}) + media ligii
  * ({@link LeagueAverageService}), le duce in {@link MatchGoalModel} si mapeaza rezultatul in DTO. La
  * meciuri terminate mapper-ul ataseaza si scorul real, pentru validarea predictiei.
  *
- * <p>Fallback teren neutru / esantion mic (ex. Campionatul Mondial): daca oricare fereastra pe
- * locatie e sub {@link #MIN_LOCATION}, se folosesc ferestrele fara filtru de locatie si media ligii
- * impartita egal (avantaj de teren zero). Motorul ramane agnostic — primeste doar numere.
+ * <p>Forma: gazdele pe ultimele {@value #WINDOW} meciuri de ACASA, oaspetii pe ultimele {@value #WINDOW} din
+ * DEPLASARE (regula de la inceputul proiectului); esantionul mic e tratat de shrinkage-ul din motor.
  */
 @Service
 public class PredictionService {
 
     /** Cate meciuri tragem din istoric, ca sa ramana destule dupa filtrul de locatie. */
     static final int HISTORY_FETCH = 40;
-    /** Marimea ferestrei pe locatie (ultimele N acasa / deplasare). */
-    static final int WINDOW = 10;
-    /** Sub atatea meciuri pe locatie → cadem pe teren neutru. */
-    static final int MIN_LOCATION = 3;
+    /** Fereastra de forma pe locatie: ultimele 7 acasa / in deplasare. */
+    public static final int WINDOW = 7;
 
     private final FixtureRepository fixtures;
     private final TeamRepository teams;
     private final MatchHistoryService history;
     private final LeagueAverageService leagueAverages;
+    private final ForteAdversariService forteAdversari;
 
     public PredictionService(FixtureRepository fixtures, TeamRepository teams, MatchHistoryService history,
-                             LeagueAverageService leagueAverages) {
+                             LeagueAverageService leagueAverages, ForteAdversariService forteAdversari) {
+        this.forteAdversari = forteAdversari;
         this.fixtures = fixtures;
         this.teams = teams;
         this.history = history;
@@ -100,18 +102,35 @@ public class PredictionService {
      */
     public Map<Long, PredictieMeciDto> predictBatch(List<Fixture> fixturi, Map<Long, Team> echipe) {
         Map<String, LeagueAverages> avgCache = new HashMap<>();
-        Map<Long, PredictieMeciDto> out = new HashMap<>();
+        Map<Long, List<MatchSample>[]> istorice = new HashMap<>();
+        OffsetDateTime primul = null;
         for (Fixture f : fixturi) {
             if (f.getHomeTeamId() == null || f.getAwayTeamId() == null || f.getKickoff() == null
                     || f.getLeagueId() == null || f.getSeasonYear() == null) {
                 continue;
             }
-            List<MatchSample> home = history.lastMatchesNoRank(f.getHomeTeamId(), f.getKickoff(), HISTORY_FETCH);
-            List<MatchSample> away = history.lastMatchesNoRank(f.getAwayTeamId(), f.getKickoff(), HISTORY_FETCH);
+            @SuppressWarnings("unchecked")
+            List<MatchSample>[] perechi = new List[]{
+                    history.lastMatchesNoRank(f.getHomeTeamId(), f.getKickoff(), HISTORY_FETCH),
+                    history.lastMatchesNoRank(f.getAwayTeamId(), f.getKickoff(), HISTORY_FETCH)};
+            istorice.put(f.getId(), perechi);
+            primul = primul == null || f.getKickoff().isBefore(primul) ? f.getKickoff() : primul;
+        }
+        // o singura citire a fortei adversarilor pentru tot lotul, taiata la primul kickoff (fara viitor)
+        ForteAdversari forte = forteAdversari.pentru(istorice.values().stream()
+                .flatMap(Arrays::stream).toList(), primul);
+        Map<Long, PredictieMeciDto> out = new HashMap<>();
+        for (Fixture f : fixturi) {
+            List<MatchSample>[] perechi = istorice.get(f.getId());
+            if (perechi == null) {
+                continue;
+            }
+            List<MatchSample> home = perechi[0];
+            List<MatchSample> away = perechi[1];
             LeagueAverages avg = avgCache.computeIfAbsent(
-                    f.getLeagueId() + ":" + f.getSeasonYear(),
-                    k -> leagueAverages.averages(f.getLeagueId(), f.getSeasonYear()));
-            MatchContext ctx = buildContext(home, away, avg);
+                    f.getLeagueId() + ":" + f.getSeasonYear() + ":" + f.getKickoff().toInstant(),
+                    k -> leagueAverages.averages(f.getLeagueId(), f.getSeasonYear(), f.getKickoff()));
+            MatchContext ctx = buildContext(home, away, avg, forte);
             out.put(f.getId(), PredictieMeciMapper.toDto(f, MatchGoalModel.predict(ctx),
                     echipe.get(f.getHomeTeamId()), echipe.get(f.getAwayTeamId())));
         }
@@ -131,8 +150,9 @@ public class PredictionService {
     private PredictieMeciDto predictFixture(Fixture f, Map<Long, Team> echipe) {
         List<MatchSample> homeHistory = history.lastMatches(f.getHomeTeamId(), f.getKickoff(), HISTORY_FETCH);
         List<MatchSample> awayHistory = history.lastMatches(f.getAwayTeamId(), f.getKickoff(), HISTORY_FETCH);
-        LeagueAverages avg = leagueAverages.averages(f.getLeagueId(), f.getSeasonYear());
-        MatchContext ctx = buildContext(homeHistory, awayHistory, avg);
+        LeagueAverages avg = leagueAverages.averages(f.getLeagueId(), f.getSeasonYear(), f.getKickoff());
+        MatchContext ctx = buildContext(homeHistory, awayHistory, avg,
+                forteAdversari.pentru(List.of(homeHistory, awayHistory), f.getKickoff()));
         return PredictieMeciMapper.toDto(f, MatchGoalModel.predict(ctx),
                 echipe.get(f.getHomeTeamId()), echipe.get(f.getAwayTeamId()));
     }
@@ -140,18 +160,15 @@ public class PredictionService {
     /** Public: si lista pe zile ({@code PieteZileService}) il construieste, din istoricul deja incarcat. */
     public static MatchContext buildContext(List<MatchSample> homeHistory, List<MatchSample> awayHistory,
                                             LeagueAverages avg) {
-        List<MatchSample> gazdaAcasa = MatchWindow.lastN(homeHistory, WINDOW, MatchLocation.HOME);
-        List<MatchSample> oaspetiDeplasare = MatchWindow.lastN(awayHistory, WINDOW, MatchLocation.AWAY);
+        return buildContext(homeHistory, awayHistory, avg, ForteAdversari.fara());
+    }
 
-        if (gazdaAcasa.size() >= MIN_LOCATION && oaspetiDeplasare.size() >= MIN_LOCATION) {
-            return new MatchContext(GoalForm.of(gazdaAcasa), GoalForm.of(oaspetiDeplasare),
-                    avg.mediaLigaGazde(), avg.mediaLigaOaspeti());
-        }
-
-        // teren neutru: fara filtru de locatie, avantaj de teren zero
-        List<MatchSample> gazdaOricare = MatchWindow.lastN(homeHistory, WINDOW);
-        List<MatchSample> oaspetiOricare = MatchWindow.lastN(awayHistory, WINDOW);
-        double neutru = (avg.mediaLigaGazde() + avg.mediaLigaOaspeti()) / 2.0;
-        return new MatchContext(GoalForm.of(gazdaOricare), GoalForm.of(oaspetiOricare), neutru, neutru);
+    /** Cu golurile din ferestre cantarite dupa forta adversarilor (varianta aleasa de utilizator). */
+    public static MatchContext buildContext(List<MatchSample> homeHistory, List<MatchSample> awayHistory,
+                                            LeagueAverages avg, ForteAdversari forte) {
+        return new MatchContext(
+                GoalForm.of(MatchWindow.lastN(homeHistory, WINDOW, MatchLocation.HOME), forte),
+                GoalForm.of(MatchWindow.lastN(awayHistory, WINDOW, MatchLocation.AWAY), forte),
+                avg.mediaLigaGazde(), avg.mediaLigaOaspeti());
     }
 }

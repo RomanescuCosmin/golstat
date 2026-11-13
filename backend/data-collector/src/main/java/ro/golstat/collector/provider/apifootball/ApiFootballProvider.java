@@ -31,7 +31,7 @@ import java.util.Map;
  * de domeniu in query-uri API-Football si deleaga maparea raspunsului la {@link ApiFootballMapper}.
  */
 @Component
-@Profile("!stub")
+@Profile("!stub & !bzzoiro")
 public class ApiFootballProvider implements DataProvider {
 
     private final ApiFootballClient client;

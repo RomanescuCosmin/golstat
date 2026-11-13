@@ -58,7 +58,8 @@ class LiveApiPollerTest {
     }
 
     private LiveApiPoller poller(LiveProperties props) {
-        return new LiveApiPoller(provider, ingest, broadcaster, fixtures, props, clock);
+        return new LiveApiPoller(provider, ingest, broadcaster, fixtures, props, clock,
+                mock(FinalizareMeci.class));
     }
 
     private void matchInWindow() {

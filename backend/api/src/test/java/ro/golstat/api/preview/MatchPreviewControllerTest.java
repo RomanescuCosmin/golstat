@@ -82,7 +82,7 @@ class MatchPreviewControllerTest {
                 new ReprizeDto(0.72, 0.81,
                         new FrecventaDto(5, 7), new FrecventaDto(4, 7),
                         new FrecventaDto(6, 7), new FrecventaDto(5, 7)),
-                null);
+                null, null, null);
         StatisticiCheieDto statisticiCheie = new StatisticiCheieDto(
                 new StatisticiEchipaDto(55.0, 12.4, 5.1, 6.2, 2.1),
                 new StatisticiEchipaDto(null, null, null, null, null));
@@ -95,12 +95,12 @@ class MatchPreviewControllerTest {
                 new EchipaDeStartDto.EchipaLineupDto("4-4-2", List.of(), List.of(), List.of()),
                 "M. Oliver", false);
         return new PrevizualizareMeciDto(predictie, formaGazde, formaOaspeti, List.of(directa),
-                statistici, statisticiCheie, echipeDeStart);
+                statistici, statisticiCheie, echipeDeStart, null);
     }
 
     @Test
     void previzualizare_returnsFullJson() throws Exception {
-        when(preview.previzualizare(100L)).thenReturn(sampleDto());
+        when(preview.previzualizare(100L, false)).thenReturn(sampleDto());
 
         mvc.perform(get("/api/v1/predictii/meciuri/100/previzualizare"))
                 .andExpect(status().isOk())
@@ -149,7 +149,7 @@ class MatchPreviewControllerTest {
 
     @Test
     void previzualizare_missing_returns404ProblemDetail() throws Exception {
-        when(preview.previzualizare(999L)).thenThrow(new PredictionNotFoundException(999L));
+        when(preview.previzualizare(999L, false)).thenThrow(new PredictionNotFoundException(999L));
 
         mvc.perform(get("/api/v1/predictii/meciuri/999/previzualizare"))
                 .andExpect(status().isNotFound())

@@ -6,7 +6,11 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import ro.golstat.collector.live.LiveProperties;
+import ro.golstat.api.ingest.IngestService;
+import ro.golstat.api.ingest.ReprizeIngestListener;
+import ro.golstat.collector.provider.DataProvider;
 import ro.golstat.collector.provider.apifootball.ApiFootballProperties;
+import ro.golstat.collector.provider.bzzoiro.BzzoiroProperties;
 
 import java.time.Clock;
 
@@ -26,12 +30,17 @@ import java.time.Clock;
 @Configuration
 @ConditionalOnProperty(name = "golstat.live.enabled", havingValue = "true")
 @ComponentScan(basePackages = "ro.golstat.collector.provider")
-@EnableConfigurationProperties({ApiFootballProperties.class, LiveProperties.class})
+@EnableConfigurationProperties({ApiFootballProperties.class, BzzoiroProperties.class, LiveProperties.class})
 class LiveCollectorConfig {
 
     /** {@code QuotaGuard} cere un {@link Clock}; colectorul il da prin {@code CollectorConfig}, care nu e scanat aici. */
     @Bean
     Clock liveClock() {
         return Clock.systemUTC();
+    }
+
+    @Bean
+    FinalizareMeci finalizareMeci(DataProvider provider, IngestService ingest, ReprizeIngestListener reprize) {
+        return new FinalizareMeci(provider, ingest, reprize);
     }
 }

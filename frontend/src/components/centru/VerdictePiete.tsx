@@ -67,6 +67,7 @@ export function VerdictePiete({ fixtureId }: { fixtureId: number }) {
       statistici={date.statistici}
       gazde={date.predictie.echipaGazde}
       oaspeti={date.predictie.echipaOaspeti}
+      piataInitiala="goluri"
     />
   );
 }

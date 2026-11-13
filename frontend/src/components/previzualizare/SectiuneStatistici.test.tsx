@@ -12,6 +12,14 @@ import type {
   StatisticiAvansateDto,
 } from '../../api/types';
 import { SectiuneStatistici } from './SectiuneStatistici';
+import {
+  formaEchipa,
+  formaMeci,
+  fereastraForma,
+  piataEchipa,
+  rezultatEchipe,
+  statisticiAvansate,
+} from '../../test/factories';
 
 /* ──────────────── fixtures ──────────────── */
 
@@ -55,12 +63,6 @@ const piata = (linii: LinieStatDto[]): PiataStatDto => ({
   oaspeti: medii(1.2, 2.6),
 });
 
-const piataGoala = (linii: LinieStatDto[]): PiataStatDto => ({
-  linii,
-  gazde: medii(null, null),
-  oaspeti: medii(null, null),
-});
-
 const GG: GgDto = {
   probabilitate: 0.58,
   gazdeMarcat: f(6, 7),
@@ -95,6 +97,8 @@ function statistici(over: Partial<StatisticiAvansateDto> = {}): StatisticiAvansa
       repriza2Oaspeti: f(5, 7),
     },
     rezultat: null,
+    echipe: statisticiAvansate().echipe,
+    cornereReprize: { ...statisticiAvansate().cornereReprize, echipeRepriza1: piataEchipa() },
     ...over,
   };
 }
@@ -111,199 +115,93 @@ const REZULTAT: RezultatStatisticiDto = {
   totalCartonase: null,
   totalSuturi: null,
   totalSuturiPePoarta: null,
+  echipe: rezultatEchipe(),
 };
 
-function randeaza(s: StatisticiAvansateDto) {
-  return render(<SectiuneStatistici statistici={s} gazde={GAZDE} oaspeti={OASPETI} />);
+
+function randeaza(s: StatisticiAvansateDto, extra: Partial<Parameters<typeof SectiuneStatistici>[0]> = {}) {
+  return render(<SectiuneStatistici statistici={s} gazde={GAZDE} oaspeti={OASPETI} {...extra} />);
 }
 
-/** Bara de probabilitate custom se recunoaste dupa umplerea cu gradient. */
-const bara = (container: HTMLElement) => container.querySelector('.bg-gradient-to-r');
+async function tab(user: ReturnType<typeof userEvent.setup>, nume: string) {
+  await user.click(screen.getByRole('tab', { name: nume }));
+}
 
-/* ──────────────── teste ──────────────── */
-
-describe('SectiuneStatistici — tabul Goluri (implicit)', () => {
-  test('afiseaza linia, procentul modelat, frecventele si legenda completa', () => {
-    const { container } = randeaza(statistici());
-    expect(screen.getByText('Peste 2.5')).toBeInTheDocument();
-    expect(screen.getByText('62%')).toBeInTheDocument();
-    expect(screen.getByText('5/7')).toBeInTheDocument();
-    expect(screen.getByText('3/7')).toBeInTheDocument();
-    expect(container.textContent).toContain(
-      'FCSB: peste 2.5 goluri în 5/7 meciuri acasă (4/7 în general)',
-    );
-    expect(container.textContent).toContain('CFR Cluj: 3/7 în deplasare (2/7 în general)');
-    // bara de probabilitate e prezenta si umpluta la procentul modelat
-    expect(bara(container)).not.toBeNull();
-    expect((bara(container) as HTMLElement).style.width).toBe('62%');
+describe('SectiuneStatistici — Comparație (implicit)', () => {
+  test('echipele fata in fata, procentele fiecareia si sansele meciului', () => {
+    randeaza(statistici());
+    expect(screen.getByRole('tab', { name: 'Comparație' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getAllByText('FCSB').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('CFR Cluj').length).toBeGreaterThan(0);
+    // peste 2.5 goluri: 5/7 la gazde, 3/7 la oaspeti
+    expect(screen.getAllByText('71%').length).toBeGreaterThan(0);
+    expect(screen.getByText('Șansele meciului')).toBeInTheDocument();
+    expect(screen.getByText(/— 62%/)).toBeInTheDocument();
   });
 
-  test('mediile pe meci apar formatate, cu echipa si locatia', () => {
-    const { container } = randeaza(statistici());
-    expect(container.textContent).toContain('FCSB');
-    expect(container.textContent).toContain('(acasă): 1,9 goluri/meci · total meci 3,1');
-    expect(container.textContent).toContain('general 1,7/meci');
-    expect(container.textContent).toContain('(deplasare): 1,2 goluri/meci · total meci 2,6');
-  });
-
-  test('medie proprie lipsa: afiseaza "—", nu text gol', () => {
-    const s = statistici({
-      goluri: { linii: [linie(2.5, 0.62)], gazde: medii(null, 2.5), oaspeti: medii(1.2, 2.6) },
-    });
-    const { container } = randeaza(s);
-    expect(container.textContent).toContain('(acasă): — goluri/meci · total meci 2,5');
-  });
-});
-
-describe('SectiuneStatistici — fara istoric (frecvente 0/0)', () => {
-  const FARA_ISTORIC = statistici({ goluri: piataGoala([linieFaraIstoric(2.5, 0.55)]) });
-
-  test('punctele de frecventa sunt inlocuite cu "fără date"', () => {
-    randeaza(FARA_ISTORIC);
-    expect(screen.getAllByText('fără date')).toHaveLength(2);
-    expect(screen.queryByText('0/0')).toBeNull();
-  });
-
-  test('legenda explica sursa probabilitatii', () => {
-    randeaza(FARA_ISTORIC);
-    expect(
-      screen.getByText('Fără istoric — probabilitatea vine din media ligii.'),
-    ).toBeInTheDocument();
-  });
-
-  test('bara de progres NU apare cand nu exista date', () => {
-    const { container } = randeaza(FARA_ISTORIC);
-    expect(bara(container)).toBeNull();
-  });
-
-  test('procentul modelat NU se afiseaza — doar "—"', () => {
-    // Fara istoric, 55% ar veni exclusiv din media ligii — un procent "sigur" fara niciun meci
-    // masurat in spate. Nu-l afisam.
-    randeaza(FARA_ISTORIC);
-    expect(screen.queryByText('55%')).toBeNull();
-    expect(screen.getByText('—')).toBeInTheDocument();
-  });
-
-  test('cornere fara istoric la meci terminat: fara procent si fara verdict ✓/✗', async () => {
-    const user = userEvent.setup();
-    const s = statistici({
-      cornere: piataGoala([linieFaraIstoric(9.5, 0.86)]),
-      rezultat: REZULTAT,
-    });
-    const { container } = randeaza(s);
-    await user.click(screen.getByRole('tab', { name: 'Cornere' }));
-
-    expect(screen.queryByText('86%')).toBeNull();
-    expect(screen.getByText('—')).toBeInTheDocument();
-    // fara model cu date reale nu exista verdict, desi meciul are total real de cornere
-    expect(container.textContent).not.toContain('✓');
-    expect(container.textContent).not.toContain('✗');
-  });
-});
-
-describe('SectiuneStatistici — meci terminat (badge ✓/✗)', () => {
-  test('modelul a nimerit: total real 3 > linia 2.5 favorizata → "✓ Peste"', () => {
+  test('meci terminat: verdict ✓ pe sansele meciului', () => {
     randeaza(statistici({ rezultat: REZULTAT }));
-    expect(screen.getByText('Rezultat real: 3 goluri')).toBeInTheDocument();
-    expect(screen.getByText('✓ Peste')).toBeInTheDocument();
-  });
-
-  test('modelul a ratat: total real 1 < linia 2.5 favorizata → "✗ Sub"', () => {
-    randeaza(statistici({ rezultat: { ...REZULTAT, totalGoluri: 1 } }));
-    expect(screen.getByText('✗ Sub')).toBeInTheDocument();
-  });
-
-  test('meci viitor (rezultat null): niciun badge si niciun "Rezultat real"', () => {
-    const { container } = randeaza(statistici());
-    expect(container.textContent).not.toContain('✓');
-    expect(container.textContent).not.toContain('✗');
-    expect(container.textContent).not.toContain('Rezultat real');
+    // 2.5 goluri la 62% si 3 goluri reale → ✓
+    expect(screen.getAllByText((_, el) => el?.textContent?.trim() === '✓ Da').length).toBeGreaterThan(0);
   });
 });
 
-describe('SectiuneStatistici — meci terminat fara statistica (furnizor fara acoperire)', () => {
-  // Cazul real: Liga I 2026 raporta statistics_fixtures=false, deci faulturile/cornerele lipseau
-  // desi meciul se jucase. Inainte nu se randa NIMIC, deci arata identic cu un meci neinceput.
-  test('tabul Faulturi: stare neutra explicita, nu verdict si nu gol', async () => {
+describe('SectiuneStatistici — taburi pe piete', () => {
+  test('Goluri: panoul fiecarei echipe cu ultimele rezultate si liniile ei', async () => {
+    const user = userEvent.setup();
+    randeaza(statistici(), {
+      formaGazde: formaEchipa({ locatie: fereastraForma({ meciuri: [formaMeci({ golMarcate: 3, golPrimite: 1 })] }) }),
+    });
+    await tab(user, 'Goluri');
+    expect(screen.getByText('Ultimele 7 rezultate acasă')).toBeInTheDocument();
+    expect(screen.getByText('3-1')).toBeInTheDocument();
+    expect(screen.getAllByText(/Peste 0.5 goluri/).length).toBeGreaterThan(0);
+    expect(screen.getByText('Goluri în meci')).toBeInTheDocument();
+  });
+
+  test('fara istoric: procentul nu se afiseaza („—")', async () => {
+    const user = userEvent.setup();
+    randeaza(statistici({ cornere: piata([linieFaraIstoric(9.5, 0.6)]) }));
+    await tab(user, 'Cornere');
+    expect(screen.getByText('Cornere în meci')).toBeInTheDocument();
+    expect(screen.getAllByText(/— —/).length).toBeGreaterThan(0);
+  });
+
+  test('Cornere: si pe reprize', async () => {
+    const user = userEvent.setup();
+    randeaza(statistici());
+    await tab(user, 'Cornere');
+    expect(screen.getByText('Cornere în repriza 1')).toBeInTheDocument();
+    expect(screen.getByText('Cornere în repriza 2')).toBeInTheDocument();
+  });
+
+  test('Cartonașe: cardul arbitrului', async () => {
+    const user = userEvent.setup();
+    randeaza(statistici(), {
+      arbitru: {
+        nume: 'I. Kovacs', meciuri: 12, cartonasePeMeci: 5.4, faulturiPeMeci: 26.1, eliminari: 2,
+        cartonaseMediaLigii: 4.5, factorCartonase: 1.15,
+      },
+    });
+    await tab(user, 'Cartonașe');
+    expect(screen.getByText('⚖️ Arbitru: I. Kovacs')).toBeInTheDocument();
+    expect(screen.getByText(/sever: \+15% la cartonașe/)).toBeInTheDocument();
+  });
+
+  test('niciun tab nu afiseaza NaN / undefined', async () => {
     const user = userEvent.setup();
     const { container } = randeaza(statistici({ rezultat: REZULTAT }));
-    await user.click(screen.getByRole('tab', { name: 'Faulturi' }));
-
-    expect(screen.getByText('Fără statistici la acest meci')).toBeInTheDocument();
-    expect(screen.getAllByText('– fără date').length).toBeGreaterThan(0);
-    // nu inventam un verdict din lipsa de date
-    expect(container.textContent).not.toContain('✓');
-    expect(container.textContent).not.toContain('✗');
-    expect(container.textContent).not.toContain('Rezultat real');
-  });
-
-  test('meci viitor: NU apare starea neutra (lipsa e asteptata)', () => {
-    const { container } = randeaza(statistici());
-    expect(container.textContent).not.toContain('Fără statistici la acest meci');
-    expect(screen.queryByText('– fără date')).toBeNull();
-  });
-
-  test('statistica prezenta: verdict normal, fara stare neutra', async () => {
-    const user = userEvent.setup();
-    const { container } = randeaza(statistici({ rezultat: REZULTAT }));
-    await user.click(screen.getByRole('tab', { name: 'Cornere' }));
-
-    expect(screen.getByText('Rezultat real: 9 cornere')).toBeInTheDocument();
-    expect(container.textContent).not.toContain('Fără statistici la acest meci');
-    expect(screen.queryByText('– fără date')).toBeNull();
-  });
-});
-
-describe('SectiuneStatistici — taburi', () => {
-  test('comutarea pe Cornere afiseaza piata de cornere', async () => {
-    const user = userEvent.setup();
-    randeaza(statistici({ rezultat: REZULTAT }));
-    await user.click(screen.getByRole('tab', { name: 'Cornere' }));
-    expect(screen.getByText('Peste 9.5')).toBeInTheDocument();
-    expect(screen.getByText('Rezultat real: 9 cornere')).toBeInTheDocument();
-  });
-
-  test('tabul GG afiseaza probabilitatea si legenda marcat/primit', async () => {
-    const user = userEvent.setup();
-    const { container } = randeaza(statistici());
-    await user.click(screen.getByRole('tab', { name: 'Ambele marchează' }));
-    expect(screen.getByText('58%')).toBeInTheDocument();
-    expect(container.textContent).toContain(
-      'FCSB: a marcat în 6/7 și a primit în 4/7 meciuri acasă',
-    );
-    expect(container.textContent).toContain(
-      'CFR Cluj: a marcat în 5/7 și a primit în 3/7 în deplasare',
-    );
-  });
-
-  test('egaluri si reprize lipsa: tabul afiseaza EmptyState, nu card gol', async () => {
-    const user = userEvent.setup();
-    randeaza(statistici({ egaluri: null, reprize: null }));
-    await user.click(screen.getByRole('tab', { name: 'Pauză / final egal' }));
-    expect(screen.getByText('Fără date')).toBeInTheDocument();
-    expect(
-      screen.getByText('Nu există istoric de reprize pentru aceste echipe.'),
-    ).toBeInTheDocument();
-  });
-
-  test('niciun tab nu afiseaza NaN / undefined / text gol la procente', async () => {
-    const user = userEvent.setup();
-    const { container } = randeaza(statistici({ rezultat: REZULTAT }));
-    for (const tab of screen.getAllByRole('tab')) {
-      await user.click(tab);
+    for (const t of screen.getAllByRole('tab')) {
+      await user.click(t);
       expect(container.textContent).not.toMatch(/NaN|undefined|Infinity/);
     }
   });
-});
 
-describe('SectiuneStatistici — robustete la date defecte', () => {
-  test('probabilitate lipsa din JSON: nu se afiseaza "NaN%" utilizatorului', () => {
-    const stricat = statistici({
-      goluri: piata([
-        { ...linie(2.5, 0.62), probabilitate: undefined as unknown as number },
-      ]),
-    });
-    const { container } = randeaza(stricat);
-    expect(container.textContent).not.toContain('NaN');
+  test('comutatorul de competitie anunta alegerea', async () => {
+    const user = userEvent.setup();
+    const alegeri: string[] = [];
+    randeaza(statistici(), { onCompetitie: (v) => alegeri.push(v) });
+    await user.click(screen.getByRole('button', { name: 'Doar competiția meciului' }));
+    expect(alegeri).toEqual(['curenta']);
   });
 });

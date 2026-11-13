@@ -1,0 +1,23 @@
+# Profil `mysql`: MySQL local in loc de Postgres (laptop fara Postgres). Schema o creeaza Hibernate
+# (ddl-auto: update din application.yml). Datele bzzoiro stau in `golstat_bzz`, separat de `golstat`
+# (backup API-Football), fiindca id-urile de echipe/meciuri difera intre furnizori.
+spring:
+  datasource:
+    url: "jdbc:mysql://localhost:3306/${golstat.database.name}?serverTimezone=UTC&rewriteBatchedStatements=true"
+    username: golstat
+    password: golstat
+  jpa:
+    properties:
+      hibernate:
+        globally_quoted_identifiers: true   # `rank` (standing) e cuvant rezervat in MySQL 8
+  kafka:
+    listener:
+      auto-startup: false      # fara broker pe laptopul asta
+
+golstat:
+  # pozele jucatorilor la bzzoiro (cand baza n-are poza proprie)
+  foto-jucator-url: https://sports.bzzoiro.com/img/player/{id}/
+  database:
+    name: golstat_bzz
+  live:
+    enabled: false             # bucla LIVE cere API-Football + Redis

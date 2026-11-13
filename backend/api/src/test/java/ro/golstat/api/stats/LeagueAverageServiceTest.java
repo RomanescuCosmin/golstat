@@ -37,7 +37,7 @@ class LeagueAverageServiceTest {
 
     @Test
     void usesRepositoryAveragesWhenPresent() {
-        when(fixtures.avgGoals(anyLong(), anyInt(), any())).thenReturn(avg(1.7, 1.2));
+        when(fixtures.avgGoals(anyLong(), anyInt(), any(), any())).thenReturn(avg(1.7, 1.2));
         LeagueAverages a = service.averages(39L, 2025);
         assertEquals(1.7, a.mediaLigaGazde(), EPS);
         assertEquals(1.2, a.mediaLigaOaspeti(), EPS);
@@ -46,7 +46,7 @@ class LeagueAverageServiceTest {
     @Test
     void fallsBackWhenNoTerminalMatches() {
         // avg peste zero randuri → getter-e null → fallback global (ex. CM la primul meci)
-        when(fixtures.avgGoals(anyLong(), anyInt(), any())).thenReturn(avg(null, null));
+        when(fixtures.avgGoals(anyLong(), anyInt(), any(), any())).thenReturn(avg(null, null));
         LeagueAverages a = service.averages(1L, 2026);
         assertEquals(LeagueAverageService.DEFAULT_GAZDE, a.mediaLigaGazde(), EPS);
         assertEquals(LeagueAverageService.DEFAULT_OASPETI, a.mediaLigaOaspeti(), EPS);
@@ -54,7 +54,7 @@ class LeagueAverageServiceTest {
 
     @Test
     void fallsBackOnPartialNull() {
-        when(fixtures.avgGoals(anyLong(), anyInt(), any())).thenReturn(avg(1.6, null));
+        when(fixtures.avgGoals(anyLong(), anyInt(), any(), any())).thenReturn(avg(1.6, null));
         LeagueAverages a = service.averages(1L, 2026);
         assertEquals(1.6, a.mediaLigaGazde(), EPS);
         assertEquals(LeagueAverageService.DEFAULT_OASPETI, a.mediaLigaOaspeti(), EPS);

@@ -5,6 +5,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /** Expune previzualizarea unui meci. Erorile sunt tratate central in {@code GlobalExceptionHandler}. */
@@ -19,9 +20,13 @@ public class MatchPreviewController {
         this.preview = preview;
     }
 
-    /** Previzualizarea unui meci anume; 404 daca nu exista sau nu e viitor. */
+    /**
+     * Previzualizarea unui meci anume; 404 daca nu exista sau nu e viitor. {@code competitie=curenta} =
+     * ferestrele de forma doar din competitia meciului; implicit {@code toate}.
+     */
     @GetMapping("/{fixtureId}/previzualizare")
-    public PrevizualizareMeciDto previzualizare(@PathVariable @Min(1) long fixtureId) {
-        return preview.previzualizare(fixtureId);
+    public PrevizualizareMeciDto previzualizare(@PathVariable @Min(1) long fixtureId,
+                                                @RequestParam(defaultValue = "toate") String competitie) {
+        return preview.previzualizare(fixtureId, "curenta".equalsIgnoreCase(competitie));
     }
 }

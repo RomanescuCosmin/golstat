@@ -19,6 +19,7 @@ import static org.mockito.Mockito.when;
 class RefereeServiceTest {
 
     private static final double EPS = 1e-9;
+    private static final java.time.OffsetDateTime ACUM = java.time.OffsetDateTime.parse("2026-11-13T12:00:00Z");
 
     @Mock FixtureTeamStatsRepository teamStats;
     @InjectMocks RefereeService service;
@@ -39,9 +40,9 @@ class RefereeServiceTest {
 
     @Test
     void arbitruDur_factorPesteUnu() {
-        when(teamStats.refereeCardAverage(eq("M. Oliver"), any())).thenReturn(agg(6.0, 20L));
+        when(teamStats.refereeCardAverage(eq("M. Oliver"), any(), any())).thenReturn(agg(6.0, 20L));
 
-        double factor = service.factor("M. Oliver", 4.0);
+        double factor = service.factor("M. Oliver", 4.0, ACUM);
 
         assertTrue(factor > 1.0);
         assertEquals(RefereeFactor.of(6.0, 20, 4.0), factor, EPS);
@@ -49,22 +50,22 @@ class RefereeServiceTest {
 
     @Test
     void arbitruBland_factorSubUnu() {
-        when(teamStats.refereeCardAverage(eq("A. Taylor"), any())).thenReturn(agg(2.5, 15L));
+        when(teamStats.refereeCardAverage(eq("A. Taylor"), any(), any())).thenReturn(agg(2.5, 15L));
 
-        assertTrue(service.factor("A. Taylor", 4.0) < 1.0);
+        assertTrue(service.factor("A. Taylor", 4.0, ACUM) < 1.0);
     }
 
     @Test
     void arbitruFaraMeciuri_neutru() {
-        when(teamStats.refereeCardAverage(eq("Necunoscut"), any())).thenReturn(agg(null, 0L));
+        when(teamStats.refereeCardAverage(eq("Necunoscut"), any(), any())).thenReturn(agg(null, 0L));
 
-        assertEquals(RefereeFactor.NEUTRAL, service.factor("Necunoscut", 4.0), EPS);
+        assertEquals(RefereeFactor.NEUTRAL, service.factor("Necunoscut", 4.0, ACUM), EPS);
     }
 
     @Test
     void arbitruNullSauGol_neutruFaraQuery() {
-        assertEquals(RefereeFactor.NEUTRAL, service.factor(null, 4.0), EPS);
-        assertEquals(RefereeFactor.NEUTRAL, service.factor("  ", 4.0), EPS);
+        assertEquals(RefereeFactor.NEUTRAL, service.factor(null, 4.0, ACUM), EPS);
+        assertEquals(RefereeFactor.NEUTRAL, service.factor("  ", 4.0, ACUM), EPS);
         verifyNoInteractions(teamStats);
     }
 }
