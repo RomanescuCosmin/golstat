@@ -131,15 +131,20 @@ public class MatchPreviewService {
 
     /** Previzualizarea unui meci dupa id; {@link PredictionNotFoundException} daca nu are predictie. */
     public PrevizualizareMeciDto previzualizare(long fixtureId) {
-        return previzualizare(fixtureId, false);
+        return previzualizare(fixtureId, false, false);
     }
 
     /**
      * {@code doarCompetitia} = ferestrele de forma iau doar meciurile din competitia acestui meci (filtrul
      * „Doar {competitia}“ din interfata); altfel toate competitiile. Predictia se recalculeaza pe aceleasi
      * ferestre, ca blocul de 1X2 sa nu contrazica procentele de dedesubt.
+     *
+     * <p>{@code faraLocatie} = modul „Toate meciurile": ultimele meciuri ale fiecarei echipe indiferent
+     * de teren (fara regula acasa/deplasare), iar media ligii fara avantajul gazdelor.
      */
-    public PrevizualizareMeciDto previzualizare(long fixtureId, boolean doarCompetitia) {
+    public PrevizualizareMeciDto previzualizare(long fixtureId, boolean doarCompetitia, boolean faraLocatie) {
+        MatchLocation locGazde = faraLocatie ? null : MatchLocation.HOME;
+        MatchLocation locOaspeti = faraLocatie ? null : MatchLocation.AWAY;
         PredictieMeciDto predictie = predictions.predict(fixtureId)
                 .orElseThrow(() -> new PredictionNotFoundException(fixtureId));
         Fixture meci = fixtures.findById(fixtureId)
@@ -159,29 +164,30 @@ public class MatchPreviewService {
         double factorArbitru = referees.factor(meci.getReferee(), mediiCounturi.cartonasePeMeci(), meci.getKickoff());
         MatchPrediction modelGoluri = MatchGoalModel.predict(
                 PredictionService.buildContext(istoricGazde, istoricOaspeti, mediiGoluri,
-                        forteAdversari.pentru(List.of(istoricGazde, istoricOaspeti), meci.getKickoff())));
-        if (doarCompetitia) {
+                        forteAdversari.pentru(List.of(istoricGazde, istoricOaspeti), meci.getKickoff()), faraLocatie));
+        if (doarCompetitia || faraLocatie) {
             predictie = PredictieMeciMapper.toDto(meci, modelGoluri,
                     teams.findById(meci.getHomeTeamId()).orElse(null),
                     teams.findById(meci.getAwayTeamId()).orElse(null));
         }
 
         StatisticiAvansateDto statistici = StatisticiAvansateBuilder.build(
-                ferestre(istoricGazde, counturiGazde, MatchLocation.HOME),
-                ferestre(istoricOaspeti, counturiOaspeti, MatchLocation.AWAY),
-                mediiCounturi, factorArbitru,
+                ferestre(istoricGazde, counturiGazde, locGazde),
+                ferestre(istoricOaspeti, counturiOaspeti, locOaspeti),
+                faraLocatie ? mediiCounturi.neutre() : mediiCounturi, factorArbitru,
                 modelGoluri, rezultatStatistici(meci));
 
         Map<Long, EchipaDto> adversari = adversari(istoricGazde, istoricOaspeti);
         return new PrevizualizareMeciDto(predictie,
-                forma(istoricGazde, MatchLocation.HOME, adversari),
-                forma(istoricOaspeti, MatchLocation.AWAY, adversari),
+                forma(istoricGazde, locGazde, adversari),
+                forma(istoricOaspeti, locOaspeti, adversari),
                 intalniriDirecte(meci),
                 statistici,
                 new StatisticiCheieDto(statisticiEchipa(counturiGazde.statisticiEchipa()),
                         statisticiEchipa(counturiOaspeti.statisticiEchipa())),
                 echipeDeStart(meci),
-                arbitru(meci, mediiCounturi.cartonasePeMeci(), factorArbitru));
+                arbitru(meci, mediiCounturi.cartonasePeMeci(), factorArbitru),
+                meci.getLeagueId(), meci.getSeasonYear());
     }
 
     /** Cardul arbitrului: istoricul lui din meciurile terminate dinaintea acestui meci. */

@@ -166,9 +166,19 @@ public class PredictionService {
     /** Cu golurile din ferestre cantarite dupa forta adversarilor (varianta aleasa de utilizator). */
     public static MatchContext buildContext(List<MatchSample> homeHistory, List<MatchSample> awayHistory,
                                             LeagueAverages avg, ForteAdversari forte) {
+        return buildContext(homeHistory, awayHistory, avg, forte, false);
+    }
+
+    /**
+     * {@code faraLocatie}: ultimele meciuri ale fiecarei echipe indiferent de teren, iar media ligii
+     * fara avantajul gazdelor (modul „Toate meciurile").
+     */
+    public static MatchContext buildContext(List<MatchSample> homeHistory, List<MatchSample> awayHistory,
+                                            LeagueAverages avg, ForteAdversari forte, boolean faraLocatie) {
+        double neutru = (avg.mediaLigaGazde() + avg.mediaLigaOaspeti()) / 2;
         return new MatchContext(
-                GoalForm.of(MatchWindow.lastN(homeHistory, WINDOW, MatchLocation.HOME), forte),
-                GoalForm.of(MatchWindow.lastN(awayHistory, WINDOW, MatchLocation.AWAY), forte),
-                avg.mediaLigaGazde(), avg.mediaLigaOaspeti());
+                GoalForm.of(MatchWindow.lastN(homeHistory, WINDOW, faraLocatie ? null : MatchLocation.HOME), forte),
+                GoalForm.of(MatchWindow.lastN(awayHistory, WINDOW, faraLocatie ? null : MatchLocation.AWAY), forte),
+                faraLocatie ? neutru : avg.mediaLigaGazde(), faraLocatie ? neutru : avg.mediaLigaOaspeti());
     }
 }

@@ -18,6 +18,8 @@ public record PrevizualizareMeciDto(
         StatisticiAvansateDto statistici,
         StatisticiCheieDto statisticiCheie,
         EchipaDeStartDto echipeDeStart,
-        ArbitruDto arbitru
+        ArbitruDto arbitru,
+        Long leagueId,
+        Integer sezon
 ) {
 }

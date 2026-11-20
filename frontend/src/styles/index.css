@@ -47,6 +47,32 @@
   body {
     @apply bg-bg text-ink antialiased;
   }
+
+  /* Bare de scroll subtiri, pe culorile temei — pe dark, bara gri-deschis implicita iesea in evidenta. */
+  html {
+    color-scheme: light;
+  }
+  html.dark {
+    color-scheme: dark;
+  }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(var(--gs-ink2) / 0.35) transparent;
+  }
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgb(var(--gs-ink2) / 0.35);
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgb(var(--gs-ink2) / 0.55);
+  }
 }
 
 @layer components {

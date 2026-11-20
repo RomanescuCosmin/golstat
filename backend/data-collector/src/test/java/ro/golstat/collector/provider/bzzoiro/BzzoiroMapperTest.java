@@ -13,6 +13,7 @@ import ro.golstat.common.dto.FixtureTeamStatsDto;
 import java.math.BigDecimal;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -31,7 +32,7 @@ class BzzoiroMapperTest {
                 {'id':209632,'league_id':1,'season_id':1058,'home_team_id':17,'away_team_id':3,'venue_id':17,
                  'event_date':'2026-11-08T16:30:00+00:00','status':'finished','period':'FT','current_minute':96,
                  'home_score':4,'away_score':4,'home_score_ht':2,'away_score_ht':2,
-                 'penalty_shootout':null,'extra_time_score':null,'round_label':'Regular season · Matchday 10'}
+                 'penalty_shootout':null,'extra_time_score':null,'round_label':'Regular season Â· Matchday 10'}
                 """), 39L, 2026);
 
         assertEquals(39L, f.leagueId());
@@ -181,5 +182,52 @@ class BzzoiroMapperTest {
         assertTrue(confirmate.get(0).players().get(1).isSubstitute());
 
         assertTrue(BzzoiroMapper.toLineups(json(lineups.formatted("predicted")), 5L).isEmpty());
+    }
+
+    @Test
+    void clasamentPeGrupe_numeleGrupeiDinCheie() throws Exception {
+        String body = "{'grouped':true,'groups':{'League A, Group 1':[{'position':1,'team_id':485,'pts':13,'gd':4,"
+                + "'played':6,'won':4,'drawn':1,'lost':1,'gf':10,'ga':6,'form':'WLWDW','zone':{'label':'Playoffs'}}],"
+                + "'League A, Group 2':[{'position':1,'team_id':469,'pts':11}]}}";
+
+        var randuri = BzzoiroMapper.toStandings(json(body), 5L, 2026);
+
+        assertEquals(2, randuri.size());
+        assertEquals("League A, Group 1", randuri.get(0).groupName());
+        assertEquals(13, randuri.get(0).points());
+        assertEquals("Playoffs", randuri.get(0).description());
+        assertEquals("League A, Group 2", randuri.get(1).groupName());
+    }
+
+    @Test
+    void clasamentSimplu_faraGrupa_cuZonaSiToateColoanele() throws Exception {
+        String body = "{'standings':[{'position':1,'team_id':42,'pts':30,'gd':18,'played':12,"
+                + "'won':9,'drawn':3,'lost':0,'gf':25,'ga':7,'form':'WWDWW',"
+                + "'zone':{'label':'Champions League'}},"
+                + "{'position':20,'team_id':43,'pts':4,'zone':null}]}";
+
+        var randuri = BzzoiroMapper.toStandings(json(body), 39L, 2026);
+
+        assertEquals(2, randuri.size());
+        var primul = randuri.get(0);
+        assertNull(primul.groupName());
+        assertEquals(39L, primul.leagueId());
+        assertEquals(2026, primul.seasonYear());
+        assertEquals(42L, primul.teamId());
+        assertEquals(1, primul.rank());
+        assertEquals(30, primul.points());
+        assertEquals(18, primul.goalsDiff());
+        assertEquals(12, primul.playedAll());
+        assertEquals(9, primul.winAll());
+        assertEquals(25, primul.goalsForAll());
+        assertEquals(7, primul.goalsAgainstAll());
+        assertEquals("Champions League", primul.description());
+        assertNull(randuri.get(1).description(), "fara zona → null, nu crash");
+    }
+
+    @Test
+    void clasamentGol_listaGoala() throws Exception {
+        assertTrue(BzzoiroMapper.toStandings(json("{'standings':[]}"), 39L, 2026).isEmpty());
+        assertTrue(BzzoiroMapper.toStandings(json("{'grouped':true,'groups':{}}"), 39L, 2026).isEmpty());
     }
 }

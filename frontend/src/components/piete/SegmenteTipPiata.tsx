@@ -1,10 +1,7 @@
 import { PIETE } from '../../lib/piete';
 
 /**
- * Tipul de piață, ca un control segmentat: toate opțiunile stau într-un singur grup, cu una
- * singură evidențiată. Înlocuiește pastilele separate — la șase tipuri, un rând de pastile
- * identice nu arăta care e alegerea și care sunt alternativele.
- *
+ * Tipurile de piață, în meniul chip-ului „Tip": o grilă pe două coloane, fără scroll orizontal.
  * Accentul e violetul paginii, nu albastrul de navigație, ca selecția să nu semene cu un link.
  */
 export function SegmenteTipPiata({
@@ -15,7 +12,7 @@ export function SegmenteTipPiata({
   onSchimba: (grup: string) => void;
 }) {
   return (
-    <div className="inline-flex gap-1 rounded-input border border-line bg-card p-1" role="tablist">
+    <div className="grid grid-cols-2 gap-1" role="tablist" aria-label="Tip piață">
       {PIETE.map((piata) => {
         const selectat = piata.grup === grup;
         return (
@@ -25,12 +22,12 @@ export function SegmenteTipPiata({
             role="tab"
             aria-selected={selectat}
             onClick={() => onSchimba(piata.grup)}
-            className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-btn px-3.5 py-2 text-sm font-semibold transition duration-200 ${
-              selectat ? 'bg-piata text-white shadow-card' : 'text-ink2 hover:bg-bg hover:text-ink'
+            className={`flex items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-semibold transition ${
+              selectat ? 'bg-piata text-white' : 'text-ink2 hover:bg-bg hover:text-ink'
             }`}
           >
-            <span aria-hidden="true">{piata.icona}</span>
-            {piata.eticheta}
+            <span aria-hidden="true" className="w-5 shrink-0 text-center">{piata.icona}</span>
+            <span className="leading-tight">{piata.eticheta}</span>
           </button>
         );
       })}

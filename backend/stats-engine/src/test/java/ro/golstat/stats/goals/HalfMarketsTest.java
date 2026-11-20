@@ -50,6 +50,18 @@ class HalfMarketsTest {
     }
 
     @Test
+    void peste15PeRepriza_blendEmpiricCuPoisson() {
+        // total R1: 1, 0, 0, 2 → 1/4 peste 1.5; total R2: 2, 2, 0, 2 → 3/4
+        double w = 4.0 / 7.0;
+
+        HalfMarkets.HalfMarketStats stats = HalfMarkets.of(gazde(), oaspeti());
+
+        assertEquals(w * 0.25 + (1 - w) * Poisson.probabilityOver(0.75, 1.5), stats.over15FirstHalfRate(), EPS);
+        assertEquals(w * 0.75 + (1 - w) * Poisson.probabilityOver(1.5, 1.5), stats.over15SecondHalfRate(), EPS);
+        assertTrue(stats.over15FirstHalfRate() < stats.goalInFirstHalfRate());
+    }
+
+    @Test
     void emptyBothWindows_hasNoData() {
         HalfMarkets.HalfMarketStats stats = HalfMarkets.of(List.of(), List.of());
         assertEquals(0, stats.sampleSize());

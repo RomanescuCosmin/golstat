@@ -9,7 +9,7 @@ import ro.golstat.stats.model.MatchSample;
 import java.util.List;
 
 /**
- * Pietele pe REPRIZE ale unui meci: egal la pauza + "se marcheaza in repriza 1 / 2".
+ * Pietele pe REPRIZE ale unui meci: egal la pauza + "se marcheaza in repriza 1 / 2" + peste 1.5 goluri pe repriza.
  *
  * <p>Modelul: λ-urile pe repriza ale fiecarei parti se estimeaza incrucisat — atacul gazdei pe
  * repriza x mediat cu apararea oaspetilor pe aceeasi repriza (si invers) — apoi scorul la pauza
@@ -31,7 +31,7 @@ public final class HalfMarkets {
     public static HalfMarketStats of(List<MatchSample> gazdaWindow, List<MatchSample> oaspetiWindow) {
         int n = gazdaWindow.size() + oaspetiWindow.size();
         if (n == 0) {
-            return new HalfMarketStats(0, 0, 0, 0);
+            return new HalfMarketStats(0, 0, 0, 0, 0, 0);
         }
 
         GoalHalfStats gazde = GoalHalves.of(gazdaWindow);
@@ -51,6 +51,8 @@ public final class HalfMarkets {
                 .draw();
         double modelGolH1 = Poisson.probabilityOver(lambdaGazdeH1 + lambdaOaspetiH1, 0.5);
         double modelGolH2 = Poisson.probabilityOver(lambdaGazdeH2 + lambdaOaspetiH2, 0.5);
+        double modelPeste15H1 = Poisson.probabilityOver(lambdaGazdeH1 + lambdaOaspetiH1, 1.5);
+        double modelPeste15H2 = Poisson.probabilityOver(lambdaGazdeH2 + lambdaOaspetiH2, 1.5);
 
         double empiricEgalPauza = rata(WindowCounts.drawsHalfTime(gazdaWindow)
                 + WindowCounts.drawsHalfTime(oaspetiWindow), n);
@@ -58,12 +60,18 @@ public final class HalfMarkets {
                 + WindowCounts.goalInFirstHalf(oaspetiWindow), n);
         double empiricGolH2 = rata(WindowCounts.goalInSecondHalf(gazdaWindow)
                 + WindowCounts.goalInSecondHalf(oaspetiWindow), n);
+        double empiricPeste15H1 = rata(WindowCounts.overGoalsFirstHalf(gazdaWindow, 1.5)
+                + WindowCounts.overGoalsFirstHalf(oaspetiWindow, 1.5), n);
+        double empiricPeste15H2 = rata(WindowCounts.overGoalsSecondHalf(gazdaWindow, 1.5)
+                + WindowCounts.overGoalsSecondHalf(oaspetiWindow, 1.5), n);
 
         double w = (double) n / (n + K);
         return new HalfMarketStats(n,
                 w * empiricEgalPauza + (1 - w) * modelEgalPauza,
                 w * empiricGolH1 + (1 - w) * modelGolH1,
-                w * empiricGolH2 + (1 - w) * modelGolH2);
+                w * empiricGolH2 + (1 - w) * modelGolH2,
+                w * empiricPeste15H1 + (1 - w) * modelPeste15H1,
+                w * empiricPeste15H2 + (1 - w) * modelPeste15H2);
     }
 
     /** Atacul unei parti mediat cu apararea celeilalte; o fereastra goala lasa doar cealalta parte. */
@@ -89,7 +97,9 @@ public final class HalfMarkets {
             int sampleSize,
             double htDrawRate,
             double goalInFirstHalfRate,
-            double goalInSecondHalfRate
+            double goalInSecondHalfRate,
+            double over15FirstHalfRate,
+            double over15SecondHalfRate
     ) {
         public boolean hasData() {
             return sampleSize > 0;

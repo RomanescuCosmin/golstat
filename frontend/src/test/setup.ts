@@ -33,4 +33,5 @@ Element.prototype.scrollIntoView ??= () => {};
 afterEach(() => {
   cleanup();
   localStorage.clear();
+  sessionStorage.clear();
 });

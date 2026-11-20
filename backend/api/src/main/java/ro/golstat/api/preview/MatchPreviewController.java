@@ -22,11 +22,14 @@ public class MatchPreviewController {
 
     /**
      * Previzualizarea unui meci anume; 404 daca nu exista sau nu e viitor. {@code competitie=curenta} =
-     * ferestrele de forma doar din competitia meciului; implicit {@code toate}.
+     * ferestrele de forma doar din competitia meciului; implicit {@code toate}. {@code locatie=toate} =
+     * ultimele meciuri ale echipelor indiferent de teren; implicit {@code separat} (acasa / deplasare).
      */
     @GetMapping("/{fixtureId}/previzualizare")
     public PrevizualizareMeciDto previzualizare(@PathVariable @Min(1) long fixtureId,
-                                                @RequestParam(defaultValue = "toate") String competitie) {
-        return preview.previzualizare(fixtureId, "curenta".equalsIgnoreCase(competitie));
+                                                @RequestParam(defaultValue = "toate") String competitie,
+                                                @RequestParam(defaultValue = "separat") String locatie) {
+        return preview.previzualizare(fixtureId, "curenta".equalsIgnoreCase(competitie),
+                "toate".equalsIgnoreCase(locatie));
     }
 }

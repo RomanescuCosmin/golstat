@@ -16,4 +16,6 @@ golstat:
     # 2, 3, 848, 5. Pentru a le actualiza, adauga-le aici cu `doar-reprize: true` (ieftin) sau complet.
     # 2026-11-13: incidentele re-citite (`doar-incidente`) pentru toate cele 15 competitii.
     # 2026-11-13: importate si 94, 203, 119, 345, 207 (Portugalia, Turcia, Danemarca, Cehia, Elvetia).
+    # 2026-11-17: importate 79, 89, 106 (2. Bundesliga, Eerste Divisie, Ekstraklasa).
+    # 2026-11-17: importata si 218 (Bundesliga Austria).
     tinte: []

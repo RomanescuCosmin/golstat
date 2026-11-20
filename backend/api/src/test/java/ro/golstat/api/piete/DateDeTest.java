@@ -1,6 +1,7 @@
 package ro.golstat.api.piete;
 
 import ro.golstat.api.entity.Fixture;
+import ro.golstat.api.entity.FixtureTeamHalfStats;
 import ro.golstat.api.entity.FixtureTeamStats;
 import ro.golstat.api.entity.League;
 import ro.golstat.api.entity.Standing;
@@ -46,6 +47,7 @@ final class DateDeTest {
 
     final List<Fixture> meciuri = new ArrayList<>();
     final List<FixtureTeamStats> statistici = new ArrayList<>();
+    final List<FixtureTeamHalfStats> reprize = new ArrayList<>();
     final List<Standing> clasament = new ArrayList<>();
     final List<Team> echipe = new ArrayList<>();
     final List<League> ligi = new ArrayList<>();
@@ -130,6 +132,12 @@ final class DateDeTest {
             apeluri.incrementAndGet();
             Collection<Long> ids = i.getArgument(0);
             return statistici.stream().filter(s -> ids.contains(s.getFixtureId())).toList();
+        });
+
+        when(halfStats.findByFixtureIdIn(any())).thenAnswer(i -> {
+            apeluri.incrementAndGet();
+            Collection<Long> ids = i.getArgument(0);
+            return reprize.stream().filter(s -> ids.contains(s.getFixtureId())).toList();
         });
 
         when(teamStats.avgCounts(anyLong(), org.mockito.ArgumentMatchers.anyInt(), any(), any())).thenAnswer(i -> {

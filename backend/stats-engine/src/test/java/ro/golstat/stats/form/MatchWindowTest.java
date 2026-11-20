@@ -58,4 +58,19 @@ class MatchWindowTest {
         assertEquals(LocalDate.of(2024, 5, 20), result.get(0).date());
         assertEquals(LocalDate.of(2024, 5, 8), result.get(1).date());
     }
+
+    @Test
+    void lastN_faraLocatie_iaUltimeleMeciuriIndiferentDeTeren() {
+        List<MatchSample> matches = List.of(
+                match(LocalDate.of(2024, 5, 1), true),
+                match(LocalDate.of(2024, 5, 15), false),
+                match(LocalDate.of(2024, 5, 8), true),
+                match(LocalDate.of(2024, 5, 20), true)
+        );
+
+        List<MatchSample> result = MatchWindow.lastN(matches, 2, null);
+
+        assertEquals(List.of(LocalDate.of(2024, 5, 20), LocalDate.of(2024, 5, 15)),
+                result.stream().map(MatchSample::date).toList());
+    }
 }

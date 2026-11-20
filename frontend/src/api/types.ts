@@ -248,6 +248,9 @@ export interface ReprizeDto {
   repriza1Oaspeti: FrecventaDto;
   repriza2Gazde: FrecventaDto;
   repriza2Oaspeti: FrecventaDto;
+  /** Peste 1.5 goluri in repriza 1 / 2. */
+  peste15Repriza1: number;
+  peste15Repriza2: number;
 }
 
 /**
@@ -348,6 +351,8 @@ export interface PrevizualizareMeciDto {
   echipeDeStart: EchipaDeStartDto | null;
   /** `null` cand meciul n-are arbitru cunoscut. */
   arbitru: ArbitruDto | null;
+  leagueId: number | null;
+  sezon: number | null;
 }
 
 /**
@@ -781,6 +786,13 @@ export type CodPiata =
   | 'CARTONASE_OASPETI_PESTE'
   | 'CORNERE_REPRIZA1_PESTE'
   | 'CORNERE_REPRIZA2_PESTE'
+  | 'CORNERE_REPRIZA1_SUB'
+  | 'CORNERE_REPRIZA2_SUB'
+  | 'GOLURI_REPRIZA1_PESTE'
+  | 'GOLURI_REPRIZA2_PESTE'
+  // calculate in interfata (lib/piete.ts), serverul nu le trimite
+  | 'CORNERE_REPRIZA1_INTERVAL'
+  | 'CORNERE_REPRIZA2_INTERVAL'
   | 'EGAL_PAUZA'
   | 'EGAL_FINAL';
 
@@ -821,4 +833,46 @@ export interface ZiPiete {
 /** Oglinda `ro.golstat.api.piete.PieteZileDto`. */
 export interface PieteZile {
   zile: ZiPiete[];
+}
+
+/* ─────────────────────────── Clasament detaliat ─────────────────────────── */
+
+/** Oglinda `ClasamentDetaliatDto.MeciForma` — cel mai recent primul. */
+export interface MeciFormaClasament {
+  fixtureId: number;
+  data: string | null;
+  rezultat: 'V' | 'E' | 'I';
+  acasa: boolean;
+  adversar: string | null;
+  golGazde: number;
+  golOaspeti: number;
+}
+
+export interface RandClasamentDetaliat {
+  pozitie: number;
+  teamId: number;
+  nume: string | null;
+  logo: string | null;
+  jucate: number | null;
+  victorii: number | null;
+  egaluri: number | null;
+  infrangeri: number | null;
+  golMarcate: number | null;
+  golPrimite: number | null;
+  golaveraj: number | null;
+  puncte: number | null;
+  /** Zona oficială a locului (ex. „Champions League", „Relegation"). */
+  zona: string | null;
+  forma: MeciFormaClasament[];
+}
+
+/** Oglinda `ro.golstat.api.competitie.ClasamentDetaliatDto` — clasamentul oficial, pe grupe. */
+export interface GrupaClasamentDetaliat {
+  /** `null` la ligile fără grupe. */
+  nume: string | null;
+  randuri: RandClasamentDetaliat[];
+}
+
+export interface ClasamentDetaliat {
+  grupe: GrupaClasamentDetaliat[];
 }

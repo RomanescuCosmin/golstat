@@ -305,16 +305,29 @@ final class BzzoiroMapper {
 
     static List<StandingDto> toStandings(JsonNode body, long leagueId, int seasonYear) {
         List<StandingDto> out = new ArrayList<>();
+        // competitiile cu grupe (ex. Nations League) vin ca {"grouped":true,"groups":{"League A, Group 1":[...]}}
+        if (body.path("groups").isObject()) {
+            body.path("groups").fields().forEachRemaining(g -> {
+                for (JsonNode r : g.getValue()) {
+                    out.add(standing(r, leagueId, seasonYear, g.getKey()));
+                }
+            });
+            return out;
+        }
         for (JsonNode r : body.path("standings")) {
-            out.add(new StandingDto(leagueId, seasonYear, longOrNull(r, "team_id"),
-                    intOrNull(r, "position"), text(r, "group"), intOrNull(r, "pts"), intOrNull(r, "gd"),
-                    text(r, "form"), null, text(r.path("zone"), "label"),
-                    intOrNull(r, "played"), intOrNull(r, "won"), intOrNull(r, "drawn"), intOrNull(r, "lost"),
-                    intOrNull(r, "gf"), intOrNull(r, "ga"),
-                    null, null, null, null, null, null,
-                    null, null, null, null, null, null));
+            out.add(standing(r, leagueId, seasonYear, text(r, "group")));
         }
         return out;
+    }
+
+    private static StandingDto standing(JsonNode r, long leagueId, int seasonYear, String grupa) {
+        return new StandingDto(leagueId, seasonYear, longOrNull(r, "team_id"),
+                intOrNull(r, "position"), grupa, intOrNull(r, "pts"), intOrNull(r, "gd"),
+                text(r, "form"), null, text(r.path("zone"), "label"),
+                intOrNull(r, "played"), intOrNull(r, "won"), intOrNull(r, "drawn"), intOrNull(r, "lost"),
+                intOrNull(r, "gf"), intOrNull(r, "ga"),
+                null, null, null, null, null, null,
+                null, null, null, null, null, null);
     }
 
     private static Integer plus(Integer a, Integer b) {

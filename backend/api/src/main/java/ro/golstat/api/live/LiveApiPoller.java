@@ -115,11 +115,19 @@ public class LiveApiPoller {
             Set<Long> tocmaiTerminate = new HashSet<>(liveAnterior);
             tocmaiTerminate.removeAll(liveTracked);
             if (!tocmaiTerminate.isEmpty()) {
+                Set<List<Object>> clasamente = new HashSet<>();
                 for (FixtureDto f : provider.fixturesByIds(tocmaiTerminate)) {
                     if (f != null && f.id() != null) {
                         ingest.ingestFixture(f);
                         finalizare.finalizeaza(f);
+                        if (f.leagueId() != null && f.seasonYear() != null) {
+                            clasamente.add(List.of(f.leagueId(), f.seasonYear()));
+                        }
                     }
+                }
+                // clasamentul oficial se schimba la fiecare meci terminat: un request pe competitie
+                for (List<Object> c : clasamente) {
+                    reimprospateazaClasament((Long) c.get(0), (Integer) c.get(1));
                 }
             }
             liveAnterior.clear();
@@ -130,6 +138,18 @@ public class LiveApiPoller {
             // cota atinsa, esec de retea sau Redis indisponibil: bucla programata trebuie sa supravietuiasca
             // pana la urmatorul poll, nu sa cada cu stack trace la fiecare 15s.
             log.warn("Poll live esuat: {}", e.toString());
+        }
+    }
+
+    /**
+     * Izolat: un clasament esuat nu trebuie sa opreasca poll-ul — altfel meciul terminat ramane in
+     * {@code liveAnterior} si ar fi re-finalizat la fiecare poll.
+     */
+    private void reimprospateazaClasament(long leagueId, int sezon) {
+        try {
+            provider.standings(leagueId, sezon).forEach(ingest::ingestStanding);
+        } catch (RuntimeException e) {
+            log.warn("Clasament liga {} sezon {} neactualizat: {}", leagueId, sezon, e.toString());
         }
     }
 

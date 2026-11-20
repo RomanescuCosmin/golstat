@@ -2,6 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { cotaPiata, meciPiete, ziPiete } from '../test/factories';
 import {
   codValid,
+  cotaMeciului,
+  etichetaPiata,
+  intervalValid,
+  optiuniPiata,
   etichetaZi,
   filtreaza,
   ligiDisponibile,
@@ -208,5 +212,89 @@ describe('etichetaZi', () => {
     expect(etichetaZi('2026-07-20', azi)).toBe('Azi');
     expect(etichetaZi('2026-07-21', azi)).toBe('Mâine');
     expect(etichetaZi('2026-07-22', azi)).toBeNull();
+  });
+});
+
+describe('cornere pe reprize: liniile si directiile', () => {
+  it('peste si sub pe ambele reprize, liniile 2.5–6.5', () => {
+    const optiuni = optiuniPiata('cornereReprize');
+    expect(optiuni).toHaveLength(4 * 5);
+    expect(optiuni.map((o) => o.valoare)).toContain('CORNERE_REPRIZA1_SUB|6.5');
+    expect(optiuni.map((o) => o.valoare)).toContain('CORNERE_REPRIZA2_PESTE|2.5');
+    expect(codValid('cornereReprize', 'CORNERE_REPRIZA2_SUB')).toBe('CORNERE_REPRIZA2_SUB');
+  });
+
+  it('eticheta lunga a pietei sub', () => {
+    expect(etichetaPiata('cornereReprize', 'CORNERE_REPRIZA1_SUB', 6.5)).toBe('Repriza 1 sub 6.5 cornere');
+  });
+});
+
+describe('gol in prima / a doua repriza', () => {
+  it('peste 0.5 si 1.5 pe ambele reprize', () => {
+    expect(optiuniPiata('goluriReprize').map((o) => o.valoare)).toEqual([
+      'GOLURI_REPRIZA1_PESTE|0.5', 'GOLURI_REPRIZA1_PESTE|1.5', 'GOLURI_REPRIZA2_PESTE|0.5', 'GOLURI_REPRIZA2_PESTE|1.5',
+    ]);
+    expect(etichetaPiata('goluriReprize', 'GOLURI_REPRIZA2_PESTE', 0.5)).toBe('A doua repriză peste 0.5 goluri');
+  });
+});
+
+describe('interval cornere pe repriza (peste X si sub Y)', () => {
+  const peste = (linie: number, probabilitate: number, piata: 'CORNERE_REPRIZA1_PESTE' | 'CORNERE_REPRIZA2_PESTE' = 'CORNERE_REPRIZA1_PESTE') =>
+    cotaPiata({ piata, linie, probabilitate, esantion: 12 });
+  const meci = meciPiete({
+    piete: [
+      peste(2.5, 0.875), peste(3.5, 0.734), peste(4.5, 0.558), peste(5.5, 0.383), peste(6.5, 0.237),
+      peste(2.5, 0.9, 'CORNERE_REPRIZA2_PESTE'),
+    ],
+  });
+
+  it('dropdown-ul alege doar repriza; liniile se aleg separat', () => {
+    expect(optiuniPiata('intervalCornereReprize').map((o) => o.eticheta)).toEqual(['Repriza 1', 'Repriza 2']);
+  });
+
+  it('P(peste X si sub Y) = P(peste X) − P(peste Y), NU media lor', () => {
+    const c = cotaMeciului(meci, 'CORNERE_REPRIZA1_INTERVAL', 2.5, 6.5)!;
+    expect(c.probabilitate).toBeCloseTo(0.638, 10);
+    expect(c.probabilitate).not.toBeCloseTo((0.875 + (1 - 0.237)) / 2, 2);
+    expect(c.cota).toBe(Math.round(100 / 0.638) / 100);
+    expect(c.esantion).toBe(12);
+    expect(c.piata).toBe('CORNERE_REPRIZA1_INTERVAL');
+  });
+
+  it('orice pereche aleasa: peste 3.5 si sub 5.5 = exact 4 sau 5 cornere', () => {
+    expect(cotaMeciului(meci, 'CORNERE_REPRIZA1_INTERVAL', 3.5, 5.5)!.probabilitate).toBeCloseTo(0.734 - 0.383, 10);
+  });
+
+  it('linia de sus lipsa (P = 0, serverul n-o trimite) → doar P(peste X)', () => {
+    expect(cotaMeciului(meci, 'CORNERE_REPRIZA2_INTERVAL', 2.5, 6.5)!.probabilitate).toBeCloseTo(0.9, 10);
+  });
+
+  it('fara date pe repriza, interval invers sau incomplet → nimic', () => {
+    expect(cotaMeciului(meciPiete({ piete: [] }), 'CORNERE_REPRIZA1_INTERVAL', 2.5, 6.5)).toBeUndefined();
+    expect(cotaMeciului(meci, 'CORNERE_REPRIZA1_INTERVAL', 6.5, 2.5)).toBeUndefined();
+    expect(cotaMeciului(meci, 'CORNERE_REPRIZA1_INTERVAL', 4.5, 4.5)).toBeUndefined();
+    expect(cotaMeciului(meci, 'CORNERE_REPRIZA1_INTERVAL', 2.5, null)).toBeUndefined();
+  });
+
+  it('filtreaza si numara campionatele pe intervalul ales', () => {
+    const zile = [ziPiete({ meciuri: [meci] })];
+    expect(numaraRanduri(filtreaza(zile, 'CORNERE_REPRIZA1_INTERVAL', 2.5, 60, [], 6.5))).toBe(1);
+    expect(numaraRanduri(filtreaza(zile, 'CORNERE_REPRIZA1_INTERVAL', 2.5, 70, [], 6.5))).toBe(0);
+    expect(ligiDisponibile(zile, 'CORNERE_REPRIZA1_INTERVAL', 2.5, 60, 6.5)[0]!.numar).toBe(1);
+  });
+
+  it('intervalValid: implicit 2.5–6.5, pastreaza alegerea corecta, repara alegerea invalida', () => {
+    expect(intervalValid('intervalCornereReprize', null, null)).toEqual([2.5, 6.5]);
+    expect(intervalValid('intervalCornereReprize', 3.5, 5.5)).toEqual([3.5, 5.5]);
+    expect(intervalValid('intervalCornereReprize', 4.5, 3.5)).toEqual([4.5, 6.5]);
+    expect(intervalValid('intervalCornereReprize', 6.5, null)).toEqual([2.5, 6.5]);
+    expect(intervalValid('intervalCornereReprize', 1.5, 9.5)).toEqual([2.5, 6.5]);
+    expect(intervalValid('goluri', 2.5, null)).toBeNull();
+  });
+
+  it('eticheta spune exact ce s-a ales', () => {
+    expect(etichetaPiata('intervalCornereReprize', 'CORNERE_REPRIZA2_INTERVAL', 3.5, 5.5)).toBe(
+      'Repriza 2: peste 3.5 și sub 5.5 cornere',
+    );
   });
 });

@@ -59,6 +59,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -391,6 +392,52 @@ class MatchPreviewServiceTest {
     }
 
     @Test
+    void previzualizare_toateMeciurile_fereastraIaSiMeciurileDinDeplasare() {
+        stubHappyPath();
+        when(history.lastMatches(eq(10L), eq(KICKOFF), eq(FETCH), isNull())).thenReturn(List.of(
+                sample(9, true, 2, 1), sample(8, false, 0, 2), sample(7, true, 1, 1)));
+        when(history.lastMatches(eq(20L), eq(KICKOFF), eq(FETCH), isNull())).thenReturn(List.of());
+        when(fixtures.findHeadToHead(anyLong(), anyLong(), any(), any(), any())).thenReturn(List.of());
+        when(teams.findAllById(any())).thenReturn(List.of());
+        when(statsHistory.istoric(eq(10L), eq(KICKOFF), eq(FETCH), isNull())).thenReturn(new IstoricCounturi(
+                List.of(count(9, true, 7, 5), count(8, false, 3, 3),
+                        count(7, true, 7, 5), count(6, false, 3, 3)),
+                List.of(), List.of(), List.of(), List.of(), List.of()));
+
+        PrevizualizareMeciDto dto = service.previzualizare(100L, false, true);
+
+        // cornere: fereastra „pe locatie" = toate cele 4 meciuri, acasa si in deplasare
+        StatisticiAvansateDto.PiataDto piata = dto.statistici().cornere();
+        StatisticiAvansateDto.LinieDto peste105 = piata.linii().get(3);
+        assertEquals(new FrecventaDto(2, 4), peste105.gazdeLocatie());
+        assertEquals(peste105.gazdeGeneral(), peste105.gazdeLocatie());
+        assertEquals(5.0, piata.gazde().proprieLocatie(), 1e-9);
+        assertEquals(9.0, piata.gazde().totalLocatie(), 1e-9);
+        // forma: ultimele meciuri indiferent de teren, inclusiv cel din deplasare
+        assertEquals(List.of("V", "I", "E"),
+                dto.formaGazde().locatie().meciuri().stream().map(FormaMeciDto::rezultat).toList());
+        assertEquals(List.of(true, false, true),
+                dto.formaGazde().locatie().meciuri().stream().map(FormaMeciDto::acasa).toList());
+        // predictia se recalculeaza pe aceleasi ferestre (nu mai e cea standard, pe locatie)
+        assertNotEquals(predictie().lambdaGazde(), dto.predictie().lambdaGazde());
+    }
+
+    @Test
+    void previzualizare_implicit_pastreazaRegulaAcasaDeplasare() {
+        stubHappyPath();
+        when(history.lastMatches(eq(10L), eq(KICKOFF), eq(FETCH), isNull())).thenReturn(List.of(
+                sample(9, true, 2, 1), sample(8, false, 0, 2), sample(7, true, 1, 1)));
+        when(history.lastMatches(eq(20L), eq(KICKOFF), eq(FETCH), isNull())).thenReturn(List.of());
+        when(fixtures.findHeadToHead(anyLong(), anyLong(), any(), any(), any())).thenReturn(List.of());
+        when(teams.findAllById(any())).thenReturn(List.of());
+
+        PrevizualizareMeciDto dto = service.previzualizare(100L);
+
+        assertTrue(dto.formaGazde().locatie().meciuri().stream().allMatch(FormaMeciDto::acasa));
+        assertEquals(2, dto.formaGazde().locatie().meciuri().size());
+    }
+
+    @Test
     void previzualizare_goluriGgEgaluriReprize_numericCunoscut() {
         when(predictions.predict(100L)).thenReturn(Optional.of(predictie(new ProcentCota(30.0, 3.33))));
         when(fixtures.findById(100L)).thenReturn(Optional.of(nsFixture()));
@@ -645,6 +692,19 @@ class MatchPreviewServiceTest {
         p.setName(nume);
         p.setPhoto(foto);
         return p;
+    }
+
+    @Test
+    void previzualizare_competitiaSiSezonulMeciului_pentruTabulClasament() {
+        stubHappyPath();
+        when(history.lastMatches(anyLong(), any(), anyInt(), isNull())).thenReturn(List.of());
+        when(fixtures.findHeadToHead(anyLong(), anyLong(), any(), any(), any())).thenReturn(List.of());
+        when(teams.findAllById(any())).thenReturn(List.of());
+
+        PrevizualizareMeciDto dto = service.previzualizare(100L);
+
+        assertEquals(39L, dto.leagueId());
+        assertEquals(2025, dto.sezon());
     }
 
     @Test

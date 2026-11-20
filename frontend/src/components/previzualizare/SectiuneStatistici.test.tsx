@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, test } from 'vitest';
 import type {
@@ -95,6 +95,8 @@ function statistici(over: Partial<StatisticiAvansateDto> = {}): StatisticiAvansa
       repriza1Oaspeti: f(4, 7),
       repriza2Gazde: f(6, 7),
       repriza2Oaspeti: f(5, 7),
+      peste15Repriza1: 0.3,
+      peste15Repriza2: 0.4,
     },
     rezultat: null,
     echipe: statisticiAvansate().echipe,
@@ -203,5 +205,130 @@ describe('SectiuneStatistici — taburi pe piete', () => {
     randeaza(statistici(), { onCompetitie: (v) => alegeri.push(v) });
     await user.click(screen.getByRole('button', { name: 'Doar competiția meciului' }));
     expect(alegeri).toEqual(['curenta']);
+  });
+});
+
+describe('SectiuneStatistici — cornere pe reprize: peste 2.5 … 5.5 si sub 6.5', () => {
+  const reprize = () =>
+    statistici({
+      cornereReprize: {
+        ...statistici().cornereReprize!,
+        repriza1: piata([
+          linie(2.5, 0.875),
+          linie(3.5, 0.734),
+          linie(4.5, 0.558),
+          linie(5.5, 0.383),
+          { ...linie(6.5, 0.237), gazdeLocatie: f(1, 7), oaspetiLocatie: f(2, 6) },
+        ]),
+        repriza2: piata([linie(2.5, 0.9), linie(6.5, 0.3)]),
+      },
+    });
+
+  const card = (titlu: string) => screen.getByText(titlu).closest('[class*="p-5"]') as HTMLElement;
+
+  test('repriza 1: liniile peste 2.5–5.5 si „Sub 6.5" (fara „Peste 6.5")', async () => {
+    const user = userEvent.setup();
+    randeaza(reprize());
+    await tab(user, 'Cornere');
+    const r1 = within(card('Cornere în repriza 1'));
+    for (const l of ['2.5', '3.5', '4.5', '5.5']) {
+      expect(r1.getByText(new RegExp(`^Peste ${l} cornere`))).toBeInTheDocument();
+    }
+    expect(r1.getByText(/^Sub 6.5 cornere/)).toBeInTheDocument();
+    expect(r1.queryByText(/^Peste 6.5 cornere/)).toBeNull();
+    expect(within(card('Cornere în repriza 2')).getByText(/^Sub 6.5 cornere/)).toBeInTheDocument();
+  });
+
+  test('„Sub 6.5" = 1 − P(peste 6.5) si frecventele inversate', async () => {
+    const user = userEvent.setup();
+    randeaza(reprize());
+    await tab(user, 'Cornere');
+    const r1 = within(card('Cornere în repriza 1'));
+    expect(r1.getByText(/^Sub 6.5 cornere/)).toHaveTextContent('— 76%');
+    // peste 6.5 in 1/7 acasa si 2/6 in deplasare → sub 6.5 in 6/7 si 4/6
+    expect(r1.getByText('6/7 · 4/6')).toBeInTheDocument();
+  });
+
+  test('statisticile nu mai afiseaza intervalul „Între 3 și 6" (e doar pe Piețe)', async () => {
+    const user = userEvent.setup();
+    randeaza(reprize());
+    await tab(user, 'Cornere');
+    expect(screen.queryByText(/Între/)).toBeNull();
+  });
+
+  test('meci terminat: ✓/✗ pe totalul real al reprizei (R1 = 4 cornere)', async () => {
+    const user = userEvent.setup();
+    // rezultatEchipe(): R1 = 2 + 2 = 4 cornere
+    randeaza({ ...reprize(), rezultat: REZULTAT });
+    await tab(user, 'Cornere');
+    const r1 = within(card('Cornere în repriza 1'));
+    expect(r1.getByText('Real: 4')).toBeInTheDocument();
+    const rand = (eticheta: RegExp) => r1.getByText(eticheta).closest('.py-2') as HTMLElement;
+    expect(rand(/^Peste 2.5 cornere/)).toHaveTextContent('✓ Da');
+    expect(rand(/^Peste 4.5 cornere/)).toHaveTextContent('✗ Nu');
+    expect(rand(/^Sub 6.5 cornere/)).toHaveTextContent('✓ Da');
+  });
+});
+
+describe('SectiuneStatistici — Goluri: rezultate cu emblemele ambelor echipe', () => {
+  test('fiecare rand are emblema echipei si a adversarului, scorul in ordinea gazde-oaspeti', async () => {
+    const user = userEvent.setup();
+    randeaza(statistici(), {
+      formaGazde: formaEchipa({
+        locatie: fereastraForma({
+          meciuri: [formaMeci({ acasa: true, golMarcate: 3, golPrimite: 1, adversar: { id: 9, nume: 'Rapid', logo: 'rapid.png' } })],
+        }),
+        general: fereastraForma({ meciuri: [] }),
+      }),
+    });
+    await tab(user, 'Goluri');
+    const rand = screen.getByText('3-1').closest('li') as HTMLElement;
+    expect(within(rand).getByRole('img', { name: 'Rapid' })).toBeInTheDocument();
+    expect(within(rand).getByTitle('FCSB')).toBeInTheDocument();
+  });
+});
+
+describe('SectiuneStatistici — „Toate meciurile" (fara regula acasa/deplasare)', () => {
+  test('comutatorul de teren anunta alegerea; implicit e regula acasa/deplasare', async () => {
+    const user = userEvent.setup();
+    const alegeri: string[] = [];
+    randeaza(statistici(), { onLocatie: (v) => alegeri.push(v) });
+    expect(screen.getByRole('button', { name: 'Acasă / Deplasare' })).toHaveAttribute('aria-pressed', 'true');
+    await user.click(screen.getByRole('button', { name: 'Toate meciurile' }));
+    expect(alegeri).toEqual(['toate']);
+  });
+
+  test('fara onLocatie comutatorul nu apare', () => {
+    randeaza(statistici());
+    expect(screen.queryByRole('button', { name: 'Toate meciurile' })).not.toBeInTheDocument();
+  });
+
+  test('etichetele nu mai spun „acasă" / „în deplasare"', async () => {
+    const user = userEvent.setup();
+    randeaza(statistici(), { locatie: 'toate', onLocatie: () => {} });
+    expect(screen.getAllByText('ultimele 7 meciuri')).toHaveLength(2);
+    expect(screen.queryByText('ultimele 7 acasă')).toBeNull();
+    expect(screen.getByText(/Ultimele 7 meciuri ale fiecărei echipe, indiferent de teren/)).toBeInTheDocument();
+    // fereastra pe locatie ESTE cea generala: fara randuri „(general)" duplicate
+    expect(screen.getByText('Goluri marcate (ultimele 7)')).toBeInTheDocument();
+    expect(screen.queryByText('Goluri marcate (general)')).toBeNull();
+
+    await tab(user, 'Goluri');
+    expect(screen.getAllByText('Ultimele 7 rezultate')).toHaveLength(2);
+    expect(screen.queryByText(/Ultimele 7 rezultate acasă/)).toBeNull();
+
+    await tab(user, 'Cornere');
+    expect(screen.getAllByText(/\/meci · /).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/\/meci acasă/)).toBeNull();
+  });
+
+  test('implicit etichetele raman pe teren', async () => {
+    const user = userEvent.setup();
+    randeaza(statistici());
+    expect(screen.getByText('ultimele 7 acasă')).toBeInTheDocument();
+    expect(screen.getByText('Goluri marcate (general)')).toBeInTheDocument();
+    await tab(user, 'Goluri');
+    expect(screen.getByText('Ultimele 7 rezultate acasă')).toBeInTheDocument();
+    expect(screen.getByText('Ultimele 7 rezultate în deplasare')).toBeInTheDocument();
   });
 });

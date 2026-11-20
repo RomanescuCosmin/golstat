@@ -71,6 +71,12 @@ public class FerestreBatchService {
     /** {@code doarCompetitia} = istoricul fiecarei echipe doar din competitia meciului evaluat. */
     public Map<Long, FerestreMeci> ferestre(List<Fixture> meciuri, int fereastra, int istoricFetch,
                                             boolean doarCompetitia) {
+        return ferestre(meciuri, fereastra, istoricFetch, doarCompetitia, false);
+    }
+
+    /** {@code faraLocatie} = ultimele meciuri ale fiecarei echipe indiferent de teren (fara regula acasa/deplasare). */
+    public Map<Long, FerestreMeci> ferestre(List<Fixture> meciuri, int fereastra, int istoricFetch,
+                                            boolean doarCompetitia, boolean faraLocatie) {
         List<Fixture> valide = meciuri.stream()
                 .filter(f -> f.getHomeTeamId() != null && f.getAwayTeamId() != null && f.getKickoff() != null)
                 .toList();
@@ -103,9 +109,9 @@ public class FerestreBatchService {
                     istoricPerEchipa, statsPerMeci, reprizePerMeci, ranguri, istoricFetch);
             out.put(f.getId(), new FerestreMeci(
                     StatisticiAvansateBuilder.ferestre(gazde.mostre(), gazde.counturi(),
-                            MatchLocation.HOME, fereastra),
+                            faraLocatie ? null : MatchLocation.HOME, fereastra),
                     StatisticiAvansateBuilder.ferestre(oaspeti.mostre(), oaspeti.counturi(),
-                            MatchLocation.AWAY, fereastra),
+                            faraLocatie ? null : MatchLocation.AWAY, fereastra),
                     gazde.mostre(), oaspeti.mostre()));
         }
         return out;

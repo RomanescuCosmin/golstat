@@ -25,6 +25,10 @@ golstat:
       119: 84    # Superliga Danemarca
       345: 99    # Czech First League
       207: 15    # Super League Elvetia
+      79: 94     # 2. Bundesliga
+      89: 108    # Eerste Divisie (Olanda, liga 2)
+      106: 25    # Ekstraklasa Polonia
+      218: 96    # Bundesliga Austria
   # LIVE fara Redis: memoria aplicatiei ajunge pe o singura instanta. Doar cand exista meciuri in fereastra
   # [kickoff - 15 min, kickoff + 140 min]: 1 request/minut pentru TOATE meciurile live (status=inprogress),
   # statistici live la 5 min per meci, iar la fluierul final statistici + reprize + incidente + formatii.

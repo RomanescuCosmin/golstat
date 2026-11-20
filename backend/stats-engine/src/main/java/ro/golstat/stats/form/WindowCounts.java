@@ -56,6 +56,16 @@ public final class WindowCounts {
         return count(window, m -> m.goalsForHt() + m.goalsAgainstHt() > 0);
     }
 
+    /** In cate meciuri s-au marcat (oricine) peste {@code line} goluri in prima repriza. */
+    public static int overGoalsFirstHalf(List<MatchSample> window, double line) {
+        return count(window, m -> m.goalsForHt() + m.goalsAgainstHt() > line);
+    }
+
+    /** In cate meciuri s-au marcat (oricine) peste {@code line} goluri in a doua repriza. */
+    public static int overGoalsSecondHalf(List<MatchSample> window, double line) {
+        return count(window, m -> m.goalsForSecondHalf() + m.goalsAgainstSecondHalf() > line);
+    }
+
     /** In cate meciuri s-a marcat (oricine) in a doua repriza. */
     public static int goalInSecondHalf(List<MatchSample> window) {
         return count(window, m -> m.goalsForSecondHalf() + m.goalsAgainstSecondHalf() > 0);

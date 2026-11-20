@@ -170,6 +170,62 @@ class LiveApiPollerTest {
         assertTrue(provider.byIdsAskedFor.contains(100L), "meciul terminat e cerut o data pentru starea finala");
     }
 
+    @Test
+    void justEnded_clasamentReimprospatatOdataPeCompetitie() {
+        matchInWindow();
+        tracked(39L, 140L);
+        LiveApiPoller poller = poller();
+        StandingDto rand = mock(StandingDto.class);
+        provider.clasament = List.of(rand);
+
+        provider.live = List.of(live(100, 39), live(101, 39), live(102, 140));
+        poller.poll();
+        assertTrue(provider.standingsAskedFor.isEmpty(), "cat timp se joaca, clasamentul nu se cere");
+
+        provider.live = List.of();
+        provider.byIds = List.of(fixture(100, 39), fixture(101, 39), fixture(102, 140));
+        poller.poll();
+
+        assertEquals(List.of("140/2026", "39/2026"), provider.standingsAskedFor.stream().sorted().toList(),
+                "un singur request per competitie, oricate meciuri s-au terminat");
+        verify(ingest, org.mockito.Mockito.times(2)).ingestStanding(rand);
+    }
+
+    @Test
+    void clasamentEsuat_nuReFinalizeazaMeciulLaPollulUrmator() {
+        matchInWindow();
+        tracked(39L);
+        FinalizareMeci finalizare = mock(FinalizareMeci.class);
+        LiveApiPoller poller = new LiveApiPoller(provider, ingest, broadcaster, fixtures,
+                new LiveProperties(true, 15000, 140, 15, 120000, List.of(), 70), clock, finalizare);
+        provider.standingsThrows = true;
+
+        provider.live = List.of(live(100, 39));
+        poller.poll();
+        provider.live = List.of();
+        provider.byIds = List.of(fixture(100, 39));
+        poller.poll();
+        poller.poll();
+
+        assertEquals(List.of(100L), provider.byIdsAskedFor, "meciul terminat se cere o singura data");
+        verify(finalizare, org.mockito.Mockito.times(1)).finalizeaza(any());
+    }
+
+    @Test
+    void meciTerminatFaraLiga_faraCerereDeClasament() {
+        matchInWindow();
+        tracked(39L);
+        LiveApiPoller poller = poller();
+        provider.live = List.of(live(100, 39));
+        poller.poll();
+        provider.live = List.of();
+        FixtureDto f = fixture(100, 39);
+        provider.byIds = List.of(new FixtureDto(f.id(), null, "UTC", f.kickoff(), null, null, "R", null, "long",
+                GolstatConstants.FixtureStatus.FINISHED, 90, 1L, 2L, 1, 0, 0, 0, null, null, null, null, null, null));
+        poller.poll();
+        assertTrue(provider.standingsAskedFor.isEmpty());
+    }
+
     private static FixtureLiveDto live(long id, long leagueId) {
         return live(id, leagueId, List.of());
     }
@@ -231,6 +287,9 @@ class LiveApiPollerTest {
         int liveCalls = 0;
         final List<Long> statsAskedFor = new ArrayList<>();
         final List<Long> byIdsAskedFor = new ArrayList<>();
+        final List<String> standingsAskedFor = new ArrayList<>();
+        List<StandingDto> clasament = List.of();
+        boolean standingsThrows = false;
 
         @Override
         public List<FixtureLiveDto> liveFixtures() {
@@ -280,7 +339,11 @@ class LiveApiPollerTest {
 
         @Override
         public List<StandingDto> standings(long leagueId, int season) {
-            return List.of();
+            standingsAskedFor.add(leagueId + "/" + season);
+            if (standingsThrows) {
+                throw new IllegalStateException("standings down");
+            }
+            return clasament;
         }
 
         @Override

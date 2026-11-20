@@ -1,26 +1,33 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ApiError, getPrevizualizare, type FiltruCompetitie } from '../api/client';
+import { ApiError, getPrevizualizare, type FiltruCompetitie, type FiltruLocatie } from '../api/client';
 import type { PrevizualizareMeciDto } from '../api/types';
 import { FormaEchipe } from '../components/previzualizare/FormaEchipe';
+import { ClasamentMeci } from '../components/previzualizare/ClasamentMeci';
 import { HeaderMeci } from '../components/previzualizare/HeaderMeci';
 import { IntalniriDirecte } from '../components/previzualizare/IntalniriDirecte';
 import { ProbabilitateRezultat } from '../components/previzualizare/ProbabilitateRezultat';
 import { SectiuneStatistici } from '../components/previzualizare/SectiuneStatistici';
 import { StatisticiCheie } from '../components/previzualizare/StatisticiCheie';
 import { EchipaDeStart } from '../components/lineup/EchipaDeStart';
-import { citesteFiltruCompetitie, salveazaFiltruCompetitie } from '../lib/filtruCompetitie';
+import {
+  citesteFiltruCompetitie,
+  citesteFiltruLocatie,
+  salveazaFiltruCompetitie,
+  salveazaFiltruLocatie,
+} from '../lib/filtruCompetitie';
 import { PageLayout } from '../components/layout/PageLayout';
 import { Card } from '../components/ui/Card';
 import { EmptyState } from '../components/ui/EmptyState';
 import { ErrorState } from '../components/ui/ErrorState';
 import { Spinner } from '../components/ui/Spinner';
 import { Taburi, type Tab } from '../components/ui/Taburi';
-import { IconChart, IconShield, IconStar, IconTrophy } from '../components/ui/icons';
+import { IconCalendar, IconChart, IconShield, IconStar, IconTrophy } from '../components/ui/icons';
 
 const TABURI: Tab[] = [
   { id: 'prezentare', eticheta: 'Prezentare', icon: <IconStar width={16} height={16} /> },
-  { id: 'rezultate', eticheta: 'Rezultate', icon: <IconTrophy width={16} height={16} /> },
+  { id: 'rezultate', eticheta: 'Rezultate', icon: <IconCalendar width={16} height={16} /> },
+  { id: 'clasament', eticheta: 'Clasament', icon: <IconTrophy width={16} height={16} /> },
   { id: 'echipe', eticheta: 'Echipe probabile', icon: <IconShield width={16} height={16} /> },
   { id: 'statistici', eticheta: 'Statistici', icon: <IconChart width={16} height={16} /> },
 ];
@@ -35,6 +42,7 @@ export function PrevizualizarePage() {
   const [incercare, setIncercare] = useState(0);
   const [tab, setTab] = useState<string>('prezentare');
   const [competitie, setCompetitie] = useState<FiltruCompetitie>(citesteFiltruCompetitie);
+  const [locatie, setLocatie] = useState<FiltruLocatie>(citesteFiltruLocatie);
 
   // alt meci: nu lasam pe ecran datele celui vechi cat se incarca (pastrarea lor e doar pentru filtrul de competitie)
   useEffect(() => {
@@ -50,7 +58,7 @@ export function PrevizualizarePage() {
     let anulat = false;
     setLoading(true);
     setEroare(null);
-    getPrevizualizare(id, competitie)
+    getPrevizualizare(id, competitie, locatie)
       .then((rezultat) => {
         if (!anulat) setDate(rezultat);
       })
@@ -66,11 +74,16 @@ export function PrevizualizarePage() {
     return () => {
       anulat = true;
     };
-  }, [id, incercare, competitie]);
+  }, [id, incercare, competitie, locatie]);
 
   function schimbaCompetitie(valoare: FiltruCompetitie) {
     salveazaFiltruCompetitie(valoare);
     setCompetitie(valoare);
+  }
+
+  function schimbaLocatie(valoare: FiltruLocatie) {
+    salveazaFiltruLocatie(valoare);
+    setLocatie(valoare);
   }
 
   return (
@@ -135,7 +148,7 @@ export function PrevizualizarePage() {
             )}
 
             {tab === 'rezultate' && (
-              <div className="grid gap-5 xl:grid-cols-[2fr_3fr]">
+              <div className="grid gap-5 xl:grid-cols-[3fr_2fr]">
                 <FormaEchipe
                   gazde={date.predictie.echipaGazde}
                   oaspeti={date.predictie.echipaOaspeti}
@@ -145,6 +158,16 @@ export function PrevizualizarePage() {
                 <IntalniriDirecte intalniri={date.intalniriDirecte} />
               </div>
             )}
+
+            {tab === 'clasament' &&
+              (date.leagueId != null && date.sezon != null ? (
+                <ClasamentMeci leagueId={date.leagueId} sezon={date.sezon} gazdeId={date.predictie.echipaGazde.id}
+                  oaspetiId={date.predictie.echipaOaspeti.id} />
+              ) : (
+                <Card className="p-5">
+                  <EmptyState titlu="Fără clasament" mesaj="Nu știm competiția acestui meci." />
+                </Card>
+              ))}
 
             {tab === 'echipe' &&
               (date.echipeDeStart != null ? (
@@ -173,6 +196,8 @@ export function PrevizualizarePage() {
                 arbitru={date.arbitru}
                 competitie={competitie}
                 onCompetitie={schimbaCompetitie}
+                locatie={locatie}
+                onLocatie={schimbaLocatie}
               />
             )}
           </div>

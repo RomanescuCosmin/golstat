@@ -53,7 +53,7 @@ public final class StatisticiAvansateBuilder {
     public static final double[] LINII_ECHIPA_CORNERE = {2.5, 3.5, 4.5, 5.5};
     public static final double[] LINII_ECHIPA_CARTONASE = {0.5, 1.5, 2.5};
     public static final double[] LINII_ECHIPA_GOLURI = {0.5, 1.5, 2.5};
-    public static final double[] LINII_REPRIZA_CORNERE = {3.5, 4.5, 5.5};
+    public static final double[] LINII_REPRIZA_CORNERE = {2.5, 3.5, 4.5, 5.5, 6.5};
     public static final double[] LINII_REPRIZA_ECHIPA_CORNERE = {1.5, 2.5};
     /** Dispersiile Negative Binomial: faulturi 30, cartonase 8 — valorile cu care a rulat backtest-ul. */
     static final double DISPERSIE_FAULTURI = 30;
@@ -315,7 +315,8 @@ public final class StatisticiAvansateBuilder {
                 new FrecventaDto(WindowCounts.goalInFirstHalf(gazdeLoc), gazdeLoc.size()),
                 new FrecventaDto(WindowCounts.goalInFirstHalf(oaspetiLoc), oaspetiLoc.size()),
                 new FrecventaDto(WindowCounts.goalInSecondHalf(gazdeLoc), gazdeLoc.size()),
-                new FrecventaDto(WindowCounts.goalInSecondHalf(oaspetiLoc), oaspetiLoc.size()));
+                new FrecventaDto(WindowCounts.goalInSecondHalf(oaspetiLoc), oaspetiLoc.size()),
+                model.over15FirstHalfRate(), model.over15SecondHalfRate());
     }
 
     private static FrecventaDto frecventaGol(List<MatchSample> fereastra, double linie) {

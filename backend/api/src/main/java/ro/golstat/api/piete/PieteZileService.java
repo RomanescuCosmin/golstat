@@ -103,9 +103,14 @@ public class PieteZileService {
 
     /** {@code doarCompetitia}: formele echipelor doar din competitia fiecarui meci. */
     public PieteZileDto piete(int zile, boolean doarCompetitia) {
+        return piete(zile, doarCompetitia, false);
+    }
+
+    /** {@code faraLocatie}: ultimele meciuri ale echipelor indiferent de teren (fara regula acasa/deplasare). */
+    public PieteZileDto piete(int zile, boolean doarCompetitia, boolean faraLocatie) {
         // zile calendaristice intregi, de azi — altfel o fereastra rulanta de 3×24h ar atinge 4 date diferite
         LocalDate azi = LocalDate.now(ZoneOffset.UTC);
-        return piete(azi, azi.plusDays(zile - 1L), doarCompetitia);
+        return piete(azi, azi.plusDays(zile - 1L), doarCompetitia, faraLocatie);
     }
 
     /** Cele mai lungi perioade alese din interfata (zile calendaristice). */
@@ -118,6 +123,11 @@ public class PieteZileService {
      */
     @Transactional(readOnly = true)
     public PieteZileDto piete(LocalDate de, LocalDate panaLa, boolean doarCompetitia) {
+        return piete(de, panaLa, doarCompetitia, false);
+    }
+
+    @Transactional(readOnly = true)
+    public PieteZileDto piete(LocalDate de, LocalDate panaLa, boolean doarCompetitia, boolean faraLocatie) {
         OffsetDateTime acum = OffsetDateTime.now(ZoneOffset.UTC);
         OffsetDateTime start = de.atStartOfDay().atOffset(ZoneOffset.UTC);
         if (start.isBefore(acum)) {
@@ -140,7 +150,7 @@ public class PieteZileService {
 
         Map<Long, Team> echipe = echipe(meciuri);
         Map<Long, League> ligi = ligi(meciuri);
-        Map<Long, FerestreMeci> ferestrePerMeci = ferestre.ferestre(meciuri, FEREASTRA, HISTORY_FETCH, doarCompetitia);
+        Map<Long, FerestreMeci> ferestrePerMeci = ferestre.ferestre(meciuri, FEREASTRA, HISTORY_FETCH, doarCompetitia, faraLocatie);
         Map<String, RefereeCardAverageRow> arbitri = arbitri(meciuri, acum);
         ForteAdversari forte = forteAdversari.pentru(ferestrePerMeci.values().stream()
                 .flatMap(m -> Stream.of(m.istoricGazde(), m.istoricOaspeti())).toList(), acum);
@@ -163,10 +173,10 @@ public class PieteZileService {
                     k -> countAverages.averages(f.getLeagueId(), f.getSeasonYear(), acum));
 
             StatisticiAvansateDto statistici = StatisticiAvansateBuilder.build(
-                    fer.gazde(), fer.oaspeti(), mediiCounturi,
+                    fer.gazde(), fer.oaspeti(), faraLocatie ? mediiCounturi.neutre() : mediiCounturi,
                     factorArbitru(f, arbitri, mediiCounturi.cartonasePeMeci()),
                     MatchGoalModel.predict(PredictionService.buildContext(
-                            fer.istoricGazde(), fer.istoricOaspeti(), mediiGoluri, forte)),
+                            fer.istoricGazde(), fer.istoricOaspeti(), mediiGoluri, forte, faraLocatie)),
                     null);
 
             List<CotaPiataDto> piete = piete(fer, statistici);
@@ -208,6 +218,13 @@ public class PieteZileService {
             adauga(out, CodPiata.EGAL_PAUZA, null, statistici.egaluri().egalPauza(), esantionGoluri);
             adauga(out, CodPiata.EGAL_FINAL, null, statistici.egaluri().egalFinal(), esantionGoluri);
         }
+        if (statistici.reprize() != null && esantionGoluri > 0) {
+            var r = statistici.reprize();
+            adauga(out, CodPiata.GOLURI_REPRIZA1_PESTE, 0.5, r.golRepriza1(), esantionGoluri);
+            adauga(out, CodPiata.GOLURI_REPRIZA1_PESTE, 1.5, r.peste15Repriza1(), esantionGoluri);
+            adauga(out, CodPiata.GOLURI_REPRIZA2_PESTE, 0.5, r.golRepriza2(), esantionGoluri);
+            adauga(out, CodPiata.GOLURI_REPRIZA2_PESTE, 1.5, r.peste15Repriza2(), esantionGoluri);
+        }
         PieteEchipeDto echipe = statistici.echipe();
         if (echipe != null) {
             adaugaEchipa(out, echipe.goluri(), CodPiata.GOLURI_GAZDE_PESTE, CodPiata.GOLURI_OASPETI_PESTE,
@@ -219,10 +236,12 @@ public class PieteZileService {
         }
         CornereReprizeDto reprize = statistici.cornereReprize();
         if (reprize != null) {
-            adaugaLinii(out, reprize.repriza1(), CodPiata.CORNERE_REPRIZA1_PESTE,
-                    esantion(fer, f -> f.forma().cornereRepriza1()), false);
-            adaugaLinii(out, reprize.repriza2(), CodPiata.CORNERE_REPRIZA2_PESTE,
-                    esantion(fer, f -> f.forma().cornereRepriza2()), false);
+            int esantionR1 = esantion(fer, f -> f.forma().cornereRepriza1());
+            int esantionR2 = esantion(fer, f -> f.forma().cornereRepriza2());
+            adaugaLinii(out, reprize.repriza1(), CodPiata.CORNERE_REPRIZA1_PESTE, esantionR1, false);
+            adaugaLinii(out, reprize.repriza2(), CodPiata.CORNERE_REPRIZA2_PESTE, esantionR2, false);
+            adaugaLinii(out, reprize.repriza1(), CodPiata.CORNERE_REPRIZA1_SUB, esantionR1, true);
+            adaugaLinii(out, reprize.repriza2(), CodPiata.CORNERE_REPRIZA2_SUB, esantionR2, true);
         }
         return List.copyOf(out);
     }

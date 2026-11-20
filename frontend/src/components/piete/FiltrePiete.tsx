@@ -1,5 +1,6 @@
 import type { CodPiata } from '../../api/types';
-import type { OptiuneLiga } from '../../lib/piete';
+import { piataDupaGrup, type OptiuneLiga } from '../../lib/piete';
+import { ChipMeniu } from '../ui/ChipMeniu';
 import { PragSlider } from './PragSlider';
 import { SegmenteTipPiata } from './SegmenteTipPiata';
 import { SelectorLigi } from './SelectorLigi';
@@ -9,6 +10,7 @@ interface Props {
   grup: string;
   cod: CodPiata;
   linie: number | null;
+  linieSus?: number | null;
   prag: number;
   ligi: OptiuneLiga[];
   ligiSelectate: number[];
@@ -16,17 +18,31 @@ interface Props {
   onPiata: (cod: CodPiata, linie: number | null) => void;
   onPrag: (prag: number) => void;
   onLigi: (selectate: number[]) => void;
+  onInterval?: (jos: number, sus: number) => void;
+}
+
+const PRAG_IMPLICIT = 30;
+
+function etichetaLigi(ligi: OptiuneLiga[], selectate: number[]): string {
+  if (selectate.length === 0) return 'Toate campionatele';
+  if (selectate.length === 1) {
+    const liga = ligi.find((l) => l.id === selectate[0]);
+    return liga?.nume ?? '1 campionat';
+  }
+  return `${selectate.length} campionate`;
 }
 
 /**
- * Zona de filtre: tipul pieței (segmente), selecția din interiorul ei (dropdown), pragul minim
- * și campionatele. Trei rânduri, în ordinea în care se ia decizia — ce piață, cât de sigură,
- * unde. Pe ecrane mici, segmentele și campionatele derulează orizontal în loc să se împacheteze.
+ * Bara de filtre: un singur rând de chip-uri, în ordinea în care se ia decizia — tipul pieței,
+ * piața exactă, cât de sigură, unde. Fiecare chip arată alegerea curentă; „Tip", „Șansă" și
+ * „Campionate" deschid un meniu mic, piața e un dropdown nativ. Rândul se împachetează pe ecrane
+ * înguste, deci nu mai există scroll orizontal.
  */
 export function FiltrePiete({
   grup,
   cod,
   linie,
+  linieSus,
   prag,
   ligi,
   ligiSelectate,
@@ -34,21 +50,33 @@ export function FiltrePiete({
   onPiata,
   onPrag,
   onLigi,
+  onInterval,
 }: Props) {
+  const tip = piataDupaGrup(grup);
   return (
-    <div className="flex flex-col gap-4">
-      <div className="-mx-1 overflow-x-auto px-1 pb-1">
-        <SegmenteTipPiata grup={grup} onSchimba={onGrup} />
-      </div>
+    <div className="flex flex-wrap items-center gap-2">
+      <ChipMeniu titlu="Tip piață" eticheta={tip.eticheta} icona={tip.icona} activ latime="w-[22rem]">
+        {(inchide) => (
+          <SegmenteTipPiata
+            grup={grup}
+            onSchimba={(g) => {
+              onGrup(g);
+              inchide();
+            }}
+          />
+        )}
+      </ChipMeniu>
 
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:gap-8">
-        <SelectorPiata grup={grup} cod={cod} linie={linie} onSchimba={onPiata} />
-        <PragSlider prag={prag} onSchimba={onPrag} />
-      </div>
+      <SelectorPiata grup={grup} cod={cod} linie={linie} onSchimba={onPiata} linieSus={linieSus}
+        onInterval={onInterval} />
 
-      <div className="border-t border-line pt-4">
-        <SelectorLigi ligi={ligi} selectate={ligiSelectate} onSchimba={onLigi} />
-      </div>
+      <ChipMeniu titlu="Șansă minimă" eticheta={`Șansă ≥ ${prag}%`} activ={prag !== PRAG_IMPLICIT}>
+        {() => <PragSlider prag={prag} onSchimba={onPrag} />}
+      </ChipMeniu>
+
+      <ChipMeniu titlu="Campionate" eticheta={etichetaLigi(ligi, ligiSelectate)} activ={ligiSelectate.length > 0}>
+        {() => <SelectorLigi ligi={ligi} selectate={ligiSelectate} onSchimba={onLigi} />}
+      </ChipMeniu>
     </div>
   );
 }
