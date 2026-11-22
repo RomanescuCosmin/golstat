@@ -33,12 +33,14 @@ public class PieteController {
      */
     public PieteZileDto zile(@RequestParam(defaultValue = "3") @Min(1) @Max(7) int zile,
                             @RequestParam(defaultValue = "toate") String competitie,
+                            @RequestParam(defaultValue = "separat") String locatie,
                             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate de,
                             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate pana) {
         boolean doarCompetitia = "curenta".equalsIgnoreCase(competitie);
+        boolean faraLocatie = "toate".equalsIgnoreCase(locatie);
         if (de != null && pana != null) {
-            return piete.piete(de, pana, doarCompetitia);
+            return piete.piete(de, pana, doarCompetitia, faraLocatie);
         }
-        return piete.piete(zile, doarCompetitia);
+        return piete.piete(zile, doarCompetitia, faraLocatie);
     }
 }

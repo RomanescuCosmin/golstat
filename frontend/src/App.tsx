@@ -6,6 +6,7 @@ import { PrevizualizarePage } from './pages/PrevizualizarePage';
 import { MatchCenterPage } from './pages/MatchCenterPage';
 import { TeamPage } from './pages/TeamPage';
 import { LivePage } from './pages/LivePage';
+import { FavoritePage } from './pages/FavoritePage';
 import { ProgramPage } from './pages/ProgramPage';
 import { CompetitiePage } from './pages/CompetitiePage';
 import { StatisticiPage } from './pages/StatisticiPage';
@@ -32,6 +33,7 @@ export function App() {
             <Route path="/jucator/:playerId" element={<JucatorPage />} />
             <Route path="/program" element={<ProgramPage />} />
             <Route path="/live" element={<LivePage />} />
+            <Route path="/favorite" element={<FavoritePage />} />
           </Route>
         </Routes>
       </BrowserRouter>

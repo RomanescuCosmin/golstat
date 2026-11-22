@@ -1,14 +1,15 @@
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
-import { ApiError, getPrevizualizare } from '../api/client';
-import { previzualizareMeci } from '../test/factories';
+import { ApiError, getClasament, getPrevizualizare } from '../api/client';
+import { clasamentDetaliat, previzualizareMeci } from '../test/factories';
 import { randeazaCuRuta } from '../test/rutare';
 import { PrevizualizarePage } from './PrevizualizarePage';
 
 vi.mock('../api/client', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../api/client')>()),
   getPrevizualizare: vi.fn(),
+  getClasament: vi.fn(),
 }));
 vi.mock('../api/live');
 
@@ -33,7 +34,7 @@ describe('PrevizualizarePage', () => {
     expect(await screen.findByText('Probabilitate rezultat')).toBeInTheDocument();
     expect(screen.getAllByText('Manchester United').length).toBeGreaterThan(0);
     expect(screen.getByRole('tab', { name: /Prezentare/ })).toHaveAttribute('aria-selected', 'true');
-    expect(mockGetPrevizualizare).toHaveBeenCalledWith(1001, 'toate');
+    expect(mockGetPrevizualizare).toHaveBeenCalledWith(1001, 'toate', 'separat');
   });
 
   test('taburile comuta continutul (Rezultate → întâlniri directe)', async () => {
@@ -103,5 +104,53 @@ describe('PrevizualizarePage', () => {
     const { container } = randeaza();
     await screen.findByText('Probabilitate rezultat');
     expect(container.textContent).not.toMatch(/NaN|undefined|Infinity/);
+  });
+});
+
+describe('PrevizualizarePage — tabul Clasament', () => {
+  test('cu competitia si sezonul meciului: clasamentul competitiei, langa Rezultate', async () => {
+    const user = userEvent.setup();
+    vi.mocked(getClasament).mockResolvedValue(clasamentDetaliat());
+    mockGetPrevizualizare.mockResolvedValue(previzualizareMeci({ leagueId: 39, sezon: 2026 }));
+    randeaza();
+    await screen.findByText('Probabilitate rezultat');
+
+    const taburi = screen.getAllByRole('tab').map((t) => t.textContent);
+    expect(taburi.indexOf('Clasament')).toBe(taburi.indexOf('Rezultate') + 1);
+
+    await user.click(screen.getByRole('tab', { name: /Clasament/ }));
+    expect(await screen.findByText('Burnley')).toBeInTheDocument();
+    expect(getClasament).toHaveBeenCalledWith(39, 2026);
+  });
+
+  test('fara competitie cunoscuta: mesaj, fara apel API', async () => {
+    vi.mocked(getClasament).mockClear();
+    const user = userEvent.setup();
+    mockGetPrevizualizare.mockResolvedValue(previzualizareMeci({ leagueId: null, sezon: null }));
+    randeaza();
+    await screen.findByText('Probabilitate rezultat');
+
+    await user.click(screen.getByRole('tab', { name: /Clasament/ }));
+    expect(screen.getByText('Fără clasament')).toBeInTheDocument();
+    expect(getClasament).not.toHaveBeenCalled();
+  });
+});
+
+describe('PrevizualizarePage — „Toate meciurile"', () => {
+  test('comutatorul recere previzualizarea fara regula acasa/deplasare si tine minte alegerea', async () => {
+    const user = userEvent.setup();
+    mockGetPrevizualizare.mockResolvedValue(previzualizareMeci());
+    const { unmount } = randeaza();
+    await screen.findByText('Probabilitate rezultat');
+    await user.click(screen.getByRole('tab', { name: /Statistici/ }));
+
+    await user.click(screen.getByRole('button', { name: 'Toate meciurile' }));
+    expect(mockGetPrevizualizare).toHaveBeenLastCalledWith(1001, 'toate', 'toate');
+    unmount();
+
+    mockGetPrevizualizare.mockClear();
+    randeaza();
+    await screen.findByText('Probabilitate rezultat');
+    expect(mockGetPrevizualizare).toHaveBeenCalledWith(1001, 'toate', 'toate');
   });
 });

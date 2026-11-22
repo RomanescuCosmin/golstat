@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
@@ -243,5 +243,49 @@ describe('MeciuriPage', () => {
     const { container } = randeaza();
     await screen.findByText('Liga Alfa');
     expect(container.textContent).not.toMatch(/NaN|undefined|Infinity/);
+  });
+});
+
+describe('MeciuriPage — revenirea cu „Înapoi"', () => {
+  test('ziua aleasa ramane la re-montare (nu sare inapoi pe azi)', async () => {
+    const user = userEvent.setup();
+    mockGetMeciuriZi.mockResolvedValue(
+      programZiGrupat({ ligi: [ligaZi({ leagueId: 901, nume: 'Liga Alfa', meciuri: [meciZi()] })] }),
+    );
+    const { unmount } = randeaza();
+    await screen.findByText('Liga Alfa');
+    const azi = mockGetMeciuriZi.mock.calls[0]![0];
+
+    const astazi = screen.getByRole('button', { name: /Astăzi/ });
+    const zile = screen.getAllByRole('button', { pressed: false }).filter((b) => b.parentElement === astazi.parentElement);
+    await user.click(zile[zile.length - 1]!);
+    const aleasa = mockGetMeciuriZi.mock.lastCall![0];
+    expect(aleasa).not.toBe(azi);
+    unmount();
+
+    mockGetMeciuriZi.mockClear();
+    randeaza();
+    await screen.findByText('Liga Alfa');
+    expect(mockGetMeciuriZi).toHaveBeenCalledWith(aleasa);
+    expect(mockGetMeciuriZi).not.toHaveBeenCalledWith(azi);
+    expect(screen.getByRole('button', { name: /Astăzi/ })).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  test('filtrele active raman la re-montare', async () => {
+    const user = userEvent.setup();
+    mockGetMeciuriZi.mockResolvedValue(
+      programZiGrupat({ ligi: [ligaZi({ leagueId: 901, nume: 'Liga Alfa', meciuri: [meciZi()] })] }),
+    );
+    const { unmount } = randeaza();
+    await screen.findByText('Liga Alfa');
+    await user.click(screen.getByRole('button', { name: 'Live' }));
+    expect(screen.queryByText('Liga Alfa')).toBeNull();
+    unmount();
+
+    mockGetMeciuriZi.mockClear();
+    randeaza();
+    await waitFor(() => expect(mockGetMeciuriZi).toHaveBeenCalled());
+    expect(screen.getByRole('button', { name: 'Live' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.queryByText('Liga Alfa')).toBeNull();
   });
 });

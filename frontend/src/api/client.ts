@@ -1,4 +1,4 @@
-import type { MeciCentral, MeciLive, PaginaCompetitie, PaginaEchipa, PaginaJucator, PieteZile, PredictieMeciDto, PrevizualizareMeciDto, Program, ProgramZiGrupat, RezultatCautare, StatisticiLiga } from './types';
+import type { ClasamentDetaliat, MeciCentral, MeciLive, PaginaCompetitie, PaginaEchipa, PaginaJucator, PieteZile, PredictieMeciDto, PrevizualizareMeciDto, Program, ProgramZiGrupat, RezultatCautare, StatisticiLiga } from './types';
 
 const BASE = '/api';
 
@@ -60,11 +60,19 @@ export function getPredictiiZi(leagueId: number, data: string): Promise<Predicti
 export type FiltruCompetitie = 'toate' | 'curenta';
 
 /** Previzualizarea completa a unui meci viitor. */
+/** `separat` = regula acasă/deplasare (implicit); `toate` = ultimele meciuri indiferent de teren. */
+export type FiltruLocatie = 'separat' | 'toate';
+
 export function getPrevizualizare(
   fixtureId: number,
   competitie: FiltruCompetitie = 'toate',
+  locatie: FiltruLocatie = 'separat',
 ): Promise<PrevizualizareMeciDto> {
-  const sufix = competitie === 'curenta' ? '?competitie=curenta' : '';
+  const parametri = new URLSearchParams();
+  if (competitie === 'curenta') parametri.set('competitie', 'curenta');
+  if (locatie === 'toate') parametri.set('locatie', 'toate');
+  const query = parametri.toString();
+  const sufix = query ? `?${query}` : '';
   return request<PrevizualizareMeciDto>(`/v1/predictii/meciuri/${fixtureId}/previzualizare${sufix}`);
 }
 
@@ -109,6 +117,11 @@ export function getCompetitie(leagueId: number, sezon?: number): Promise<PaginaC
   return request<PaginaCompetitie>(`/v1/competitii/${leagueId}${qs}`);
 }
 
+/** Clasamentul general / acasă / deplasare cu forma, calculat din meciurile jucate. */
+export function getClasament(leagueId: number, sezon: number): Promise<ClasamentDetaliat> {
+  return request<ClasamentDetaliat>(`/v1/competitii/${leagueId}/clasament?sezon=${sezon}`);
+}
+
 /** Clasamentul de tendințe pe ligi (medii goluri/cornere/faulturi/cartonașe) pentru pagina Statistici. */
 export function getStatisticiLigi(): Promise<StatisticiLiga[]> {
   return request<StatisticiLiga[]>('/v1/statistici/ligi');
@@ -130,9 +143,11 @@ export function getPieteZile(
   zile = 3,
   competitie: FiltruCompetitie = 'toate',
   perioada?: Perioada,
+  locatie: FiltruLocatie = 'separat',
 ): Promise<PieteZile> {
   const params = new URLSearchParams({ zile: String(zile) });
   if (competitie === 'curenta') params.set('competitie', 'curenta');
+  if (locatie === 'toate') params.set('locatie', 'toate');
   if (perioada) {
     params.set('de', perioada.de);
     params.set('pana', perioada.pana);

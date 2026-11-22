@@ -15,9 +15,17 @@ import org.springframework.web.bind.annotation.RestController;
 public class CompetitieController {
 
     private final CompetitieService competitii;
+    private final ClasamentDetaliatService clasamente;
 
-    public CompetitieController(CompetitieService competitii) {
+    public CompetitieController(CompetitieService competitii, ClasamentDetaliatService clasamente) {
         this.competitii = competitii;
+        this.clasamente = clasamente;
+    }
+
+    /** Clasamentul oficial al furnizorului (pe grupe, cu zone) + forma pe ultimele meciuri. */
+    @GetMapping("/{leagueId}/clasament")
+    public ClasamentDetaliatDto clasament(@PathVariable @Min(1) long leagueId, @RequestParam int sezon) {
+        return clasamente.clasament(leagueId, sezon);
     }
 
     /** Detaliul unei competitii; sezonul e optional (default = cel mai recent sezon jucat); 404 daca nu exista. */

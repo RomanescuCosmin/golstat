@@ -55,6 +55,9 @@ export function TopNav() {
           <NavLink to="/echipe" className={tabClasa}>
             Echipe
           </NavLink>
+          <NavLink to="/favorite" className={tabClasa}>
+            Favorite
+          </NavLink>
           {['Știri'].map((eticheta) => (
             <span
               key={eticheta}

@@ -25,6 +25,10 @@ public enum CodPiata {
     CARTONASE_OASPETI_PESTE(true),
     CORNERE_REPRIZA1_PESTE(true),
     CORNERE_REPRIZA2_PESTE(true),
+    CORNERE_REPRIZA1_SUB(true),
+    CORNERE_REPRIZA2_SUB(true),
+    GOLURI_REPRIZA1_PESTE(true),
+    GOLURI_REPRIZA2_PESTE(true),
     EGAL_PAUZA(false),
     EGAL_FINAL(false);
 

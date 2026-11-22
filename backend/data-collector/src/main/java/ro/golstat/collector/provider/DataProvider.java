@@ -44,6 +44,11 @@ public interface DataProvider {
         return List.of();
     }
 
+    /** Reprizele unui meci in desfasurare, chemat imediat dupa {@link #liveFixtureStatistics(long)}. */
+    default List<FixtureTeamHalfStatsDto> liveFixtureHalfStatistics(long fixtureId) {
+        return List.of();
+    }
+
     /** Formatiile unui meci (startXI + rezerve + antrenor per echipa); apar aproape de kickoff. */
     List<FixtureLineupDto> fixtureLineups(long fixtureId);
 

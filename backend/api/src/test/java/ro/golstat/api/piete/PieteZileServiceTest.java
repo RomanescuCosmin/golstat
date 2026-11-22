@@ -3,6 +3,7 @@ package ro.golstat.api.piete;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import ro.golstat.api.entity.Fixture;
+import ro.golstat.api.entity.FixtureTeamHalfStats;
 import ro.golstat.api.entity.FixtureTeamStats;
 import ro.golstat.api.entity.League;
 import ro.golstat.api.entity.Standing;
@@ -36,6 +37,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -93,6 +95,74 @@ class PieteZileServiceTest {
         assertEquals(s.egaluri().egalPauza(), cota(meci, CodPiata.EGAL_PAUZA, null).probabilitate());
         assertEquals(s.egaluri().egalFinal(), cota(meci, CodPiata.EGAL_FINAL, null).probabilitate(),
                 "egalul final depinde de P(egal) din modelul de goluri — cel mai fragil punct");
+    }
+
+    @Test
+    void toateMeciurile_aceleasiProcenteCaPaginaDeMeciFaraRegulaAcasaDeplasare() {
+        MeciPieteDto meci = primulMeci(piete.piete(3, false, true));
+        StatisticiAvansateDto s = preview.previzualizare(meci.fixtureId(), false, true).statistici();
+
+        verificaLinii(meci, CodPiata.GOLURI_PESTE, s.goluri(), false);
+        verificaLinii(meci, CodPiata.CORNERE_PESTE, s.cornere(), false);
+        verificaLinii(meci, CodPiata.FAULTURI_PESTE, s.faulturi(), false);
+        verificaLinii(meci, CodPiata.CARTONASE_PESTE, s.cartonase(), false);
+        assertEquals(s.gg().probabilitate(), cota(meci, CodPiata.GG, null).probabilitate());
+        assertNotEquals(cota(primulMeci(piete.piete(3)), CodPiata.CORNERE_PESTE, 9.5).probabilitate(),
+                cota(meci, CodPiata.CORNERE_PESTE, 9.5).probabilitate(),
+                "fara regula acasa/deplasare intra si meciurile de pe celalalt teren");
+    }
+
+    @Test
+    void goluriPeReprize_peste05si15IdenticeCuPaginaDeMeci() {
+        MeciPieteDto meci = primulMeci(piete.piete(3));
+        StatisticiAvansateDto.ReprizeDto r = preview.previzualizare(meci.fixtureId()).statistici().reprize();
+
+        assertEquals(r.golRepriza1(), cota(meci, CodPiata.GOLURI_REPRIZA1_PESTE, 0.5).probabilitate());
+        assertEquals(r.peste15Repriza1(), cota(meci, CodPiata.GOLURI_REPRIZA1_PESTE, 1.5).probabilitate());
+        assertEquals(r.golRepriza2(), cota(meci, CodPiata.GOLURI_REPRIZA2_PESTE, 0.5).probabilitate());
+        assertEquals(r.peste15Repriza2(), cota(meci, CodPiata.GOLURI_REPRIZA2_PESTE, 1.5).probabilitate());
+        assertTrue(r.peste15Repriza1() < r.golRepriza1(), "peste 1.5 e mai rar decat peste 0.5");
+    }
+
+    @Test
+    void cornerePeReprize_pesteSiSubIdenticeCuPaginaDeMeci() {
+        MeciPieteDto meci = primulMeci(piete.piete(3));
+        StatisticiAvansateDto s = preview.previzualizare(meci.fixtureId()).statistici();
+        assertNotNull(s.cornereReprize(), "datele de test au cornere pe reprize");
+
+        verificaLinii(meci, CodPiata.CORNERE_REPRIZA1_PESTE, s.cornereReprize().repriza1(), false);
+        verificaLinii(meci, CodPiata.CORNERE_REPRIZA2_PESTE, s.cornereReprize().repriza2(), false);
+        verificaLinii(meci, CodPiata.CORNERE_REPRIZA1_SUB, s.cornereReprize().repriza1(), true);
+        verificaLinii(meci, CodPiata.CORNERE_REPRIZA2_SUB, s.cornereReprize().repriza2(), true);
+    }
+
+    @Test
+    void cornerePeReprize_liniile2_5pana6_5() {
+        StatisticiAvansateDto s = preview.previzualizare(primulMeci(piete.piete(3)).fixtureId()).statistici();
+        assertEquals(List.of(2.5, 3.5, 4.5, 5.5, 6.5),
+                s.cornereReprize().repriza1().linii().stream().map(LinieDto::linie).toList());
+        assertEquals(List.of(2.5, 3.5, 4.5, 5.5, 6.5),
+                s.cornereReprize().repriza2().linii().stream().map(LinieDto::linie).toList());
+    }
+
+    @Test
+    void cornerePeReprize_subEsteComplementulLuiPeste() {
+        MeciPieteDto meci = primulMeci(piete.piete(3));
+        for (double linie : new double[] {2.5, 6.5}) {
+            double peste = cota(meci, CodPiata.CORNERE_REPRIZA1_PESTE, linie).probabilitate();
+            double sub = cota(meci, CodPiata.CORNERE_REPRIZA1_SUB, linie).probabilitate();
+            assertEquals(1.0, peste + sub, 1e-12, "peste + sub = 100% la linia " + linie);
+        }
+    }
+
+    @Test
+    void faraReprizeInIstoric_pieteleDeReprizaLipsesc() {
+        date.reprize.clear();
+        MeciPieteDto meci = primulMeci(piete.piete(3));
+        assertFalse(areP(meci, CodPiata.CORNERE_REPRIZA1_PESTE));
+        assertFalse(areP(meci, CodPiata.CORNERE_REPRIZA1_SUB));
+        assertFalse(areP(meci, CodPiata.CORNERE_REPRIZA2_SUB));
+        assertTrue(areP(meci, CodPiata.CORNERE_PESTE), "cornerele pe meci raman");
     }
 
     /** Egalitate EXACTA pe double: orice divergenta de calcul intre cele doua cai pica aici. */
@@ -296,6 +366,12 @@ class PieteZileServiceTest {
     private void statistici(Fixture f, int cornere, int faulturi, int galbene, int suturi) {
         date.statistici.add(stat(f.getId(), f.getHomeTeamId(), cornere, faulturi, galbene, suturi));
         date.statistici.add(stat(f.getId(), f.getAwayTeamId(), cornere + 1, faulturi + 2, galbene, suturi + 1));
+        // cornere pe reprize: R1 variaza 1..4, R2 = restul (totalul ramane cel din statistici)
+        int r1 = 1 + (int) (f.getId() % 4);
+        date.reprize.add(repriza(f.getId(), f.getHomeTeamId(), 1, Math.min(r1, cornere)));
+        date.reprize.add(repriza(f.getId(), f.getHomeTeamId(), 2, cornere - Math.min(r1, cornere)));
+        date.reprize.add(repriza(f.getId(), f.getAwayTeamId(), 1, Math.min(r1 + 1, cornere + 1)));
+        date.reprize.add(repriza(f.getId(), f.getAwayTeamId(), 2, cornere + 1 - Math.min(r1 + 1, cornere + 1)));
     }
 
     private static FixtureTeamStats stat(long fixtureId, long teamId, int cornere, int faulturi,
@@ -309,6 +385,15 @@ class PieteZileServiceTest {
         s.setRedCards(0);
         s.setShotsTotal(suturi + 8);
         s.setShotsOnGoal(suturi);
+        return s;
+    }
+
+    private static FixtureTeamHalfStats repriza(long fixtureId, long teamId, int repriza, int cornere) {
+        FixtureTeamHalfStats s = new FixtureTeamHalfStats();
+        s.setFixtureId(fixtureId);
+        s.setTeamId(teamId);
+        s.setHalf(repriza);
+        s.setCornerKicks(cornere);
         return s;
     }
 

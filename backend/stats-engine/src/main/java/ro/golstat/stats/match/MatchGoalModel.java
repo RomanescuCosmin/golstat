@@ -8,25 +8,28 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Modelul de goluri la nivel de MECI, doar din cele doua echipe (decizia utilizatorului, 2026-11-13):
+ * Modelul de goluri la nivel de MECI, doar din cele doua echipe (decizia utilizatorului, 2026-11-20:
+ * fara media ligii):
  *
  * <pre>
- *   λGazde   = (marcate de gazde acasa + primite de oaspeti in deplasare) / 2
- *   λOaspeti = (marcate de oaspeti in deplasare + primite de gazde acasa) / 2
+ *   λGazde   = FACTOR · (marcate de gazde acasa + primite de oaspeti in deplasare) / 2
+ *   λOaspeti = FACTOR · (marcate de oaspeti in deplasare + primite de gazde acasa) / 2
  * </pre>
  *
  * pe ultimele 7 meciuri pe locatie, cu golurile deja cantarite dupa forta adversarilor
  * ({@code GoalForm.of(window, forte)}). Media ligii intra doar cand o echipa n-are niciun meci pe locatie.
  * Cei doi λ intra in {@link ScoreGrid} (Dixon-Coles) → over/under, GG, 1X2 — aceeasi sursa pentru
- * predictie si pentru analiza pe piete. Backtest pe 826 de meciuri: bate modelul ancorat pe media ligii
- * la 1X2, GG si golurile pe echipa.
+ * predictie si pentru analiza pe piete.
  */
 public final class MatchGoalModel {
 
-    /** Corectia Dixon-Coles: usor negativa → putin mai multe egaluri mici (0-0, 1-1). */
-    public static final double RHO = -0.1;
+    /** Corectia Dixon-Coles: usor pozitiva → egalurile prezise aproape de cele reale (backtest 2026-11-20). */
+    public static final double RHO = 0.05;
 
     public static final int MAX_GOALS = 10;
+
+    /** Backtest pe 1723 de meciuri: ferestrele dau ~3% mai putine goluri decat se marcheaza (2.99 vs 3.10). */
+    public static final double FACTOR = 1.03;
 
     /** Podea pentru λ: o echipa cu 0 goluri in fereastra tot nu are sansa zero sa marcheze. */
     static final double LAMBDA_MINIM = 0.05;
@@ -48,8 +51,8 @@ public final class MatchGoalModel {
         double oaspetiMarcate = oaspeti.hasData() ? oaspeti.avgGoalsFor() : ctx.mediaLigaOaspeti();
         double oaspetiPrimite = oaspeti.hasData() ? oaspeti.avgGoalsAgainst() : ctx.mediaLigaGazde();
 
-        double lambdaGazde = Math.max((gazdeMarcate + oaspetiPrimite) / 2.0, LAMBDA_MINIM);
-        double lambdaOaspeti = Math.max((oaspetiMarcate + gazdePrimite) / 2.0, LAMBDA_MINIM);
+        double lambdaGazde = Math.max(FACTOR * (gazdeMarcate + oaspetiPrimite) / 2.0, LAMBDA_MINIM);
+        double lambdaOaspeti = Math.max(FACTOR * (oaspetiMarcate + gazdePrimite) / 2.0, LAMBDA_MINIM);
 
         ScoreGrid grid = ScoreGrid.dixonColes(lambdaGazde, lambdaOaspeti, RHO, MAX_GOALS);
 

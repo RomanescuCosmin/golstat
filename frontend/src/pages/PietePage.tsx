@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ApiError, getPieteZile, type FiltruCompetitie, type Perioada } from '../api/client';
+import { useStareSesiune } from '../hooks/useStareSesiune';
+import { ApiError, getPieteZile, type FiltruCompetitie, type FiltruLocatie, type Perioada } from '../api/client';
 import { ComutatorCompetitie } from '../components/ui/ComutatorCompetitie';
+import { ComutatorLocatie } from '../components/ui/ComutatorLocatie';
 import { CalendarPerioada } from '../components/ui/CalendarPerioada';
-import { citesteFiltruCompetitie, salveazaFiltruCompetitie } from '../lib/filtruCompetitie';
+import { citesteFiltruCompetitie, citesteFiltruLocatie, salveazaFiltruCompetitie, salveazaFiltruLocatie } from '../lib/filtruCompetitie';
 import type { CodPiata, PieteZile } from '../api/types';
 import { FiltrePiete } from '../components/piete/FiltrePiete';
 import { SectiuneZiPiete } from '../components/piete/SectiuneZiPiete';
@@ -16,6 +18,7 @@ import {
   codValid,
   etichetaPiata,
   filtreaza,
+  intervalValid,
   ligiDisponibile,
   ligiValide,
   linieValida,
@@ -46,21 +49,24 @@ export function PietePage() {
   const [eroare, setEroare] = useState<ApiError | null>(null);
   const [incercare, setIncercare] = useState(0);
   const [competitie, setCompetitie] = useState<FiltruCompetitie>(citesteFiltruCompetitie);
-  const [perioada, setPerioada] = useState<Perioada>(() => ({ de: dataIso(), pana: dataIso(2) }));
+  const [locatie, setLocatie] = useState<FiltruLocatie>(citesteFiltruLocatie);
+  const [perioada, setPerioada] = useStareSesiune<Perioada>('piete.perioada', () => ({ de: dataIso(), pana: dataIso(2) }));
 
-  const [grup, setGrup] = useState('goluri');
-  const [cod, setCod] = useState<CodPiata>('GOLURI_PESTE');
-  const [linie, setLinie] = useState<number | null>(2.5);
-  const [prag, setPrag] = useState(30);
+  const [grup, setGrup] = useStareSesiune('piete.grup', 'goluri');
+  const [cod, setCod] = useStareSesiune<CodPiata>('piete.cod', 'GOLURI_PESTE');
+  const [linie, setLinie] = useStareSesiune<number | null>('piete.linie', 2.5);
+  /** Limita „sub Y" a piețelor-interval; ignorată la celelalte piețe. */
+  const [linieSus, setLinieSus] = useStareSesiune<number | null>('piete.linieSus', null);
+  const [prag, setPrag] = useStareSesiune('piete.prag', 30);
   /** Gol = toate campionatele. */
-  const [ligiSelectate, setLigiSelectate] = useState<number[]>([]);
+  const [ligiSelectate, setLigiSelectate] = useStareSesiune<number[]>('piete.ligi', []);
   const { favorite, comuta } = useFavoritePiete();
 
   useEffect(() => {
     let anulat = false;
     setLoading(true);
     setEroare(null);
-    getPieteZile(3, competitie, perioada)
+    getPieteZile(3, competitie, perioada, locatie)
       .then((rezultat) => {
         if (!anulat) setDate(rezultat);
       })
@@ -76,30 +82,47 @@ export function PietePage() {
     return () => {
       anulat = true;
     };
-  }, [incercare, competitie, perioada]);
+  }, [incercare, competitie, perioada, locatie]);
 
   function schimbaCompetitie(valoare: FiltruCompetitie) {
     salveazaFiltruCompetitie(valoare);
     setCompetitie(valoare);
   }
 
+  function schimbaLocatie(valoare: FiltruLocatie) {
+    salveazaFiltruLocatie(valoare);
+    setLocatie(valoare);
+  }
+
+  const sus = intervalValid(grup, linie, linieSus)?.[1] ?? null;
   const ligi = useMemo(
-    () => ligiDisponibile(date?.zile ?? [], cod, linie, prag),
-    [date, cod, linie, prag],
+    () => ligiDisponibile(date?.zile ?? [], cod, linie, prag, sus),
+    [date, cod, linie, prag, sus],
   );
   // datele reincarcate pot pierde un campionat selectat — nu-l lasam sa filtreze pe nimic
   const selectate = useMemo(() => ligiValide(ligiSelectate, ligi), [ligiSelectate, ligi]);
   const zile = useMemo(
-    () => filtreaza(date?.zile ?? [], cod, linie, prag, selectate),
-    [date, cod, linie, prag, selectate],
+    () => filtreaza(date?.zile ?? [], cod, linie, prag, selectate, sus),
+    [date, cod, linie, prag, selectate, sus],
   );
   const total = numaraRanduri(zile);
-  const etichetaAleasa = etichetaPiata(grup, cod, linie);
+  const etichetaAleasa = etichetaPiata(grup, cod, linie, sus);
 
   function schimbaGrup(nou: string) {
     setGrup(nou);
     setCod(codValid(nou, null));
-    setLinie(linieValida(nou, linie));
+    const interval = intervalValid(nou, linie, linieSus);
+    if (interval) {
+      setLinie(interval[0]);
+      setLinieSus(interval[1]);
+    } else {
+      setLinie(linieValida(nou, linie));
+    }
+  }
+
+  function schimbaInterval(jos: number, susNou: number) {
+    setLinie(jos);
+    setLinieSus(susNou);
   }
 
   function schimbaPiata(nouCod: CodPiata, nouaLinie: number | null) {
@@ -117,6 +140,7 @@ export function PietePage() {
         <div className="mt-3 flex flex-wrap items-center gap-3">
           <CalendarPerioada valoare={perioada} onSchimba={setPerioada} maxZile={MAX_ZILE} />
           <ComutatorCompetitie valoare={competitie} onSchimba={schimbaCompetitie} />
+          <ComutatorLocatie valoare={locatie} onSchimba={schimbaLocatie} />
         </div>
       </div>
 
@@ -125,6 +149,7 @@ export function PietePage() {
           grup={grup}
           cod={cod}
           linie={linie}
+          linieSus={sus}
           prag={prag}
           ligi={ligi}
           ligiSelectate={selectate}
@@ -132,6 +157,7 @@ export function PietePage() {
           onPiata={schimbaPiata}
           onPrag={setPrag}
           onLigi={setLigiSelectate}
+          onInterval={schimbaInterval}
         />
       </Card>
 

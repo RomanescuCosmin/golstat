@@ -1,5 +1,8 @@
 import type {
   AntetCompetitie,
+  ClasamentDetaliat,
+  MeciFormaClasament,
+  RandClasamentDetaliat,
   AntetEchipa,
   EchipaDeStartDto,
   EchipaDto,
@@ -198,6 +201,7 @@ export function meciCentral(over: Partial<MeciCentral> = {}): MeciCentral {
     arbitru: 'M. Oliver',
     stadion: 'Old Trafford',
     statistici: statisticiMeci(),
+    reprize: [],
     formatii: { gazde: echipaFormatie(), oaspeti: echipaFormatie({ antrenor: 'A. Slot' }) },
     evenimente: [evenimentMeci()],
     ...over,
@@ -395,6 +399,8 @@ export function statisticiAvansate(over: Partial<StatisticiAvansateDto> = {}): S
       repriza1Oaspeti: frecventa(5, 7),
       repriza2Gazde: frecventa(6, 7),
       repriza2Oaspeti: frecventa(5, 7),
+      peste15Repriza1: 0.35,
+      peste15Repriza2: 0.45,
     },
     rezultat: null,
     echipe: {
@@ -445,6 +451,8 @@ export function previzualizareMeci(over: Partial<PrevizualizareMeciDto> = {}): P
     statisticiCheie: statisticiCheie(),
     echipeDeStart: echipeDeStart(),
     arbitru: null,
+    leagueId: null,
+    sezon: null,
     ...over,
   };
 }
@@ -674,4 +682,30 @@ export function ziPiete(over: Partial<ZiPiete> = {}): ZiPiete {
 
 export function pieteZile(over: Partial<PieteZile> = {}): PieteZile {
   return { zile: [ziPiete()], ...over };
+}
+
+export function meciFormaClasament(over: Partial<MeciFormaClasament> = {}): MeciFormaClasament {
+  return { fixtureId: 9001, data: '2026-11-08', rezultat: 'V', acasa: true, adversar: 'Chelsea', golGazde: 2, golOaspeti: 1, ...over };
+}
+
+export function randClasamentDetaliat(over: Partial<RandClasamentDetaliat> = {}): RandClasamentDetaliat {
+  return {
+    pozitie: 1, teamId: 33, nume: 'Manchester United', logo: null, jucate: 12, victorii: 8, egaluri: 2,
+    infrangeri: 2, golMarcate: 25, golPrimite: 10, golaveraj: 15, puncte: 26, zona: null,
+    forma: [meciFormaClasament()], ...over,
+  };
+}
+
+export function clasamentDetaliat(over: Partial<ClasamentDetaliat> = {}): ClasamentDetaliat {
+  return {
+    grupe: [{
+      nume: null,
+      randuri: [
+        randClasamentDetaliat({ zona: 'Champions League' }),
+        randClasamentDetaliat({ pozitie: 2, teamId: 40, nume: 'Liverpool', puncte: 24, golaveraj: 9 }),
+        randClasamentDetaliat({ pozitie: 3, teamId: 50, nume: 'Burnley', puncte: 5, golaveraj: -12, zona: 'Relegation', forma: [] }),
+      ],
+    }],
+    ...over,
+  };
 }

@@ -32,6 +32,20 @@ public record CountLeagueAverages(
         PeLocatie parte(double pondere) {
             return new PeLocatie(gazde * pondere, oaspeti * pondere);
         }
+
+        PeLocatie neutru() {
+            return egal(gazde + oaspeti);
+        }
+    }
+
+    /**
+     * Fara avantajul terenului: ambele echipe pornesc de la media unei echipe oarecare din liga.
+     * Pentru modul „Toate meciurile", unde ferestrele amesteca meciurile de acasa si din deplasare.
+     */
+    public CountLeagueAverages neutre() {
+        return new CountLeagueAverages(cornerePeMeci, faulturiPeMeci, cartonasePeMeci, suturiPeMeci,
+                suturiPePoartaPeMeci, cornere.neutru(), faulturi.neutru(), cartonase.neutru(),
+                cornereRepriza1.neutru(), cornereRepriza2.neutru());
     }
 
     /** Doar totalurile; impartirea pe locatie cade pe jumatate-jumatate (teste, fallback). */

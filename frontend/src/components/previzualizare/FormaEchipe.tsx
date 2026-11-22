@@ -1,22 +1,10 @@
-import type { EchipaDto, FereastraFormaDto, FormaEchipaDto, FormaMeciDto } from '../../api/types';
+import type { EchipaDto, FereastraFormaDto, FormaEchipaDto } from '../../api/types';
 import { numeEchipa } from '../../lib/echipa';
-import { formatDataScurta } from '../../lib/format';
 import { Card } from '../ui/Card';
 import { TeamLogo } from '../ui/TeamLogo';
+import { RandMeciForma } from './RandMeciForma';
 
-function BadgeRezultat({ meci }: { meci: FormaMeciDto }) {
-  const clasa = meci.rezultat === 'V' ? 'bg-win' : meci.rezultat === 'E' ? 'bg-draw' : 'bg-accent';
-  return (
-    <span
-      title={`${formatDataScurta(meci.data)} · ${meci.golMarcate}-${meci.golPrimite} (${meci.acasa ? 'acasă' : 'deplasare'})`}
-      className={`flex h-6 w-6 items-center justify-center rounded text-xs font-bold text-white ${clasa}`}
-    >
-      {meci.rezultat}
-    </span>
-  );
-}
-
-function RandFereastra({ eticheta, fereastra }: { eticheta: string; fereastra: FereastraFormaDto }) {
+function RandFereastra({ eticheta, fereastra, echipa }: { eticheta: string; fereastra: FereastraFormaDto; echipa: EchipaDto }) {
   return (
     <div>
       <div className="mb-1 flex items-baseline justify-between">
@@ -32,20 +20,7 @@ function RandFereastra({ eticheta, fereastra }: { eticheta: string; fereastra: F
       ) : (
         <ul className="divide-y divide-line">
           {fereastra.meciuri.map((meci, i) => (
-            <li key={`${meci.data}-${i}`} className="flex items-center gap-2 py-1.5 text-sm">
-              <span className="w-12 shrink-0 text-[11px] tabular-nums text-ink2">{formatDataScurta(meci.data)}</span>
-              <BadgeRezultat meci={meci} />
-              <span className="w-6 shrink-0 text-center text-[11px] text-ink2" title={meci.acasa ? 'acasă' : 'deplasare'}>
-                {meci.acasa ? 'vs' : '@'}
-              </span>
-              <TeamLogo nume={meci.adversar?.nume} logo={meci.adversar?.logo ?? null} size={20} />
-              <span className="min-w-0 flex-1 truncate text-ink">
-                {meci.adversar ? numeEchipa(meci.adversar) : 'Adversar necunoscut'}
-              </span>
-              <span className="shrink-0 font-bold tabular-nums text-ink">
-                {meci.golMarcate}-{meci.golPrimite}
-              </span>
-            </li>
+            <RandMeciForma key={`${meci.data}-${i}`} meci={meci} echipa={echipa} />
           ))}
         </ul>
       )}
@@ -61,8 +36,8 @@ function BlocForma({ echipa, forma, locatie }: { echipa: EchipaDto; forma: Forma
         <span className="min-w-0 truncate text-sm font-bold text-ink">{numeEchipa(echipa)}</span>
       </div>
       <div className="space-y-2">
-        <RandFereastra eticheta={locatie} fereastra={forma.locatie} />
-        <RandFereastra eticheta="General" fereastra={forma.general} />
+        <RandFereastra eticheta={locatie} fereastra={forma.locatie} echipa={echipa} />
+        <RandFereastra eticheta="General" fereastra={forma.general} echipa={echipa} />
       </div>
     </div>
   );
@@ -77,7 +52,7 @@ interface FormaEchipeProps {
 
 /**
  * Rezultatele recente: pentru gazde ultimele 7 ACASĂ + 7 generale, pentru oaspeți ultimele 7 în
- * DEPLASARE + 7 generale (badge-uri V/E/I + mediile marcate/primite pe fereastră).
+ * DEPLASARE + 7 generale, fiecare meci ca gazde · scor · oaspeți.
  */
 export function FormaEchipe({ gazde, oaspeti, formaGazde, formaOaspeti }: FormaEchipeProps) {
   return (

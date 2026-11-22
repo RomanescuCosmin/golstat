@@ -47,7 +47,7 @@ export function MatchCenterPage() {
           <HeaderScor meci={date} live={live} />
 
           {date.statistici ? (
-            <StatisticiLive gazde={date.gazde} oaspeti={date.oaspeti} statistici={date.statistici} />
+            <StatisticiLive gazde={date.gazde} oaspeti={date.oaspeti} statistici={date.statistici} reprize={date.reprize} />
           ) : (
             <Card>
               <EmptyState titlu="Statistici indisponibile" mesaj="Statistici indisponibile pentru acest meci." />

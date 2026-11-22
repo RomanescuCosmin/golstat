@@ -43,11 +43,27 @@ describe('CronologieMeci', () => {
   test('schimbare: cine intra si cine iese', () => {
     render(
       <CronologieMeci
-        evenimente={[evenimentMeci({ tip: 'subst', jucator: 'A. Garnacho', detaliu: 'M. Rashford' })]}
+        evenimente={[
+          evenimentMeci({ tip: 'subst', jucator: 'M. Rashford', asist: 'A. Garnacho', detaliu: 'Substitution' }),
+        ]}
       />,
     );
-    expect(screen.getByText('A. Garnacho')).toBeInTheDocument();
-    expect(screen.getByText('iese: M. Rashford')).toBeInTheDocument();
+    expect(screen.getByText('▲ A. Garnacho')).toBeInTheDocument();
+    expect(screen.getByText('▼ iese: M. Rashford')).toBeInTheDocument();
+  });
+
+  test('cartonas: jucatorul si tipul in romana; gol din penalti cu pasa', () => {
+    render(
+      <CronologieMeci
+        evenimente={[
+          evenimentMeci({ id: 1, tip: 'Card', detaliu: 'Yellow Card', jucator: 'A. Ç. Çelik' }),
+          evenimentMeci({ id: 2, tip: 'Goal', detaliu: 'Penalty', jucator: 'A. M. Traoré', asist: null }),
+        ]}
+      />,
+    );
+    expect(screen.getByText('A. Ç. Çelik')).toBeInTheDocument();
+    expect(screen.getByText('Cartonaș galben')).toBeInTheDocument();
+    expect(screen.getByText('Gol din penalti')).toBeInTheDocument();
   });
 
   test('gazdele pe coloana stanga, oaspetii pe dreapta', () => {

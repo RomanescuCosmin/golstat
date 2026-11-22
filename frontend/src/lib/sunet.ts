@@ -1,4 +1,4 @@
-// Sunet de gol sintetizat prin Web Audio — fara fisier, merge offline, fara probleme de CSP.
+// Sunetul de gol: „puls dublu” sintetizat cu Web Audio.
 
 let ctx: AudioContext | null = null;
 
@@ -26,7 +26,7 @@ export function pregatesteSunet(): void {
   }
 }
 
-/** Un mic arpegiu ascendent (Do–Mi–Sol) = „gol". Ignora orice eroare (audio blocat/indisponibil). */
+/** Doua impulsuri moi, joase-inalte, cu o mica coada. Ignora orice eroare. */
 export function sunetGol(): void {
   const c = context();
   if (!c) return;
@@ -34,18 +34,17 @@ export function sunetGol(): void {
     void c.resume();
   }
   const acum = c.currentTime;
-  const note = [523.25, 659.25, 783.99];
-  for (let i = 0; i < note.length; i++) {
+  for (const [start, frecventa] of [[0, 659.25], [0.16, 987.77]] as const) {
+    const t = acum + start;
     const osc = c.createOscillator();
-    const gain = c.createGain();
     osc.type = 'triangle';
-    osc.frequency.value = note[i]!;
-    const t = acum + i * 0.12;
+    osc.frequency.value = frecventa;
+    const gain = c.createGain();
     gain.gain.setValueAtTime(0.0001, t);
-    gain.gain.exponentialRampToValueAtTime(0.25, t + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.26);
+    gain.gain.exponentialRampToValueAtTime(0.25, t + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.3);
     osc.connect(gain).connect(c.destination);
     osc.start(t);
-    osc.stop(t + 0.3);
+    osc.stop(t + 0.32);
   }
 }

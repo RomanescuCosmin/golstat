@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
+import { useStareSesiune } from '../hooks/useStareSesiune';
 import { ApiError, getMeciuriZi } from '../api/client';
 import type { LigaZi } from '../api/types';
 import { CardCompetitie } from '../components/meciuri/CardCompetitie';
@@ -19,9 +20,9 @@ const CURAND_MS = 2 * 60 * 60 * 1000; // „începe curând" = următoarele 2 or
 
 export function MeciuriPage() {
   const fav = useFavorite();
-  const [dataISO, setDataISO] = useState(() => toISODataLocala(new Date()));
-  const [filtruLiga, setFiltruLiga] = useState<number | null>(null);
-  const [filtre, setFiltre] = useState<StareFiltre>(FILTRE_INITIALE);
+  const [dataISO, setDataISO] = useStareSesiune('meciuri.data', () => toISODataLocala(new Date()));
+  const [filtruLiga, setFiltruLiga] = useStareSesiune<number | null>('meciuri.liga', null);
+  const [filtre, setFiltre] = useStareSesiune<StareFiltre>('meciuri.filtre', FILTRE_INITIALE);
   const [ligi, setLigi] = useState<LigaZi[]>([]);
   const [loading, setLoading] = useState(true);
   const [eroare, setEroare] = useState<ApiError | null>(null);

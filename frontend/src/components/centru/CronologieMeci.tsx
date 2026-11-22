@@ -34,16 +34,36 @@ function iconEveniment(ev: EvenimentMeci): ReactNode {
   }
 }
 
+const DETALII: Record<string, string> = {
+  'Normal Goal': 'Gol',
+  Penalty: 'Gol din penalti',
+  'Own Goal': 'Autogol',
+  'Missed Penalty': 'Penalti ratat',
+  'Yellow Card': 'Cartonaș galben',
+  'Red Card': 'Cartonaș roșu',
+  'Second Yellow card': 'Al doilea galben → roșu',
+};
+
+function detaliu(d: string | null): string | null {
+  return d ? (DETALII[d] ?? d) : null;
+}
+
+/** La schimbare `jucator` = cine iese, `asist` = cine intra (conventia API-Football, pastrata si la bzzoiro). */
 function descriere(ev: EvenimentMeci): { titlu: string | null; sub: string | null } {
   switch (ev.tip) {
-    case 'Goal':
-      return { titlu: ev.jucator, sub: ev.asist ? `pasă: ${ev.asist}` : ev.detaliu };
+    case 'Goal': {
+      const tip = detaliu(ev.detaliu);
+      const pasa = ev.asist ? `pasă: ${ev.asist}` : null;
+      return { titlu: ev.jucator, sub: tip && tip !== 'Gol' ? [tip, pasa].filter(Boolean).join(' · ') : pasa };
+    }
     case 'subst':
-      return { titlu: ev.jucator, sub: ev.detaliu ? `iese: ${ev.detaliu}` : null };
+      return ev.asist
+        ? { titlu: `▲ ${ev.asist}`, sub: ev.jucator ? `▼ iese: ${ev.jucator}` : null }
+        : { titlu: ev.jucator, sub: 'Schimbare' };
     case 'Var':
       return { titlu: ev.detaliu, sub: null };
     default:
-      return { titlu: ev.jucator, sub: ev.detaliu };
+      return { titlu: ev.jucator, sub: detaliu(ev.detaliu) };
   }
 }
 

@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import type { FiltruCompetitie } from '../../api/client';
+import { createContext, useContext, useState } from 'react';
+import type { FiltruCompetitie, FiltruLocatie } from '../../api/client';
 import type {
   ArbitruDto,
   EchipaDto,
@@ -17,15 +17,26 @@ import { formatRata } from '../../lib/format';
 import { Badge } from '../ui/Badge';
 import { Card } from '../ui/Card';
 import { ComutatorCompetitie } from '../ui/ComutatorCompetitie';
+import { ComutatorLocatie } from '../ui/ComutatorLocatie';
 import { Taburi, type Tab } from '../ui/Taburi';
 import { TeamLogo } from '../ui/TeamLogo';
+import { RandMeciForma } from './RandMeciForma';
 
 /**
  * Secțiunea „Statistici" a meciului, pe modelul aplicațiilor de statistici pe mobil: un ecran de
  * comparație (echipele față în față + șansele meciului), apoi câte un tab pe piață cu panoul fiecărei
  * echipe (ultimele 7 rezultate + liniile ei) și totalul meciului. Totul pe ultimele 7 meciuri:
- * gazdele acasă, oaspeții în deplasare.
+ * gazdele acasă, oaspeții în deplasare — sau, cu „Toate meciurile", ultimele 7 ale fiecărei echipe.
  */
+
+/** `true` = modul „Toate meciurile": ferestrele nu mai sunt pe teren, deci nici etichetele. */
+const FaraLocatie = createContext(false);
+
+/** „acasă" / „în deplasare", sau nimic când ferestrele amestecă terenurile. */
+function useLoc() {
+  const fara = useContext(FaraLocatie);
+  return (acasa: boolean) => (fara ? '' : acasa ? 'acasă' : 'în deplasare');
+}
 
 const TABURI: Tab[] = [
   { id: 'comparatie', eticheta: 'Comparație' },
@@ -42,6 +53,9 @@ interface Echipe {
   gazde: EchipaDto;
   oaspeti: EchipaDto;
 }
+
+/** La cornerele pe repriză linia de sus se joacă de regulă pe „sub". */
+const LINII_SUB_REPRIZA = [6.5];
 
 function procentDin(f: FrecventaDto | null | undefined): number | null {
   return f && f.total > 0 ? f.reusite / f.total : null;
@@ -148,7 +162,8 @@ function PanouEchipa({
   grupuri: GrupLinii[];
   unitate: string;
 }) {
-  const loc = acasa ? 'acasă' : 'în deplasare';
+  const loc = useLoc()(acasa);
+  const sufixLoc = loc ? ` ${loc}` : '';
   return (
     <Card className="p-5">
       <div className="flex flex-col items-center gap-2 text-center">
@@ -156,9 +171,17 @@ function PanouEchipa({
         <h3 className="text-lg font-extrabold text-ink">{numeEchipa(echipa)}</h3>
         <span className="text-xs font-semibold uppercase tracking-wide text-primary">{acasa ? 'Acasă' : 'Deplasare'}</span>
       </div>
-      <p className="mt-4 text-sm font-bold text-ink">Ultimele 7 rezultate {loc}</p>
+      <p className="mt-4 text-sm font-bold text-ink">Ultimele 7 rezultate{sufixLoc}</p>
       <div className="mt-2">
-        <UltimeleRezultate forma={forma?.locatie} />
+        {unitate === 'goluri' && forma && forma.locatie.meciuri.length > 0 ? (
+          <ul className="divide-y divide-line">
+            {forma.locatie.meciuri.map((m, i) => (
+              <RandMeciForma key={`${m.data}-${i}`} meci={m} echipa={echipa} />
+            ))}
+          </ul>
+        ) : (
+          <UltimeleRezultate forma={forma?.locatie} />
+        )}
       </div>
       {grupuri.map((g, i) => (
         <div key={g.titlu ?? i} className="mt-4">
@@ -177,7 +200,7 @@ function PanouEchipa({
                 eticheta={`Peste ${l.linie} ${unitate}`}
                 rata={l.probabilitate}
                 areDate={n > 0}
-                detaliu={`${frecventa(l.facuteLocatie)} ${loc} · ${numeEchipa(adversar)} a primit ${frecventa(
+                detaliu={`${frecventa(l.facuteLocatie)}${sufixLoc} · ${numeEchipa(adversar)} a primit ${frecventa(
                   l.primiteAdversarLocatie,
                 )}${n > 0 && n < PRAG_ESANTION_MIC ? ' · orientativ' : ''}`}
                 actual={g.real != null ? g.real > l.linie : null}
@@ -197,14 +220,20 @@ function TotalMeci({
   unitate,
   echipe,
   totalReal,
+  sub = [],
 }: {
   titlu: string;
   piata: PiataStatDto | null | undefined;
   unitate: string;
   echipe: Echipe;
   totalReal?: number | null;
+  /** Liniile afișate ca „Sub x" (complementul lui „Peste x"). */
+  sub?: number[];
 }) {
+  const loc = useLoc();
   if (!piata || piata.linii.length === 0) return null;
+  const perMeci = (acasa: boolean) => (loc(acasa) ? `/meci ${loc(acasa)}` : '/meci');
+  const invers = (f: FrecventaDto): FrecventaDto => ({ reusite: f.total - f.reusite, total: f.total });
   return (
     <Card className="p-5">
       <div className="flex items-baseline justify-between gap-2">
@@ -212,11 +241,23 @@ function TotalMeci({
         {totalReal != null && <span className="text-xs font-semibold text-ink">Real: {totalReal}</span>}
       </div>
       <p className="text-[11px] text-ink2">
-        {numeEchipa(echipe.gazde)}: {formatNumar(piata.gazde.totalLocatie)}/meci acasă · {numeEchipa(echipe.oaspeti)}:{' '}
-        {formatNumar(piata.oaspeti.totalLocatie)}/meci în deplasare
+        {numeEchipa(echipe.gazde)}: {formatNumar(piata.gazde.totalLocatie)}{perMeci(true)} · {numeEchipa(echipe.oaspeti)}:{' '}
+        {formatNumar(piata.oaspeti.totalLocatie)}{perMeci(false)}
       </p>
       {piata.linii.map((l) => {
         const n = l.gazdeLocatie.total + l.oaspetiLocatie.total;
+        if (sub.includes(l.linie)) {
+          return (
+            <LinieBara
+              key={l.linie}
+              eticheta={`Sub ${l.linie} ${unitate}`}
+              rata={1 - l.probabilitate}
+              areDate={n > 0}
+              detaliu={`${frecventa(invers(l.gazdeLocatie))} · ${frecventa(invers(l.oaspetiLocatie))}`}
+              actual={totalReal != null ? totalReal < l.linie : null}
+            />
+          );
+        }
         return (
           <LinieBara
             key={l.linie}
@@ -318,14 +359,22 @@ function Comparatie({
     const total = f.meciuri.reduce((acc, m) => acc + (marcate ? m.golMarcate : m.golPrimite), 0);
     return `${formatNumar(marcate ? f.goluriMarcatePeMeci : f.goluriPrimitePeMeci)} / meci · ${total} total`;
   };
+  // in modul „Toate meciurile" fereastra pe locatie ESTE cea generala: randurile „(general)" ar dubla cifrele
+  const faraLocatie = useContext(FaraLocatie);
+  const fereastra = faraLocatie ? 'ultimele 7' : 'acasă / deplasare';
   const numere: [string, string, string][] = [
-    ['Goluri marcate (acasă / deplasare)', goluri(formaGazde?.locatie, true, s.goluri.gazde.proprieLocatie),
+    [`Goluri marcate (${fereastra})`, goluri(formaGazde?.locatie, true, s.goluri.gazde.proprieLocatie),
       goluri(formaOaspeti?.locatie, true, s.goluri.oaspeti.proprieLocatie)],
-    ['Goluri primite (acasă / deplasare)', goluri(formaGazde?.locatie, false, primite(s.goluri.gazde)),
+    [`Goluri primite (${fereastra})`, goluri(formaGazde?.locatie, false, primite(s.goluri.gazde)),
       goluri(formaOaspeti?.locatie, false, primite(s.goluri.oaspeti))],
-    ['Goluri marcate (general)', goluri(formaGazde?.general, true, s.goluri.gazde.proprieGeneral),
-      goluri(formaOaspeti?.general, true, s.goluri.oaspeti.proprieGeneral)],
-    ['Goluri primite (general)', goluri(formaGazde?.general, false, null), goluri(formaOaspeti?.general, false, null)],
+    ...(faraLocatie
+      ? []
+      : ([
+          ['Goluri marcate (general)', goluri(formaGazde?.general, true, s.goluri.gazde.proprieGeneral),
+            goluri(formaOaspeti?.general, true, s.goluri.oaspeti.proprieGeneral)],
+          ['Goluri primite (general)', goluri(formaGazde?.general, false, null),
+            goluri(formaOaspeti?.general, false, null)],
+        ] as [string, string, string][])),
     ['Cornere / meci', formatNumar(s.cornere.gazde.proprieLocatie), formatNumar(s.cornere.oaspeti.proprieLocatie)],
     ['Cartonașe / meci', formatNumar(s.cartonase.gazde.proprieLocatie), formatNumar(s.cartonase.oaspeti.proprieLocatie)],
   ];
@@ -370,9 +419,9 @@ function Comparatie({
   return (
     <Card className="p-5">
       <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 text-center">
-        {antetEchipa(echipe.gazde, 'ultimele 7 acasă')}
+        {antetEchipa(echipe.gazde, faraLocatie ? 'ultimele 7 meciuri' : 'ultimele 7 acasă')}
         <span className="text-xs font-semibold text-ink2">vs</span>
-        {antetEchipa(echipe.oaspeti, 'ultimele 7 în deplasare')}
+        {antetEchipa(echipe.oaspeti, faraLocatie ? 'ultimele 7 meciuri' : 'ultimele 7 în deplasare')}
       </div>
 
       <div className="mt-5 border-t border-line pt-3">
@@ -452,6 +501,9 @@ interface SectiuneStatisticiProps {
   /** Filtrul de competiție; fără `onCompetitie` comutatorul nu se afișează. */
   competitie?: FiltruCompetitie;
   onCompetitie?: (valoare: FiltruCompetitie) => void;
+  /** Regula acasă/deplasare sau toate meciurile; fără `onLocatie` comutatorul nu se afișează. */
+  locatie?: FiltruLocatie;
+  onLocatie?: (valoare: FiltruLocatie) => void;
   /** Tabul deschis la intrare (ex. „goluri" pentru verdictul meciului jucat). */
   piataInitiala?: string | null;
 }
@@ -465,6 +517,8 @@ export function SectiuneStatistici({
   arbitru,
   competitie = 'toate',
   onCompetitie,
+  locatie = 'separat',
+  onLocatie,
   piataInitiala,
 }: SectiuneStatisticiProps) {
   const echipe: Echipe = { gazde, oaspeti };
@@ -538,9 +592,11 @@ export function SectiuneStatistici({
               totalReal={r?.totalCornere} />
             <div className="grid gap-4 lg:grid-cols-2">
               <TotalMeci titlu="Cornere în repriza 1" piata={s.cornereReprize?.repriza1} unitate="cornere"
-                echipe={echipe} totalReal={suma(real?.cornereRepriza1Gazde, real?.cornereRepriza1Oaspeti)} />
+                echipe={echipe} totalReal={suma(real?.cornereRepriza1Gazde, real?.cornereRepriza1Oaspeti)}
+                sub={LINII_SUB_REPRIZA} />
               <TotalMeci titlu="Cornere în repriza 2" piata={s.cornereReprize?.repriza2} unitate="cornere"
-                echipe={echipe} totalReal={suma(real?.cornereRepriza2Gazde, real?.cornereRepriza2Oaspeti)} />
+                echipe={echipe} totalReal={suma(real?.cornereRepriza2Gazde, real?.cornereRepriza2Oaspeti)}
+                sub={LINII_SUB_REPRIZA} />
             </div>
           </>
         );
@@ -570,20 +626,27 @@ export function SectiuneStatistici({
   }
 
   return (
+    <FaraLocatie.Provider value={locatie === 'toate'}>
     <section>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-lg font-extrabold text-ink">Statistici</h2>
-        {onCompetitie && <ComutatorCompetitie valoare={competitie} onSchimba={onCompetitie} />}
+        <div className="flex flex-wrap items-center gap-2">
+          {onLocatie && <ComutatorLocatie valoare={locatie} onSchimba={onLocatie} />}
+          {onCompetitie && <ComutatorCompetitie valoare={competitie} onSchimba={onCompetitie} />}
+        </div>
       </div>
       <Taburi taburi={TABURI} activ={tab} onSchimba={setTab} className="mb-4" />
       <div key={tab} className="animate-fade-in space-y-4">
         {continut()}
       </div>
       <p className="mt-4 text-[11px] text-ink2">
-        Ultimele 7 meciuri: {numeEchipa(gazde)} acasă, {numeEchipa(oaspeti)} în deplasare
+        {locatie === 'toate'
+          ? 'Ultimele 7 meciuri ale fiecărei echipe, indiferent de teren'
+          : `Ultimele 7 meciuri: ${numeEchipa(gazde)} acasă, ${numeEchipa(oaspeti)} în deplasare`}
         {competitie === 'curenta' ? ', doar din competiția acestui meci' : ''}. Procentul e șansa calculată pentru
         acest meci; la goluri fiecare gol e cântărit după forța adversarului. „4/7" = în câte meciuri s-a întâmplat.
       </p>
     </section>
+    </FaraLocatie.Provider>
   );
 }

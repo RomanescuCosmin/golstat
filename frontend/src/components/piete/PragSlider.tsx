@@ -1,18 +1,19 @@
+const PRAGURI_RAPIDE = [30, 50, 60, 70, 80];
+
 /**
- * Pragul minim de probabilitate (0..100). Sub el, meciurile nu mai apar în listă.
- *
- * Partea parcursă se colorează cu albastrul de brand printr-un gradient calculat din valoare —
+ * Pragul minim de probabilitate (0..100), în meniul chip-ului „Șansă". Sub el, meciurile nu mai
+ * apar în listă. Partea parcursă se colorează printr-un gradient calculat din valoare —
  * `accent-color` colorează doar butonul, nu și traseul din stânga lui.
  */
 export function PragSlider({ prag, onSchimba }: { prag: number; onSchimba: (v: number) => void }) {
   return (
-    <div className="flex min-w-0 flex-1 flex-col gap-2">
+    <div className="flex flex-col gap-3">
       <label
         htmlFor="prag-piete"
         className="flex items-baseline justify-between gap-3 text-[11px] font-bold uppercase tracking-[0.07em] text-ink2"
       >
         Șansă minimă
-        <span className="text-[13px] font-extrabold normal-case tracking-normal tabular-nums text-ink">
+        <span className="text-base font-extrabold normal-case tracking-normal tabular-nums text-ink">
           {prag}%
         </span>
       </label>
@@ -32,9 +33,20 @@ export function PragSlider({ prag, onSchimba }: { prag: number; onSchimba: (v: n
         }}
         className="h-1.5 w-full cursor-pointer appearance-none rounded-full accent-piata"
       />
-      <div className="flex justify-between text-[11px] font-semibold tabular-nums text-ink2">
-        <span>0%</span>
-        <span>100%</span>
+      <div className="flex gap-1.5" role="group" aria-label="Praguri rapide">
+        {PRAGURI_RAPIDE.map((p) => (
+          <button
+            key={p}
+            type="button"
+            aria-pressed={p === prag}
+            onClick={() => onSchimba(p)}
+            className={`flex-1 rounded-lg py-1.5 text-xs font-bold tabular-nums transition ${
+              p === prag ? 'bg-piata text-white' : 'bg-bg text-ink2 hover:text-ink'
+            }`}
+          >
+            {p}%
+          </button>
+        ))}
       </div>
     </div>
   );

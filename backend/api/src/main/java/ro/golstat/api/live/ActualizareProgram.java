@@ -74,6 +74,12 @@ public class ActualizareProgram {
                         azi.minusDays(ZILE_INAPOI), azi.plusDays(ZILE_INAINTE));
                 lista.forEach(ingest::ingestFixture);
                 meciuri += lista.size();
+                // izolat: un clasament esuat nu trebuie sa blocheze completarea meciurilor terminate
+                try {
+                    provider.standings(liga, sezoane.get(0).year()).forEach(ingest::ingestStanding);
+                } catch (RuntimeException e) {
+                    log.warn("Clasament liga {} neactualizat: {}", liga, e.toString());
+                }
 
                 List<FixtureDto> terminate = lista.stream()
                         .filter(f -> GolstatConstants.FixtureStatus.TERMINAL.contains(f.statusShort()))

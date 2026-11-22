@@ -20,7 +20,11 @@ public final class MatchWindow {
     }
 
 
+    /** {@code matchLocation} null = orice teren (modul „Toate meciurile", fara regula acasa/deplasare). */
     public static <T extends TeamMatch> List<T> lastN(List<T> matches, int n, MatchLocation matchLocation) {
+        if (matchLocation == null) {
+            return lastN(matches, n);
+        }
         List<T> filtered = matches.stream()
                 .filter(m -> m.home() == (matchLocation == MatchLocation.HOME))
                 .toList();

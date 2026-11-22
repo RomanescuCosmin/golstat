@@ -41,7 +41,7 @@ class PieteControllerTest {
 
     @Test
     void zile_returneazaListaGrupataPeZi() throws Exception {
-        when(piete.piete(anyInt(), anyBoolean())).thenReturn(exemplu());
+        when(piete.piete(anyInt(), anyBoolean(), anyBoolean())).thenReturn(exemplu());
 
         mvc.perform(get("/api/v1/piete/zile?zile=3"))
                 .andExpect(status().isOk())
@@ -61,11 +61,20 @@ class PieteControllerTest {
 
     @Test
     void zile_fataParametruFoloseste3() throws Exception {
-        when(piete.piete(anyInt(), anyBoolean())).thenReturn(exemplu());
+        when(piete.piete(anyInt(), anyBoolean(), anyBoolean())).thenReturn(exemplu());
 
         mvc.perform(get("/api/v1/piete/zile")).andExpect(status().isOk());
 
-        verify(piete).piete(3, false);
+        verify(piete).piete(3, false, false);
+    }
+
+    @Test
+    void zile_locatieToate_faraRegulaAcasaDeplasare() throws Exception {
+        when(piete.piete(anyInt(), anyBoolean(), anyBoolean())).thenReturn(exemplu());
+
+        mvc.perform(get("/api/v1/piete/zile?zile=2&competitie=curenta&locatie=toate")).andExpect(status().isOk());
+
+        verify(piete).piete(2, true, true);
     }
 
     @Test

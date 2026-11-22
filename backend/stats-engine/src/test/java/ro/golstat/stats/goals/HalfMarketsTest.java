@@ -35,7 +35,7 @@ class HalfMarketsTest {
     void blend_matchesManualComposition() {
         // λ incrucisate: gazdeH1=(0.5+0.5)/2=0.5, oaspetiH1=(0.5+0.0)/2=0.25,
         //                gazdeH2=(1.0+0.5)/2=0.75, oaspetiH2=(0.5+1.0)/2=0.75
-        double modelEgal = ScoreGrid.dixonColes(0.5, 0.25, MatchGoalModel.RHO, MatchGoalModel.MAX_GOALS).draw();
+        double modelEgal = ScoreGrid.dixonColes(0.5, 0.25, HalfMarkets.RHO_PAUZA, MatchGoalModel.MAX_GOALS).draw();
         double modelGolH1 = Poisson.probabilityOver(0.75, 0.5);
         double modelGolH2 = Poisson.probabilityOver(1.5, 0.5);
         // empiric pe 4 meciuri: egal pauza 3/4 (0-0, 0-0, 1-1); gol R1 2/4; gol R2 3/4
@@ -50,6 +50,18 @@ class HalfMarketsTest {
     }
 
     @Test
+    void peste15PeRepriza_blendEmpiricCuPoisson() {
+        // total R1: 1, 0, 0, 2 → 1/4 peste 1.5; total R2: 2, 2, 0, 2 → 3/4
+        double w = 4.0 / 7.0;
+
+        HalfMarkets.HalfMarketStats stats = HalfMarkets.of(gazde(), oaspeti());
+
+        assertEquals(w * 0.25 + (1 - w) * Poisson.probabilityOver(0.75, 1.5), stats.over15FirstHalfRate(), EPS);
+        assertEquals(w * 0.75 + (1 - w) * Poisson.probabilityOver(1.5, 1.5), stats.over15SecondHalfRate(), EPS);
+        assertTrue(stats.over15FirstHalfRate() < stats.goalInFirstHalfRate());
+    }
+
+    @Test
     void emptyBothWindows_hasNoData() {
         HalfMarkets.HalfMarketStats stats = HalfMarkets.of(List.of(), List.of());
         assertEquals(0, stats.sampleSize());
@@ -59,7 +71,7 @@ class HalfMarketsTest {
     @Test
     void oneEmptyWindow_usesOnlyTheOtherSide() {
         // fara fereastra gazdelor: λ gazdeH1 = apararea oaspetilor H1 = 0.5, λ oaspetiH1 = atacul lor = 0.5
-        double modelEgal = ScoreGrid.dixonColes(0.5, 0.5, MatchGoalModel.RHO, MatchGoalModel.MAX_GOALS).draw();
+        double modelEgal = ScoreGrid.dixonColes(0.5, 0.5, HalfMarkets.RHO_PAUZA, MatchGoalModel.MAX_GOALS).draw();
         double w = 2.0 / 5.0;
         // empiric pe cele 2 meciuri ale oaspetilor: egal pauza 2/2
         HalfMarkets.HalfMarketStats stats = HalfMarkets.of(List.of(), oaspeti());

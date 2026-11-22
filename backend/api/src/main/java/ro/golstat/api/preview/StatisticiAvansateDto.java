@@ -110,7 +110,9 @@ public record StatisticiAvansateDto(
             FrecventaDto repriza1Gazde,
             FrecventaDto repriza1Oaspeti,
             FrecventaDto repriza2Gazde,
-            FrecventaDto repriza2Oaspeti
+            FrecventaDto repriza2Oaspeti,
+            double peste15Repriza1,
+            double peste15Repriza2
     ) {
     }
 

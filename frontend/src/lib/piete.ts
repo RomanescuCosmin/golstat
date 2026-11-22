@@ -18,7 +18,18 @@ export interface DefinitiePiata {
   optiuni: { cod: CodPiata; eticheta: string }[];
   /** Liniile disponibile; listă goală = piață binară, fără linie. */
   linii: number[];
+  /** „Peste X și sub Y": utilizatorul alege ambele linii din `linii` (X < Y). */
+  interval?: boolean;
 }
+
+/**
+ * Piețele-interval nu vin de la server: se derivă din liniile „peste" ale aceleiași reprize,
+ * P(peste X și sub Y) = P(peste X) − P(peste Y) — șansa ca AMBELE să iasă, nu media lor.
+ */
+const SURSA_INTERVAL: Partial<Record<CodPiata, CodPiata>> = {
+  CORNERE_REPRIZA1_INTERVAL: 'CORNERE_REPRIZA1_PESTE',
+  CORNERE_REPRIZA2_INTERVAL: 'CORNERE_REPRIZA2_PESTE',
+};
 
 /** Liniile trebuie să reflecte constantele din `StatisticiAvansateBuilder` (backend). */
 export const PIETE: DefinitiePiata[] = [
@@ -71,6 +82,17 @@ export const PIETE: DefinitiePiata[] = [
     linii: [0.5, 1.5, 2.5],
   },
   {
+    grup: 'goluriReprize',
+    eticheta: 'Gol în prima / a doua',
+    icona: '⏱️',
+    unitate: 'goluri',
+    optiuni: [
+      { cod: 'GOLURI_REPRIZA1_PESTE', eticheta: 'Prima repriză peste' },
+      { cod: 'GOLURI_REPRIZA2_PESTE', eticheta: 'A doua repriză peste' },
+    ],
+    linii: [0.5, 1.5],
+  },
+  {
     grup: 'cornereEchipa',
     eticheta: 'Cornere pe echipă',
     icona: '🚩',
@@ -89,8 +111,22 @@ export const PIETE: DefinitiePiata[] = [
     optiuni: [
       { cod: 'CORNERE_REPRIZA1_PESTE', eticheta: 'Repriza 1 peste' },
       { cod: 'CORNERE_REPRIZA2_PESTE', eticheta: 'Repriza 2 peste' },
+      { cod: 'CORNERE_REPRIZA1_SUB', eticheta: 'Repriza 1 sub' },
+      { cod: 'CORNERE_REPRIZA2_SUB', eticheta: 'Repriza 2 sub' },
     ],
-    linii: [3.5, 4.5, 5.5],
+    linii: [2.5, 3.5, 4.5, 5.5, 6.5],
+  },
+  {
+    grup: 'intervalCornereReprize',
+    eticheta: 'Interval cornere pe repriză',
+    icona: '🎯',
+    unitate: 'cornere',
+    optiuni: [
+      { cod: 'CORNERE_REPRIZA1_INTERVAL', eticheta: 'Repriza 1' },
+      { cod: 'CORNERE_REPRIZA2_INTERVAL', eticheta: 'Repriza 2' },
+    ],
+    linii: [2.5, 3.5, 4.5, 5.5, 6.5],
+    interval: true,
   },
   {
     grup: 'cartonaseEchipa',
@@ -141,9 +177,9 @@ export function valoareOptiune(cod: CodPiata, linie: number | null): string {
  * („Peste 1.5", „Peste 2.5", …). Piețele binare dau o opțiune per direcție.
  */
 export function optiuniPiata(grup: string): OptiunePiata[] {
-  const { optiuni, linii } = piataDupaGrup(grup);
+  const { optiuni, linii, interval } = piataDupaGrup(grup);
   return optiuni.flatMap<OptiunePiata>((o) =>
-    linii.length === 0
+    linii.length === 0 || interval
       ? [{ valoare: valoareOptiune(o.cod, null), eticheta: o.eticheta, cod: o.cod, linie: null }]
       : linii.map((l) => ({
           valoare: valoareOptiune(o.cod, l),
@@ -160,9 +196,17 @@ export function optiuneDupaValoare(grup: string, valoare: string): OptiunePiata 
 }
 
 /** Eticheta lungă, pentru pastila din rândul de meci: „Peste 2.5 goluri". */
-export function etichetaPiata(grup: string, cod: CodPiata, linie: number | null): string {
+export function etichetaPiata(
+  grup: string,
+  cod: CodPiata,
+  linie: number | null,
+  linieSus: number | null = null,
+): string {
   const definitie = piataDupaGrup(grup);
   const optiune = definitie.optiuni.find((o) => o.cod === cod) ?? definitie.optiuni[0];
+  if (definitie.interval && linie != null && linieSus != null) {
+    return `${optiune.eticheta}: peste ${linie} și sub ${linieSus} ${definitie.unitate}`;
+  }
   if (linie == null) return optiune.eticheta;
   return definitie.unitate
     ? `${optiune.eticheta} ${linie} ${definitie.unitate}`
@@ -186,9 +230,51 @@ export function codValid(grup: string, cod: CodPiata | null): CodPiata {
   return cod != null && optiuni.some((o) => o.cod === cod) ? cod : optiuni[0].cod;
 }
 
+/**
+ * Intervalul valid după o schimbare: păstrează alegerea dacă e corectă (X < Y, ambele în listă),
+ * altfel prima și ultima linie (la cornere pe repriză: peste 2.5 și sub 6.5).
+ */
+export function intervalValid(grup: string, jos: number | null, sus: number | null): [number, number] | null {
+  const { linii, interval } = piataDupaGrup(grup);
+  if (!interval || linii.length < 2) return null;
+  const josOk = jos != null && linii.includes(jos) && jos < linii[linii.length - 1] ? jos : linii[0];
+  const susOk = sus != null && linii.includes(sus) && sus > josOk ? sus : linii[linii.length - 1];
+  return [josOk, susOk];
+}
+
 /** Piața cerută dintr-un meci; `undefined` când meciul n-are eșantion pe ea. */
-export function cotaMeciului(meci: MeciPiete, cod: CodPiata, linie: number | null): CotaPiata | undefined {
+export function cotaMeciului(
+  meci: MeciPiete,
+  cod: CodPiata,
+  linie: number | null,
+  linieSus: number | null = null,
+): CotaPiata | undefined {
+  const sursa = SURSA_INTERVAL[cod];
+  if (sursa) return cotaInterval(meci, cod, sursa, linie, linieSus);
   return meci.piete.find((p) => p.piata === cod && (linie == null ? p.linie == null : p.linie === linie));
+}
+
+function cotaInterval(
+  meci: MeciPiete,
+  cod: CodPiata,
+  sursa: CodPiata,
+  jos: number | null,
+  sus: number | null,
+): CotaPiata | undefined {
+  if (jos == null || sus == null || sus <= jos) return undefined;
+  const peste = meci.piete.find((p) => p.piata === sursa && p.linie === jos);
+  // serverul nu trimite liniile cu P = 0: lipsa liniei de sus înseamnă P(peste Y) = 0
+  const pesteSus = meci.piete.find((p) => p.piata === sursa && p.linie === sus);
+  if (!peste) return undefined;
+  const probabilitate = peste.probabilitate - (pesteSus?.probabilitate ?? 0);
+  if (!Number.isFinite(probabilitate) || probabilitate <= 0) return undefined;
+  return {
+    piata: cod,
+    linie: jos,
+    probabilitate,
+    cota: Math.round(100 / probabilitate) / 100,
+    esantion: peste.esantion,
+  };
 }
 
 export interface RandPiete {
@@ -215,6 +301,7 @@ export function filtreaza(
   linie: number | null,
   prag: number,
   ligi: number[] = [],
+  linieSus: number | null = null,
 ): ZiFiltrata[] {
   const alese = ligi.length > 0 ? new Set(ligi) : null;
   const rezultat: ZiFiltrata[] = [];
@@ -222,7 +309,7 @@ export function filtreaza(
     const randuri: RandPiete[] = [];
     for (const meci of zi.meciuri) {
       if (alese && !alese.has(meci.liga.id)) continue;
-      const cota = cotaMeciului(meci, cod, linie);
+      const cota = cotaMeciului(meci, cod, linie, linieSus);
       if (!cota || !Number.isFinite(cota.probabilitate)) continue;
       if (cota.probabilitate * 100 < prag) continue;
       randuri.push({ meci, cota });
@@ -260,10 +347,14 @@ export function ligiDisponibile(
   cod: CodPiata,
   linie: number | null,
   prag: number,
+  linieSus: number | null = null,
 ): OptiuneLiga[] {
+  const sursa = SURSA_INTERVAL[cod] ?? cod;
   const perLiga = new Map<number, OptiuneLiga>();
   for (const zi of zile) {
     for (const meci of zi.meciuri) {
+      // campionatul fara statistica pietei (ex. cornere pe reprize la National League) nu apare in filtru
+      if (!meci.piete.some((p) => p.piata === sursa)) continue;
       const existent = perLiga.get(meci.liga.id);
       const optiune = existent ?? {
         id: meci.liga.id,
@@ -271,7 +362,7 @@ export function ligiDisponibile(
         logo: meci.liga.logo,
         numar: 0,
       };
-      const cota = cotaMeciului(meci, cod, linie);
+      const cota = cotaMeciului(meci, cod, linie, linieSus);
       if (cota && Number.isFinite(cota.probabilitate) && cota.probabilitate * 100 >= prag) {
         optiune.numar += 1;
       }
