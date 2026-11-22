@@ -239,6 +239,16 @@ public class IngestService {
         // acelasi teamId apare de mai multe ori intr-un meci (ex. 2 goluri) → ensureTeam O SINGURA data,
         // altfel doua INSERT-uri placeholder cu acelasi id in aceeasi tranzactie = duplicate key.
         batch.stream().map(FixtureEventDto::teamId).filter(java.util.Objects::nonNull).distinct().forEach(this::ensureTeam);
+        Map<Long, String> jucatori = new LinkedHashMap<>();
+        for (FixtureEventDto dto : batch) {
+            if (dto.playerId() != null && dto.playerName() != null) {
+                jucatori.putIfAbsent(dto.playerId(), dto.playerName());
+            }
+            if (dto.assistId() != null && dto.assistName() != null) {
+                jucatori.putIfAbsent(dto.assistId(), dto.assistName());
+            }
+        }
+        jucatori.forEach(this::numeJucator);
         for (FixtureEventDto dto : batch) {
             events.save(EntityMapper.toFixtureEvent(dto));
         }
@@ -456,6 +466,17 @@ public class IngestService {
         placeholder.setId(playerId);
         placeholder.setName(name);   // numele vine cu mesajul (ex. injuries) — util la afisare
         players.save(placeholder);
+    }
+
+    /** Ca {@link #ensurePlayer}, dar completeaza si numele unui jucator deja existent fara nume (placeholder). */
+    private void numeJucator(Long playerId, String name) {
+        Player p = players.findById(playerId).orElse(null);
+        if (p == null) {
+            ensurePlayer(playerId, name);
+        } else if (p.getName() == null || p.getName().isBlank() || "?".equals(p.getName())) {
+            p.setName(name);
+            players.save(p);
+        }
     }
 
     private void ensureCoach(Long coachId) {

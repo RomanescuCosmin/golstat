@@ -201,6 +201,7 @@ export function meciCentral(over: Partial<MeciCentral> = {}): MeciCentral {
     arbitru: 'M. Oliver',
     stadion: 'Old Trafford',
     statistici: statisticiMeci(),
+    reprize: [],
     formatii: { gazde: echipaFormatie(), oaspeti: echipaFormatie({ antrenor: 'A. Slot' }) },
     evenimente: [evenimentMeci()],
     ...over,

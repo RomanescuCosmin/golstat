@@ -18,4 +18,6 @@ golstat:
     # 2026-11-13: importate si 94, 203, 119, 345, 207 (Portugalia, Turcia, Danemarca, Cehia, Elvetia).
     # 2026-11-17: importate 79, 89, 106 (2. Bundesliga, Eerste Divisie, Ekstraklasa).
     # 2026-11-17: importata si 218 (Bundesliga Austria).
+    # 2026-11-20: importate 41, 42, 43 (League One, League Two, National League).
+    # 2026-11-20: importata si 62 (Ligue 2).
     tinte: []

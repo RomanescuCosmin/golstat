@@ -7,6 +7,7 @@ import ro.golstat.api.entity.Fixture;
 import ro.golstat.api.entity.FixtureEvent;
 import ro.golstat.api.entity.FixtureLineup;
 import ro.golstat.api.entity.FixtureLineupPlayer;
+import ro.golstat.api.entity.FixtureTeamHalfStats;
 import ro.golstat.api.entity.FixtureTeamStats;
 import ro.golstat.api.entity.League;
 import ro.golstat.api.entity.Player;
@@ -18,6 +19,7 @@ import ro.golstat.api.repository.FixtureEventRepository;
 import ro.golstat.api.repository.FixtureLineupPlayerRepository;
 import ro.golstat.api.repository.FixtureLineupRepository;
 import ro.golstat.api.repository.FixtureRepository;
+import ro.golstat.api.repository.FixtureTeamHalfStatsRepository;
 import ro.golstat.api.repository.FixtureTeamStatsRepository;
 import ro.golstat.api.repository.LeagueRepository;
 import ro.golstat.api.repository.PlayerRepository;
@@ -46,6 +48,7 @@ public class MatchCenterService {
     private final FixtureRepository fixtures;
     private final TeamRepository teams;
     private final FixtureTeamStatsRepository teamStats;
+    private final FixtureTeamHalfStatsRepository halfStats;
     private final FixtureEventRepository events;
     private final PlayerRepository players;
     private final FixtureLineupRepository lineups;
@@ -58,7 +61,8 @@ public class MatchCenterService {
                               FixtureTeamStatsRepository teamStats, FixtureEventRepository events,
                               PlayerRepository players, FixtureLineupRepository lineups,
                               FixtureLineupPlayerRepository lineupPlayers, CoachRepository coaches,
-                              VenueRepository venues, LeagueRepository leagues) {
+                              VenueRepository venues, LeagueRepository leagues,
+                              FixtureTeamHalfStatsRepository halfStats) {
         this.fixtures = fixtures;
         this.teams = teams;
         this.teamStats = teamStats;
@@ -69,6 +73,7 @@ public class MatchCenterService {
         this.coaches = coaches;
         this.venues = venues;
         this.leagues = leagues;
+        this.halfStats = halfStats;
     }
 
     /** Detaliul meciului dupa id; {@link MeciNotFoundException} daca nu exista. */
@@ -97,6 +102,7 @@ public class MatchCenterService {
                 meci.getReferee(),
                 stadion(meci),
                 statistici(meci),
+                reprize(meci),
                 formatii(meci),
                 cronologie(meci));
     }
@@ -163,6 +169,26 @@ public class MatchCenterService {
                 echipaStats(perEchipa.get(meci.getAwayTeamId())));
     }
 
+    private List<MeciCentralDto.StatisticiRepriza> reprize(Fixture meci) {
+        Map<String, FixtureTeamHalfStats> perEchipa = halfStats.findByFixtureIdIn(List.of(meci.getId())).stream()
+                .filter(h -> h.getTeamId() != null && h.getHalf() != null)
+                .collect(Collectors.toMap(h -> h.getTeamId() + ":" + h.getHalf(), Function.identity(), (a, b) -> a));
+        return Stream.of(1, 2)
+                .map(r -> new MeciCentralDto.StatisticiRepriza(r,
+                        echipaRepriza(perEchipa.get(meci.getHomeTeamId() + ":" + r)),
+                        echipaRepriza(perEchipa.get(meci.getAwayTeamId() + ":" + r))))
+                .filter(r -> r.gazde() != null || r.oaspeti() != null)
+                .toList();
+    }
+
+    private static MeciCentralDto.Echipa echipaRepriza(FixtureTeamHalfStats h) {
+        if (h == null) {
+            return null;
+        }
+        return new MeciCentralDto.Echipa(null, h.getShotsOnGoal(), h.getShotsTotal(), h.getCornerKicks(),
+                h.getFouls(), h.getYellowCards(), h.getRedCards(), null, null, null, null);
+    }
+
     private static MeciCentralDto.Echipa echipaStats(FixtureTeamStats s) {
         if (s == null) {
             return null;
@@ -188,8 +214,17 @@ public class MatchCenterService {
                                 .flatMap(e -> Stream.of(e.getPlayerId(), e.getAssistId()))
                                 .filter(Objects::nonNull).distinct().toList())
                 .stream()
-                .filter(p -> p.getName() != null)
-                .collect(Collectors.toMap(Player::getId, Player::getName));
+                .filter(p -> p.getName() != null && !p.getName().isBlank() && !"?".equals(p.getName()))
+                .collect(Collectors.toMap(Player::getId, Player::getName, (a, b) -> a, java.util.HashMap::new));
+        // meciurile ingerate inainte sa salvam numele din incidente: le luam din formatii (acelasi meci)
+        boolean lipsesc = randuri.stream()
+                .flatMap(e -> Stream.of(e.getPlayerId(), e.getAssistId()))
+                .anyMatch(id -> id != null && !nume.containsKey(id));
+        if (lipsesc) {
+            lineupPlayers.findByFixtureId(meci.getId()).stream()
+                    .filter(p -> p.getPlayerId() != null && p.getPlayerName() != null)
+                    .forEach(p -> nume.putIfAbsent(p.getPlayerId(), p.getPlayerName()));
+        }
         Long home = meci.getHomeTeamId();
         return randuri.stream()
                 .map(e -> new EvenimentDto(

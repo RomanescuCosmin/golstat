@@ -1,7 +1,9 @@
-import type { EchipaDto, StatisticiMeci } from '../../api/types';
+import { useState } from 'react';
+import type { EchipaDto, StatisticiMeci, StatisticiRepriza } from '../../api/types';
 import { numeEchipa } from '../../lib/echipa';
 import { BaraComparativa } from '../ui/BaraComparativa';
 import { Card } from '../ui/Card';
+import { Taburi } from '../ui/Taburi';
 import { TeamLogo } from '../ui/TeamLogo';
 
 interface Rand {
@@ -15,12 +17,17 @@ interface StatisticiLiveProps {
   gazde: EchipaDto;
   oaspeti: EchipaDto;
   statistici: StatisticiMeci;
+  /** Reprizele cu date; fara ele nu apar taburile. */
+  reprize?: StatisticiRepriza[];
 }
 
-/** Statisticile reale dintr-un meci (live sau finalizat), ca bare comparative gazde vs oaspeti. */
-export function StatisticiLive({ gazde, oaspeti, statistici }: StatisticiLiveProps) {
-  const g = statistici.gazde;
-  const o = statistici.oaspeti;
+/** Statisticile reale dintr-un meci (live sau finalizat), ca bare comparative gazde vs oaspeti; pe meci sau pe repriza. */
+export function StatisticiLive({ gazde, oaspeti, statistici, reprize = [] }: StatisticiLiveProps) {
+  const [tab, setTab] = useState('meci');
+  const repriza = reprize.find((r) => `r${r.repriza}` === tab);
+  const sursa = repriza ?? statistici;
+  const g = sursa.gazde;
+  const o = sursa.oaspeti;
 
   if (!g && !o) {
     return null;
@@ -42,6 +49,19 @@ export function StatisticiLive({ gazde, oaspeti, statistici }: StatisticiLivePro
   return (
     <Card className="p-5">
       <h2 className="text-base font-bold text-ink">Statistici meci</h2>
+
+      {reprize.length > 0 && (
+        <Taburi
+          varianta="pilule"
+          className="mt-3"
+          activ={repriza ? tab : 'meci'}
+          onSchimba={setTab}
+          taburi={[
+            { id: 'meci', eticheta: 'Meci' },
+            ...reprize.map((r) => ({ id: `r${r.repriza}`, eticheta: `Repriza ${r.repriza}` })),
+          ]}
+        />
+      )}
 
       <div className="mt-4 flex items-center justify-between gap-3">
         <span className="flex min-w-0 items-center gap-2 text-sm font-bold text-ink">

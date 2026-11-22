@@ -94,6 +94,24 @@ async function alegeTip(nume: string) {
   await userEvent.click(screen.getByRole('tab', { name: nume }));
 }
 
+async function meniu(titlu: string) {
+  await deschide(titlu);
+  return screen.getByRole('listbox', { name: titlu });
+}
+
+async function alegeOptiune(titlu: string, valoare: string) {
+  const optiuni = within(await meniu(titlu)).getAllByRole('option');
+  await userEvent.click(optiuni.find((o) => o.dataset.valoare === valoare)!);
+}
+
+async function etichete(titlu: string) {
+  const lista = within(await meniu(titlu)).getAllByRole('option').map((o) => o.firstElementChild!.textContent);
+  await userEvent.keyboard('{Escape}');
+  return lista;
+}
+
+const chip = (titlu: string) => screen.getByRole('button', { name: titlu });
+
 async function seteazaPrag(valoare: number) {
   await deschide('Șansă minimă');
   fireEvent.change(screen.getByRole('slider', { name: 'Șansă minimă' }), { target: { value: String(valoare) } });
@@ -153,7 +171,7 @@ describe('PietePage', () => {
     await alegeTip('Cornere');
 
     // liniile de goluri dispar din dropdown, apar cele de cornere
-    const selector = screen.getByLabelText('Piața');
+    const selector = await meniu('Piața');
     expect(within(selector).getByRole('option', { name: 'Peste 7.5' })).toBeInTheDocument();
     expect(within(selector).queryByRole('option', { name: 'Peste 2.5' })).not.toBeInTheDocument();
     // doar meciul 1 are cornere
@@ -169,8 +187,8 @@ describe('PietePage', () => {
 
     await alegeTip('GG');
 
-    const optiuni = within(screen.getByLabelText('Piața')).getAllByRole('option');
-    expect(optiuni.map((o) => o.textContent)).toEqual(['Ambele înscriu', 'Nu ambele']);
+    const optiuni = await etichete('Piața');
+    expect(optiuni).toEqual(['Ambele înscriu', 'Nu ambele']);
     expect(screen.getByText('Puternica')).toBeInTheDocument();
   });
 
@@ -179,7 +197,7 @@ describe('PietePage', () => {
     randeaza();
     await screen.findByText('Puternica');
 
-    await userEvent.selectOptions(screen.getByLabelText('Piața'), 'GOLURI_PESTE|1.5');
+    await alegeOptiune('Piața', 'GOLURI_PESTE|1.5');
 
     expect(screen.getByText('95%')).toBeInTheDocument();
     expect(screen.getByText(/1 meci peste 30%/)).toBeInTheDocument();
@@ -429,7 +447,7 @@ describe('PietePage — cornere pe reprize', () => {
     randeaza();
     await screen.findByRole('button', { name: 'Tip piață' });
     await alegeTip('Cornere pe reprize');
-    await userEvent.selectOptions(screen.getByLabelText('Piața'), 'CORNERE_REPRIZA1_SUB|6.5');
+    await alegeOptiune('Piața', 'CORNERE_REPRIZA1_SUB|6.5');
 
     expect(screen.getByText('76%')).toBeInTheDocument();
     expect(screen.getByText('Repriza 1 sub 6.5 cornere')).toBeInTheDocument();
@@ -453,7 +471,7 @@ describe('PietePage — cornere pe reprize', () => {
     expect(screen.getByText('71%')).toBeInTheDocument();
     expect(screen.getByText('Prima repriză peste 0.5 goluri')).toBeInTheDocument();
 
-    await userEvent.selectOptions(screen.getByLabelText('Piața'), 'GOLURI_REPRIZA2_PESTE|1.5');
+    await alegeOptiune('Piața', 'GOLURI_REPRIZA2_PESTE|1.5');
     expect(screen.getByText('47%')).toBeInTheDocument();
     expect(screen.getByText('A doua repriză peste 1.5 goluri')).toBeInTheDocument();
   });
@@ -463,8 +481,8 @@ describe('PietePage — cornere pe reprize', () => {
     randeaza();
     await alegeTip('Interval cornere pe repriză');
 
-    expect(screen.getByLabelText('Peste')).toHaveDisplayValue('2.5');
-    expect(screen.getByLabelText('Sub')).toHaveDisplayValue('6.5');
+    expect(chip('Peste')).toHaveTextContent('Peste 2.5');
+    expect(chip('Sub')).toHaveTextContent('Sub 6.5');
     expect(screen.getByText('64%')).toBeInTheDocument();
     expect(screen.queryByText('81%')).not.toBeInTheDocument();
     expect(screen.getByText('Repriza 1: peste 2.5 și sub 6.5 cornere')).toBeInTheDocument();
@@ -475,15 +493,15 @@ describe('PietePage — cornere pe reprize', () => {
     randeaza();
     await alegeTip('Interval cornere pe repriză');
 
-    await userEvent.selectOptions(screen.getByLabelText('Peste'), '3.5');
-    await userEvent.selectOptions(screen.getByLabelText('Sub'), '5.5');
+    await alegeOptiune('Peste', '3.5');
+    await alegeOptiune('Sub', '5.5');
 
     // 0.734 − 0.383 = 35.1%
     expect(screen.getByText('35%')).toBeInTheDocument();
     expect(screen.getByText('Repriza 1: peste 3.5 și sub 5.5 cornere')).toBeInTheDocument();
-    const optiuniSub = within(screen.getByLabelText('Sub')).getAllByRole('option').map((o) => o.textContent);
+    const optiuniSub = await etichete('Sub');
     expect(optiuniSub).toEqual(['4.5', '5.5', '6.5']);
-    const optiuniPeste = within(screen.getByLabelText('Peste')).getAllByRole('option').map((o) => o.textContent);
+    const optiuniPeste = await etichete('Peste');
     expect(optiuniPeste).toEqual(['2.5', '3.5', '4.5']);
     expect(mockGet).toHaveBeenCalledTimes(1);
   });
@@ -492,10 +510,10 @@ describe('PietePage — cornere pe reprize', () => {
     mockGet.mockResolvedValue(dateReprize());
     randeaza();
     await alegeTip('Interval cornere pe repriză');
-    await userEvent.selectOptions(screen.getByLabelText('Sub'), '5.5');
-    await userEvent.selectOptions(screen.getByLabelText('Piața'), 'CORNERE_REPRIZA2_INTERVAL|');
+    await alegeOptiune('Sub', '5.5');
+    await alegeOptiune('Piața', 'CORNERE_REPRIZA2_INTERVAL|');
 
-    expect(screen.getByLabelText('Sub')).toHaveDisplayValue('5.5');
+    expect(chip('Sub')).toHaveTextContent('Sub 5.5');
     // meciul n-are date pe repriza 2 → stare goala, nu procent fals
     expect(screen.queryByText('City')).not.toBeInTheDocument();
   });
@@ -504,15 +522,15 @@ describe('PietePage — cornere pe reprize', () => {
     mockGet.mockResolvedValue(dateReprize());
     const { unmount } = randeaza();
     await alegeTip('Interval cornere pe repriză');
-    await userEvent.selectOptions(screen.getByLabelText('Peste'), '3.5');
+    await alegeOptiune('Peste', '3.5');
     await seteazaPrag(20);
     unmount();
 
     randeaza();
     await screen.findByText('City');
     expect(screen.getByRole('button', { name: 'Tip piață' })).toHaveTextContent('Interval cornere pe repriză');
-    expect(screen.getByLabelText('Peste')).toHaveDisplayValue('3.5');
-    expect(screen.getByLabelText('Sub')).toHaveDisplayValue('6.5');
+    expect(chip('Peste')).toHaveTextContent('Peste 3.5');
+    expect(chip('Sub')).toHaveTextContent('Sub 6.5');
     expect(screen.getByRole('button', { name: 'Șansă minimă' })).toHaveTextContent('Șansă ≥ 20%');
   });
 });

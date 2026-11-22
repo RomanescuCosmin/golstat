@@ -10,6 +10,7 @@ import ro.golstat.api.entity.Fixture;
 import ro.golstat.api.entity.FixtureEvent;
 import ro.golstat.api.entity.FixtureLineup;
 import ro.golstat.api.entity.FixtureLineupPlayer;
+import ro.golstat.api.entity.FixtureTeamHalfStats;
 import ro.golstat.api.entity.FixtureTeamStats;
 import ro.golstat.api.entity.Player;
 import ro.golstat.api.entity.Team;
@@ -19,6 +20,7 @@ import ro.golstat.api.repository.FixtureEventRepository;
 import ro.golstat.api.repository.FixtureLineupPlayerRepository;
 import ro.golstat.api.repository.FixtureLineupRepository;
 import ro.golstat.api.repository.FixtureRepository;
+import ro.golstat.api.repository.FixtureTeamHalfStatsRepository;
 import ro.golstat.api.repository.FixtureTeamStatsRepository;
 import ro.golstat.api.repository.LeagueRepository;
 import ro.golstat.api.repository.PlayerRepository;
@@ -53,6 +55,7 @@ class MatchCenterServiceTest {
     @Mock CoachRepository coaches;
     @Mock VenueRepository venues;
     @Mock LeagueRepository leagues;
+    @Mock FixtureTeamHalfStatsRepository halfStats;
     @InjectMocks MatchCenterService service;
 
     private static Team team(long id, String nume, String logo) {
@@ -195,6 +198,75 @@ class MatchCenterServiceTest {
         assertEquals("E. Haaland", gol.jucator());
         assertEquals("K. De Bruyne", gol.asist());
         assertFalse(dto.evenimente().get(1).gazde());
+    }
+
+    private static FixtureTeamHalfStats repriza(long teamId, int half, int cornere, int faulturi, int suturi) {
+        FixtureTeamHalfStats h = new FixtureTeamHalfStats();
+        h.setFixtureId(100L);
+        h.setTeamId(teamId);
+        h.setHalf(half);
+        h.setCornerKicks(cornere);
+        h.setFouls(faulturi);
+        h.setShotsTotal(suturi);
+        return h;
+    }
+
+    @Test
+    void matchCenter_statisticiPeReprize_gazdeSiOaspetiPeFiecareRepriza() {
+        when(fixtures.findById(100L)).thenReturn(Optional.of(ftFixture()));
+        when(teams.findAllById(any())).thenReturn(List.of());
+        when(teamStats.findByFixtureIdIn(List.of(100L))).thenReturn(List.of());
+        when(halfStats.findByFixtureIdIn(List.of(100L))).thenReturn(List.of(
+                repriza(10L, 1, 4, 6, 8), repriza(20L, 1, 1, 9, 3), repriza(10L, 2, 2, 5, 6)));
+        when(events.findTimeline(100L)).thenReturn(List.of());
+        when(players.findAllById(any())).thenReturn(List.of());
+
+        List<MeciCentralDto.StatisticiRepriza> reprize = service.matchCenter(100L).reprize();
+
+        assertEquals(2, reprize.size());
+        assertEquals(1, reprize.get(0).repriza());
+        assertEquals(4, reprize.get(0).gazde().cornere());
+        assertEquals(9, reprize.get(0).oaspeti().faulturi());
+        assertEquals(3, reprize.get(0).oaspeti().suturiTotal());
+        assertNull(reprize.get(0).gazde().posesie());
+        assertEquals(2, reprize.get(1).repriza());
+        assertEquals(2, reprize.get(1).gazde().cornere());
+        // oaspetii fara rand in repriza 2 (ex. inca fara cornere live) → null, nu crash
+        assertNull(reprize.get(1).oaspeti());
+    }
+
+    @Test
+    void cronologie_jucatorFaraNumeInDb_numeleVinDinFormatie() {
+        when(fixtures.findById(100L)).thenReturn(Optional.of(ftFixture()));
+        when(teams.findAllById(any())).thenReturn(List.of());
+        when(teamStats.findByFixtureIdIn(List.of(100L))).thenReturn(List.of());
+        when(events.findTimeline(100L)).thenReturn(List.of(
+                event(1L, 10L, 23, "Goal", "Normal Goal", 617L, 618L),
+                event(2L, 10L, 60, "subst", "Substitution", 700L, 701L)));
+        when(players.findAllById(any())).thenReturn(List.of(player(618L, "K. De Bruyne"), player(700L, "?")));
+        when(lineupPlayers.findByFixtureId(100L)).thenReturn(List.of(
+                lineupPlayer(10L, 617L, "E. Haaland", 9, "F", "4:1", false),
+                lineupPlayer(10L, 700L, "J. Grealish", 10, "M", "3:1", false),
+                lineupPlayer(10L, 701L, "P. Foden", 47, "M", null, true)));
+
+        List<EvenimentDto> ev = service.matchCenter(100L).evenimente();
+
+        assertEquals("E. Haaland", ev.get(0).jucator());
+        assertEquals("K. De Bruyne", ev.get(0).asist());
+        // placeholder "?" nu e nume: cade pe formatie; schimbarea = iese Grealish, intra Foden
+        assertEquals("J. Grealish", ev.get(1).jucator());
+        assertEquals("P. Foden", ev.get(1).asist());
+    }
+
+    @Test
+    void matchCenter_faraReprize_listaGoala() {
+        when(fixtures.findById(100L)).thenReturn(Optional.of(ftFixture()));
+        when(teams.findAllById(any())).thenReturn(List.of());
+        when(teamStats.findByFixtureIdIn(List.of(100L))).thenReturn(List.of());
+        when(events.findTimeline(100L)).thenReturn(List.of());
+        when(players.findAllById(any())).thenReturn(List.of());
+
+        assertEquals(List.of(), service.matchCenter(100L).reprize());
     }
 
     @Test

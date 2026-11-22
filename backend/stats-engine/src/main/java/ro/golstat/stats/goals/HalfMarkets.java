@@ -25,6 +25,9 @@ public final class HalfMarkets {
     /** Constanta de incredere pentru shrinkage: {@code w = n / (n + K)}. */
     public static final int K = 3;
 
+    /** Dixon-Coles pentru scorul la pauza; neschimbat la recalibrarea modelului de meci (2026-11-20). */
+    public static final double RHO_PAUZA = -0.1;
+
     private HalfMarkets() {
     }
 
@@ -47,7 +50,7 @@ public final class HalfMarkets {
                 gazde.avgGoalsAgainstSecondHalf(), gazdaWindow.size());
 
         double modelEgalPauza = ScoreGrid
-                .dixonColes(lambdaGazdeH1, lambdaOaspetiH1, MatchGoalModel.RHO, MatchGoalModel.MAX_GOALS)
+                .dixonColes(lambdaGazdeH1, lambdaOaspetiH1, RHO_PAUZA, MatchGoalModel.MAX_GOALS)
                 .draw();
         double modelGolH1 = Poisson.probabilityOver(lambdaGazdeH1 + lambdaOaspetiH1, 0.5);
         double modelGolH2 = Poisson.probabilityOver(lambdaGazdeH2 + lambdaOaspetiH2, 0.5);

@@ -392,6 +392,11 @@ export interface StatisticiMeci {
   oaspeti: StatisticiEchipaMeci | null;
 }
 
+/** Statisticile unei reprize; sursa nu da posesie / pase / xG pe repriza (vin `null`). */
+export interface StatisticiRepriza extends StatisticiMeci {
+  repriza: number;
+}
+
 /** Un eveniment din cronologia meciului; `tip`: "Goal" / "Card" / "subst" / "Var". */
 export interface EvenimentMeci {
   id: number | null;
@@ -440,6 +445,8 @@ export interface MeciCentral {
   stadion: string | null;
   /** `null` daca nu exista statistici colectate pentru meci. */
   statistici: StatisticiMeci | null;
+  /** Doar reprizele cu date (0–2 elemente). */
+  reprize: StatisticiRepriza[];
   /** `null` pana exista formatiile ambelor echipe. */
   formatii: Formatii | null;
   evenimente: EvenimentMeci[];

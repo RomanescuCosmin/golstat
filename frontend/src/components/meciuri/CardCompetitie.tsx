@@ -69,7 +69,7 @@ export function CardCompetitie({ liga }: { liga: LigaZi }) {
         <div className="border-t border-line p-2">
           <div className="space-y-0.5">
             {vizibile.map((meci) => (
-              <RandMeciPremium key={meci.fixtureId} meci={meci} />
+              <RandMeciPremium key={meci.fixtureId} meci={meci} liga={{ leagueId: liga.leagueId, nume }} />
             ))}
           </div>
 

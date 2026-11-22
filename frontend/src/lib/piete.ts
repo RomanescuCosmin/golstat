@@ -349,9 +349,12 @@ export function ligiDisponibile(
   prag: number,
   linieSus: number | null = null,
 ): OptiuneLiga[] {
+  const sursa = SURSA_INTERVAL[cod] ?? cod;
   const perLiga = new Map<number, OptiuneLiga>();
   for (const zi of zile) {
     for (const meci of zi.meciuri) {
+      // campionatul fara statistica pietei (ex. cornere pe reprize la National League) nu apare in filtru
+      if (!meci.piete.some((p) => p.piata === sursa)) continue;
       const existent = perLiga.get(meci.liga.id);
       const optiune = existent ?? {
         id: meci.liga.id,

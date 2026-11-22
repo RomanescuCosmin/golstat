@@ -279,10 +279,10 @@ class MatchPreviewServiceTest {
                 overRate(statistici.faulturi(), 24.5), 1e-9);
         assertEquals(NegativeBinomial.probabilityOver(4.0, StatisticiAvansateBuilder.DISPERSIE_CARTONASE, 4.5),
                 overRate(statistici.cartonase(), 4.5), 1e-9);
-        // goluri: fara forma λ = mediile ligii 1.5 / 1.1, grila Dixon-Coles a predictiei
+        // goluri: fara forma λ = mediile ligii 1.5 / 1.1 (× FACTOR), grila Dixon-Coles a predictiei
         assertEquals(List.of(1.5, 2.5, 3.5),
                 statistici.goluri().linii().stream().map(StatisticiAvansateDto.LinieDto::linie).toList());
-        assertEquals(ScoreGrid.dixonColes(1.5, 1.1, MatchGoalModel.RHO, MatchGoalModel.MAX_GOALS)
+        assertEquals(ScoreGrid.dixonColes(MatchGoalModel.FACTOR * 1.5, MatchGoalModel.FACTOR * 1.1, MatchGoalModel.RHO, MatchGoalModel.MAX_GOALS)
                         .probabilityOverTotal(2.5), overRate(statistici.goluri(), 2.5), 1e-9);
         // frecventele goale si mediile null = "fara date"
         StatisticiAvansateDto.LinieDto linie = statistici.cornere().linii().get(0);

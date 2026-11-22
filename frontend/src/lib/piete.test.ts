@@ -229,6 +229,23 @@ describe('cornere pe reprize: liniile si directiile', () => {
   });
 });
 
+describe('campionate fara statistica pietei', () => {
+  it('nu apar in filtru la piata fara date, dar apar la celelalte', () => {
+    const cuReprize = meciPiete({ fixtureId: 1, liga: { id: 41, nume: 'League One', logo: null }, piete: [
+      cotaPiata({ piata: 'GOLURI_PESTE', linie: 2.5, probabilitate: 0.6 }),
+      cotaPiata({ piata: 'CORNERE_REPRIZA1_PESTE', linie: 2.5, probabilitate: 0.8 }),
+    ] });
+    const faraReprize = meciPiete({ fixtureId: 2, liga: { id: 43, nume: 'National League', logo: null }, piete: [
+      cotaPiata({ piata: 'GOLURI_PESTE', linie: 2.5, probabilitate: 0.6 }),
+    ] });
+    const z = [ziPiete({ meciuri: [cuReprize, faraReprize] })];
+
+    expect(ligiDisponibile(z, 'GOLURI_PESTE', 2.5, 0).map((l) => l.id).sort()).toEqual([41, 43]);
+    expect(ligiDisponibile(z, 'CORNERE_REPRIZA1_PESTE', 2.5, 0).map((l) => l.id)).toEqual([41]);
+    expect(ligiDisponibile(z, 'CORNERE_REPRIZA1_INTERVAL', 2.5, 0, 6.5).map((l) => l.id)).toEqual([41]);
+  });
+});
+
 describe('gol in prima / a doua repriza', () => {
   it('peste 0.5 si 1.5 pe ambele reprize', () => {
     expect(optiuniPiata('goluriReprize').map((o) => o.valoare)).toEqual([

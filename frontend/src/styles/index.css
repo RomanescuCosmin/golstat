@@ -55,6 +55,12 @@
   html.dark {
     color-scheme: dark;
   }
+  /* Lista nativa a unui <select> transparent iese alba pe Windows; o pictam pe culorile temei. */
+  select option,
+  select optgroup {
+    background-color: rgb(var(--gs-card));
+    color: rgb(var(--gs-ink));
+  }
   * {
     scrollbar-width: thin;
     scrollbar-color: rgb(var(--gs-ink2) / 0.35) transparent;

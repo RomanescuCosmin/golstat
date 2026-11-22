@@ -4,6 +4,8 @@ import { describe, expect, test } from 'vitest';
 import type { MeciZiGrupat } from '../../api/types';
 import { formatOra } from '../../lib/format';
 import { RandMeciPremium } from './RandMeciPremium';
+import userEvent from '@testing-library/user-event';
+import { meciuriFavorite } from '../../lib/meciuriFavorite';
 
 function meci(over: Partial<MeciZiGrupat> = {}): MeciZiGrupat {
   return {
@@ -90,5 +92,26 @@ describe('RandMeciPremium', () => {
     expect(screen.getByText('50%')).toBeInTheDocument();
     expect(screen.getByText('30%')).toBeInTheDocument();
     expect(screen.getByText('20%')).toBeInTheDocument();
+  });
+});
+
+describe('RandMeciPremium – meci favorit', () => {
+  test('steluta de meci salveaza meciul (cu liga) in favorite si o a doua apasare il scoate', async () => {
+    localStorage.clear();
+    render(
+      <MemoryRouter>
+        <RandMeciPremium meci={meci({ kickoff: new Date().toISOString() })} liga={{ leagueId: 283, nume: 'Liga 1' }} />
+      </MemoryRouter>,
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: 'Adaugă meciul la favorite' }));
+
+    expect(screen.getByRole('button', { name: 'Scoate meciul din favorite' })).toHaveAttribute('aria-pressed', 'true');
+    const salvate = meciuriFavorite();
+    expect(salvate).toHaveLength(1);
+    expect(salvate[0]).toMatchObject({ fixtureId: 101, leagueId: 283, ligaNume: 'Liga 1' });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Scoate meciul din favorite' }));
+    expect(meciuriFavorite()).toHaveLength(0);
   });
 });

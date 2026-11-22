@@ -3,6 +3,7 @@ import { getLive } from '../api/client';
 import type { EchipaDto, MeciLive } from '../api/types';
 import { sunetGol } from '../lib/sunet';
 import { useFavorite } from './useFavorite';
+import { useMeciuriFavorite } from './useMeciuriFavorite';
 
 /** O notificare de gol pentru un meci care implica o echipa favorita. */
 export interface NotificareGol {
@@ -25,12 +26,15 @@ const MAX_VIZIBILE = 4;
 
 /**
  * Urmareste global meciurile live ({@link getLive}) si emite o {@link NotificareGol} de fiecare data
- * cand scorul creste intr-un meci ce implica o echipa favorita — la orice gol (si cand inscrie, si
+ * cand scorul creste intr-un meci favorit (steluta pe meci) sau ce implica o echipa favorita — la orice gol (si cand inscrie, si
  * cand primeste), cu marcatorul evidentiat. La montare stabileste doar linia de baza (nu anunta
  * golurile deja marcate). Suna o data per lot de goluri noi.
  */
 export function useNotificariGol() {
   const { iduri } = useFavorite();
+  const { iduri: meciuriFav } = useMeciuriFavorite();
+  const meciuriFavRef = useRef(meciuriFav);
+  meciuriFavRef.current = meciuriFav;
   const [notificari, setNotificari] = useState<NotificareGol[]>([]);
   const scoruriPrec = useRef<Map<number, { h: number; a: number }>>(new Map());
   // iduri se schimba ca referinta la fiecare comutare; il tinem intr-un ref ca sa nu repornim polling-ul.
@@ -65,7 +69,8 @@ export function useNotificariGol() {
         const anterior = prec.get(m.fixtureId);
         prec.set(m.fixtureId, { h, a });
 
-        const eFavorit = fav.has(m.gazde.id ?? -1) || fav.has(m.oaspeti.id ?? -1);
+        const eFavorit =
+          meciuriFavRef.current.has(m.fixtureId) || fav.has(m.gazde.id ?? -1) || fav.has(m.oaspeti.id ?? -1);
         if (!eFavorit || !anterior) continue; // fara favorita sau prim contact cu meciul → doar linia de baza
 
         if (h > anterior.h) noi.push(construieste(m, h, a, true));

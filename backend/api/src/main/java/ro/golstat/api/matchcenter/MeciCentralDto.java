@@ -28,11 +28,16 @@ public record MeciCentralDto(
         String arbitru,
         String stadion,
         Statistici statistici,
+        List<StatisticiRepriza> reprize,
         Formatii formatii,
         List<EvenimentDto> evenimente
 ) {
     /** Statisticile ambelor echipe; oricare camp poate lipsi. */
     public record Statistici(Echipa gazde, Echipa oaspeti) {
+    }
+
+    /** Statisticile unei reprize (1 sau 2); sursa nu da posesie / pase / xG pe repriza → acele campuri sunt null. */
+    public record StatisticiRepriza(int repriza, Echipa gazde, Echipa oaspeti) {
     }
 
     /** Formatiile ambelor echipe; blocul e {@code null} pana exista lineup pentru AMBELE. */

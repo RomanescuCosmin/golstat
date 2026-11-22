@@ -29,6 +29,11 @@ public class FinalizareMeci {
         this.reprize = reprize;
     }
 
+    /** Reprizele unui meci live, imediat dupa statisticile live: bzzoiro refoloseste acelasi raspuns, fara request. */
+    public void reprizeLive(long fixtureId) {
+        reprize.salveaza(provider.liveFixtureHalfStatistics(fixtureId));
+    }
+
     public void finalizeaza(FixtureDto f) {
         if (f == null || f.id() == null || !GolstatConstants.FixtureStatus.TERMINAL.contains(f.statusShort())) {
             return;

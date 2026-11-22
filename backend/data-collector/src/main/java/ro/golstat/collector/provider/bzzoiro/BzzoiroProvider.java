@@ -110,6 +110,17 @@ public class BzzoiroProvider implements DataProvider {
         return BzzoiroMapper.toHalfStats(body, fixtureId, echipe);
     }
 
+    /** Doar din raspunsul tocmai cerut de {@link #liveFixtureStatistics(long)} — niciodata un request in plus. */
+    @Override
+    public List<FixtureTeamHalfStatsDto> liveFixtureHalfStatistics(long fixtureId) {
+        Echipe echipe = echipe(fixtureId);
+        JsonNode body = statsPeMeci.remove(fixtureId);
+        if (echipe == null || body == null) {
+            return List.of();
+        }
+        return BzzoiroMapper.toHalfStatsLive(body, fixtureId, echipe);
+    }
+
     @Override
     public List<FixtureLineupDto> fixtureLineups(long fixtureId) {
         return BzzoiroMapper.toLineups(client.get("/events/" + fixtureId + "/lineups/", Map.of()), fixtureId);

@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { EchipaDto, MeciZiGrupat } from '../../api/types';
 import { useFavorite } from '../../hooks/useFavorite';
+import { useMeciuriFavorite } from '../../hooks/useMeciuriFavorite';
 import { numeEchipa } from '../../lib/echipa';
 import { formatOra } from '../../lib/format';
 import { Badge } from '../ui/Badge';
@@ -18,9 +19,26 @@ function minutText(m: MeciZiGrupat): string {
  * Un meci ca RAND premium in cardul competitiei: coloana temporala (ora / minut live / final),
  * echipe cu stele de favorit, scor, bara de probabilitate 1X2 si actiunile Statistici / Preview.
  */
-export function RandMeciPremium({ meci }: { meci: MeciZiGrupat }) {
+export function RandMeciPremium({
+  meci,
+  liga,
+}: {
+  meci: MeciZiGrupat;
+  liga?: { leagueId: number | null; nume: string | null };
+}) {
   const navigate = useNavigate();
   const fav = useFavorite();
+  const favMeci = useMeciuriFavorite();
+  const meciFavorit = favMeci.este(meci.fixtureId);
+  const comutaMeci = () =>
+    favMeci.comuta({
+      fixtureId: meci.fixtureId,
+      kickoff: meci.kickoff,
+      gazde: meci.gazde,
+      oaspeti: meci.oaspeti,
+      leagueId: liga?.leagueId ?? null,
+      ligaNume: liga?.nume ?? null,
+    });
 
   // la un meci in desfasurare scorul e prin definitie 0-0 chiar daca golurile nu-s inca colectate
   const scor =
@@ -31,6 +49,17 @@ export function RandMeciPremium({ meci }: { meci: MeciZiGrupat }) {
   return (
     <div className="group relative rounded-2xl px-3 py-2.5 transition hover:bg-bg">
       <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={comutaMeci}
+          aria-label={meciFavorit ? 'Scoate meciul din favorite' : 'Adaugă meciul la favorite'}
+          aria-pressed={meciFavorit}
+          title={meciFavorit ? 'Scoate din favorite' : 'Adaugă la favorite (sunet la gol)'}
+          className={`-ml-1 shrink-0 transition ${meciFavorit ? 'text-accent' : 'text-ink2/40 hover:text-accent'}`}
+        >
+          <IconStar width={17} height={17} fill={meciFavorit ? 'currentColor' : 'none'} />
+        </button>
+
         {/* coloana temporala */}
         <div className="flex w-14 shrink-0 flex-col items-center gap-1">
           {meci.inDesfasurare ? (
@@ -81,7 +110,7 @@ export function RandMeciPremium({ meci }: { meci: MeciZiGrupat }) {
       </div>
 
       {meci.predictie && (
-        <div className="mt-2 pl-14 pr-1">
+        <div className="mt-2 pl-20 pr-1">
           <BaraProbabilitate predictie={meci.predictie} />
         </div>
       )}

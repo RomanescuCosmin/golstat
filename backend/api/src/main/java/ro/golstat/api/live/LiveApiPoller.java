@@ -13,6 +13,7 @@ import ro.golstat.collector.live.LiveProperties;
 import ro.golstat.collector.provider.DataProvider;
 import ro.golstat.common.GolstatConstants;
 import ro.golstat.common.dto.FixtureDto;
+import ro.golstat.common.dto.FixtureEventDto;
 import ro.golstat.common.dto.FixtureLiveDto;
 import ro.golstat.common.dto.FixtureTeamStatsDto;
 
@@ -57,6 +58,9 @@ public class LiveApiPoller {
     private final Set<Long> statsLeagues;
     /** Ultimul moment cand am cerut statistici per meci; curatat cand meciul nu mai e live. */
     private final Map<Long, Instant> ultimulFetchStats = new HashMap<>();
+    /** Ultima cerere de incidente per meci live + scorul vazut atunci (un gol nou = cerere imediata). */
+    private final Map<Long, Instant> ultimulFetchEvenimente = new HashMap<>();
+    private final Map<Long, String> scorVazut = new HashMap<>();
     /** Meciurile urmarite live la poll-ul anterior; ce iese din set = tocmai s-a terminat → il finalizam (FT). */
     private final Set<Long> liveAnterior = new HashSet<>();
 
@@ -100,12 +104,22 @@ public class LiveApiPoller {
 
                 if (fl.evenimente() != null && !fl.evenimente().isEmpty()) {
                     ingest.ingestEvents(fl.evenimente());
+                } else if (statsEligible(f.leagueId()) && dueForEvents(f, now)) {
+                    // sursa fara incidente in lista live (bzzoiro): le cerem separat, imediat la un gol
+                    // si altfel la ritmul statisticilor (cartonase / schimbari) → cota controlata
+                    List<FixtureEventDto> incidente = provider.fixtureEvents(f.id());
+                    if (!incidente.isEmpty()) {
+                        ingest.ingestEvents(incidente);
+                    }
+                    ultimulFetchEvenimente.put(f.id(), now);
+                    scorVazut.put(f.id(), scor(f));
                 }
 
                 if (statsEligible(f.leagueId()) && dueForStats(f.id(), now)) {
                     List<FixtureTeamStatsDto> stats = provider.liveFixtureStatistics(f.id());
                     if (!stats.isEmpty()) {
                         ingest.ingestFixtureTeamStats(stats);
+                        finalizare.reprizeLive(f.id());
                     }
                     ultimulFetchStats.put(f.id(), now);
                 }
@@ -133,6 +147,8 @@ public class LiveApiPoller {
             liveAnterior.clear();
             liveAnterior.addAll(liveTracked);
             ultimulFetchStats.keySet().removeIf(id -> !liveTracked.contains(id));
+            ultimulFetchEvenimente.keySet().removeIf(id -> !liveTracked.contains(id));
+            scorVazut.keySet().removeIf(id -> !liveTracked.contains(id));
             log.debug("Live API: {} in desfasurare, {} urmarite", live.size(), liveTracked.size());
         } catch (RuntimeException e) {
             // cota atinsa, esec de retea sau Redis indisponibil: bucla programata trebuie sa supravietuiasca
@@ -171,6 +187,17 @@ public class LiveApiPoller {
     /** Allowlist de statistici: gol → toate ligile urmarite; altfel doar cele din lista. */
     private boolean statsEligible(Long leagueId) {
         return statsLeagues.isEmpty() || statsLeagues.contains(leagueId);
+    }
+
+    private boolean dueForEvents(FixtureDto f, Instant now) {
+        Instant last = ultimulFetchEvenimente.get(f.id());
+        return last == null
+                || !scor(f).equals(scorVazut.get(f.id()))
+                || Duration.between(last, now).toMillis() >= props.statsEveryMs();
+    }
+
+    private static String scor(FixtureDto f) {
+        return f.goalsHome() + "-" + f.goalsAway();
     }
 
     private boolean dueForStats(Long fixtureId, Instant now) {

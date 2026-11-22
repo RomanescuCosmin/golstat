@@ -1,6 +1,6 @@
 import type { CodPiata } from '../../api/types';
 import { optiuneDupaValoare, optiuniPiata, piataDupaGrup, valoareOptiune } from '../../lib/piete';
-import { claseChip } from '../ui/ChipMeniu';
+import { ChipMeniu } from '../ui/ChipMeniu';
 
 interface Props {
   grup: string;
@@ -13,8 +13,8 @@ interface Props {
 }
 
 /**
- * Selecția din interiorul tipului de piață (direcție + linie), ca un chip cu dropdown nativ — pe
- * telefon deschide selectorul sistemului. `color-scheme` face lista de opțiuni întunecată pe dark.
+ * Selecția din interiorul tipului de piață (direcție + linie), ca un chip cu meniu propriu, rotunjit
+ * ca celelalte filtre (lista nativă a browserului nu se poate stiliza).
  * La piețele-interval chip-ul alege repriza, iar alături apar „Peste X" și „Sub Y".
  */
 export function SelectorPiata({ grup, cod, linie, onSchimba, linieSus = null, onInterval }: Props) {
@@ -31,13 +31,13 @@ export function SelectorPiata({ grup, cod, linie, onSchimba, linieSus = null, on
           onSchimba(optiune.cod, cuInterval ? linie : optiune.linie);
         }}
         optiuni={optiuni.map((o) => ({ valoare: o.valoare, eticheta: o.eticheta }))}
-        id="selector-piata"
       />
       {cuInterval && (
         <>
           <ChipSelect
             eticheta="Peste"
             prefix="Peste"
+            latime="w-36"
             valoare={String(linie)}
             onSchimba={(v) => onInterval(Number(v), linieSus)}
             optiuni={linii.filter((l) => l < linieSus).map((l) => ({ valoare: String(l), eticheta: String(l) }))}
@@ -45,6 +45,7 @@ export function SelectorPiata({ grup, cod, linie, onSchimba, linieSus = null, on
           <ChipSelect
             eticheta="Sub"
             prefix="Sub"
+            latime="w-36"
             valoare={String(linieSus)}
             onSchimba={(v) => onInterval(linie, Number(v))}
             optiuni={linii.filter((l) => l > linie).map((l) => ({ valoare: String(l), eticheta: String(l) }))}
@@ -61,45 +62,53 @@ function ChipSelect({
   valoare,
   onSchimba,
   optiuni,
-  id,
+  latime = 'w-56',
 }: {
   eticheta: string;
   prefix?: string;
   valoare: string;
   onSchimba: (valoare: string) => void;
   optiuni: { valoare: string; eticheta: string }[];
-  id?: string;
+  latime?: string;
 }) {
+  const curenta = optiuni.find((o) => o.valoare === valoare)?.eticheta ?? '';
   return (
-    <label className={`${claseChip(false)} relative cursor-pointer pr-9 focus-within:ring-2 focus-within:ring-piata/40`}>
-      {prefix && <span className="text-ink2">{prefix}</span>}
-      <select
-        id={id}
-        aria-label={eticheta}
-        value={valoare}
-        onChange={(e) => onSchimba(e.target.value)}
-        className="cursor-pointer appearance-none bg-transparent font-semibold text-ink [color-scheme:light] focus:outline-none dark:[color-scheme:dark]"
-      >
-        {optiuni.map((o) => (
-          <option key={o.valoare} value={o.valoare}>
-            {o.eticheta}
-          </option>
-        ))}
-      </select>
-      <svg
-        aria-hidden="true"
-        viewBox="0 0 24 24"
-        width={14}
-        height={14}
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={2.5}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className="pointer-events-none absolute right-3.5 text-ink2"
-      >
-        <path d="M6 9l6 6 6-6" />
-      </svg>
-    </label>
+    <ChipMeniu
+      titlu={eticheta}
+      eticheta={
+        <>
+          {prefix && <span className="text-ink2">{prefix} </span>}
+          {curenta}
+        </>
+      }
+      latime={latime}
+    >
+      {(inchide) => (
+        <div role="listbox" aria-label={eticheta} className="max-h-72 space-y-0.5 overflow-y-auto">
+          {optiuni.map((o) => {
+            const ales = o.valoare === valoare;
+            return (
+              <button
+                key={o.valoare}
+                type="button"
+                role="option"
+                aria-selected={ales}
+                data-valoare={o.valoare}
+                onClick={() => {
+                  onSchimba(o.valoare);
+                  inchide();
+                }}
+                className={`flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2 text-left text-sm font-semibold transition ${
+                  ales ? 'bg-piata/15 text-ink' : 'text-ink2 hover:bg-ink2/10 hover:text-ink'
+                }`}
+              >
+                <span className="truncate">{o.eticheta}</span>
+                {ales && <span aria-hidden="true" className="text-piata">✓</span>}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </ChipMeniu>
   );
 }

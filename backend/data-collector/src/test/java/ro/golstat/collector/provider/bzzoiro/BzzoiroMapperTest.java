@@ -53,6 +53,29 @@ class BzzoiroMapperTest {
     }
 
     @Test
+    void incidentele_pastreazaNumeleMarcatoruluiPaseiCartonasuluiSiSchimbarii() throws Exception {
+        List<FixtureEventDto> ev = BzzoiroMapper.toEvents(json("""
+                {'incidents':[
+                  {'type':'card','minute':30,'player':'A. Ç. Çelik','is_home':true,'card_type':'yellow','player_id':8624},
+                  {'type':'goal','assist':'O. Ülgün','minute':9,'player':'A. M. Traoré','is_home':true,'player_id':7057,
+                   'goal_type':'regular','sequence':[{'pid':6888,'assist':true,'player':'O. Ülgün'}]},
+                  {'type':'substitution','minute':82,'is_home':true,'player_in':'C. Ordoñez','player_out':'V. Sierro',
+                   'player_in_id':2556,'player_out_id':8236}
+                ]}
+                """), 216052L, ECHIPE);
+
+        assertEquals("A. Ç. Çelik", ev.get(0).playerName());
+        assertEquals("A. M. Traoré", ev.get(1).playerName());
+        assertEquals("O. Ülgün", ev.get(1).assistName());
+        assertEquals(6888L, ev.get(1).assistId());
+        // schimbare: player = cine iese, assist = cine intra
+        assertEquals("V. Sierro", ev.get(2).playerName());
+        assertEquals(8236L, ev.get(2).playerId());
+        assertEquals("C. Ordoñez", ev.get(2).assistName());
+        assertEquals(2556L, ev.get(2).assistId());
+    }
+
+    @Test
     void incidenteleDevinEvenimenteCuVocabularulApiFootball() throws Exception {
         List<FixtureEventDto> ev = BzzoiroMapper.toEvents(json("""
                 {'incidents':[
@@ -156,6 +179,31 @@ class BzzoiroMapperTest {
         FixtureTeamHalfStatsDto gazdeR2 = r.get(2);
         assertEquals(2, gazdeR2.half());
         assertEquals(17L, gazdeR2.teamId());
+    }
+
+    @Test
+    void reprizeLive_nullInseamna0CatTimpReprizaAreDate() throws Exception {
+        List<FixtureTeamHalfStatsDto> r = BzzoiroMapper.toHalfStatsLive(json("""
+                {'event_id':216052,'stats':{
+                  'first_half':{'home':{'corner_kicks':null,'fouls':5,'total_shots':2,'yellow_cards':null},
+                                'away':{'corner_kicks':null,'fouls':1,'total_shots':2}},
+                  'second_half':{'home':{'corner_kicks':null,'fouls':null}}}}
+                """), 216052L, ECHIPE);
+
+        // repriza 2 fara nicio valoare (inca nejucata) nu apare
+        assertEquals(2, r.size());
+        FixtureTeamHalfStatsDto gazde = r.get(0);
+        assertEquals(1, gazde.half());
+        assertEquals(0, gazde.cornerKicks());
+        assertEquals(5, gazde.fouls());
+        assertEquals(2, gazde.shotsTotal());
+        assertEquals(0, gazde.yellowCards());
+        assertEquals(0, r.get(1).cornerKicks());
+
+        // varianta stricta (pentru piete) ramane neschimbata: fara cornere → fara rand
+        assertEquals(0, BzzoiroMapper.toHalfStats(json("""
+                {'stats':{'first_half':{'home':{'corner_kicks':null,'fouls':5}}}}
+                """), 216052L, ECHIPE).size());
     }
 
     @Test

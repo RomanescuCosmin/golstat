@@ -124,6 +124,25 @@ class IngestServiceTest {
     }
 
     @Test
+    void ingestEvents_salveazaNumeleJucatorilor_nouSauPlaceholderFaraNume() {
+        Player placeholder = new Player();
+        placeholder.setId(6888L);
+        placeholder.setName("?");
+        when(players.findById(7057L)).thenReturn(java.util.Optional.empty());
+        when(players.existsById(7057L)).thenReturn(false);
+        when(players.findById(6888L)).thenReturn(java.util.Optional.of(placeholder));
+
+        ingest.ingestEvents(List.of(new ro.golstat.common.dto.FixtureEventDto(100L, 1L, 7057L, 6888L, 9, null,
+                "Goal", "Normal Goal", null, "A. M. Traoré", "O. Ülgün")));
+
+        org.mockito.ArgumentCaptor<Player> salvati = org.mockito.ArgumentCaptor.forClass(Player.class);
+        verify(players, times(2)).save(salvati.capture());
+        assertEquals("A. M. Traoré", salvati.getAllValues().get(0).getName());
+        assertEquals(7057L, salvati.getAllValues().get(0).getId());
+        assertEquals("O. Ülgün", salvati.getAllValues().get(1).getName());
+    }
+
+    @Test
     void ingestEvents_replacesByFixture() {
         ingest.ingestEvents(List.of(event(100, 1), event(100, 2)));
         verify(events).deleteByFixtureId(100L);

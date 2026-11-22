@@ -129,15 +129,19 @@ final class BzzoiroMapper {
             Integer extra = intOrNull(i, "added_time");
             switch (type) {
                 case "goal" -> out.add(new FixtureEventDto(fixtureId, team, longOrNull(i, "player_id"),
-                        asistent(i), minut, extra, EventType.GOAL, detaliuGol(text(i, "goal_type")), null));
+                        asistent(i), minut, extra, EventType.GOAL, detaliuGol(text(i, "goal_type")), null,
+                        text(i, "player"), text(i, "assist")));
                 case "penalty_missed" -> out.add(new FixtureEventDto(fixtureId, team, longOrNull(i, "player_id"),
-                        null, minut, extra, EventType.GOAL, "Missed Penalty", text(i, "reason")));
+                        null, minut, extra, EventType.GOAL, "Missed Penalty", text(i, "reason"),
+                        text(i, "player"), null));
                 case "card" -> out.add(new FixtureEventDto(fixtureId, team, longOrNull(i, "player_id"),
-                        null, minut, extra, EventType.CARD, detaliuCartonas(text(i, "card_type")), text(i, "reason")));
+                        null, minut, extra, EventType.CARD, detaliuCartonas(text(i, "card_type")), text(i, "reason"),
+                        text(i, "player"), null));
                 case "substitution" -> out.add(new FixtureEventDto(fixtureId, team, longOrNull(i, "player_out_id"),
-                        longOrNull(i, "player_in_id"), minut, extra, EventType.SUBST, "Substitution", null));
+                        longOrNull(i, "player_in_id"), minut, extra, EventType.SUBST, "Substitution", null,
+                        text(i, "player_out"), text(i, "player_in")));
                 case "varDecision" -> out.add(new FixtureEventDto(fixtureId, team, longOrNull(i, "player_id"),
-                        null, minut, extra, EventType.VAR, text(i, "text"), null));
+                        null, minut, extra, EventType.VAR, text(i, "text"), null, text(i, "player"), null));
                 default -> {
                     // period / injuryTime: marcaje de timp, nu evenimente de joc
                 }
@@ -218,25 +222,53 @@ final class BzzoiroMapper {
 
     /** Pana la 4 randuri: (gazde, oaspeti) × (repriza 1, repriza 2), din {@code stats.first_half}/{@code stats.second_half}. */
     static List<FixtureTeamHalfStatsDto> toHalfStats(JsonNode body, long fixtureId, Echipe echipe) {
+        return toHalfStats(body, fixtureId, echipe, false);
+    }
+
+    /**
+     * Varianta live: in timpul meciului sursa da {@code null} pana la primul corner / cartonas, deci o
+     * repriza care are deja date (faulturi, suturi) intra cu golurile pe 0. La fluier randurile se rescriu
+     * din varianta stricta.
+     */
+    static List<FixtureTeamHalfStatsDto> toHalfStatsLive(JsonNode body, long fixtureId, Echipe echipe) {
+        return toHalfStats(body, fixtureId, echipe, true);
+    }
+
+    private static List<FixtureTeamHalfStatsDto> toHalfStats(JsonNode body, long fixtureId, Echipe echipe,
+                                                             boolean live) {
         List<FixtureTeamHalfStatsDto> out = new ArrayList<>();
-        adaugaRepriza(out, body.path("stats").path("first_half"), fixtureId, echipe, 1);
-        adaugaRepriza(out, body.path("stats").path("second_half"), fixtureId, echipe, 2);
+        adaugaRepriza(out, body.path("stats").path("first_half"), fixtureId, echipe, 1, live);
+        adaugaRepriza(out, body.path("stats").path("second_half"), fixtureId, echipe, 2, live);
         return out;
     }
 
+    private static final List<String> CAMPURI_REPRIZA = List.of(
+            "corner_kicks", "fouls", "yellow_cards", "red_cards", "total_shots", "shots_on_target", "offsides");
+
     private static void adaugaRepriza(List<FixtureTeamHalfStatsDto> out, JsonNode repriza, long fixtureId,
-                                      Echipe echipe, int half) {
+                                      Echipe echipe, int half, boolean live) {
         for (boolean home : new boolean[]{true, false}) {
             JsonNode s = repriza.path(home ? "home" : "away");
+            if (!s.isObject()) {
+                continue;
+            }
             // fara cornere raportate randul nu ajuta nicio piata pe reprize
-            if (s.isObject() && s.path("corner_kicks").isNumber()) {
+            boolean areDate = live
+                    ? CAMPURI_REPRIZA.stream().anyMatch(c -> s.path(c).isNumber())
+                    : s.path("corner_kicks").isNumber();
+            if (areDate) {
                 out.add(new FixtureTeamHalfStatsDto(fixtureId, echipe.dupaPartea(home), half,
-                        intOrNull(s, "corner_kicks"), intOrNull(s, "fouls"),
-                        intOrNull(s, "yellow_cards"), intOrNull(s, "red_cards"),
-                        intOrNull(s, "total_shots"), intOrNull(s, "shots_on_target"),
-                        intOrNull(s, "offsides")));
+                        camp(s, "corner_kicks", live), camp(s, "fouls", live),
+                        camp(s, "yellow_cards", live), camp(s, "red_cards", live),
+                        camp(s, "total_shots", live), camp(s, "shots_on_target", live),
+                        camp(s, "offsides", live)));
             }
         }
+    }
+
+    private static Integer camp(JsonNode s, String nume, boolean live) {
+        Integer v = intOrNull(s, nume);
+        return v == null && live ? Integer.valueOf(0) : v;
     }
 
     static List<FixtureLineupDto> toLineups(JsonNode body, long fixtureId) {

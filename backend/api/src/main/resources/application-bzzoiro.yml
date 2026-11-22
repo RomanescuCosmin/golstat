@@ -29,6 +29,10 @@ golstat:
       89: 108    # Eerste Divisie (Olanda, liga 2)
       106: 25    # Ekstraklasa Polonia
       218: 96    # Bundesliga Austria
+      41: 86     # League One (Anglia, liga 3)
+      42: 87     # League Two (Anglia, liga 4)
+      43: 91     # National League (Anglia, liga 5; fara statistici pe reprize)
+      62: 89     # Ligue 2 (Franta)
   # LIVE fara Redis: memoria aplicatiei ajunge pe o singura instanta. Doar cand exista meciuri in fereastra
   # [kickoff - 15 min, kickoff + 140 min]: 1 request/minut pentru TOATE meciurile live (status=inprogress),
   # statistici live la 5 min per meci, iar la fluierul final statistici + reprize + incidente + formatii.
