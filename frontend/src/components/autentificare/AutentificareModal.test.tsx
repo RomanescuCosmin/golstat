@@ -118,6 +118,25 @@ describe('AutentificareModal', () => {
     expect(api.inregistrare).not.toHaveBeenCalled();
   });
 
+  test('cont nou cu parola slaba: mesajul apare sub campul Parola', async () => {
+    vi.mocked(api.inregistrare).mockRejectedValue(
+      new ApiError(400, 'Parolă prea slabă', 'Parola e prea des folosită. Alege alta.', { cod: 'parola-slaba' }),
+    );
+    const user = await randeaza('inregistrare');
+
+    await user.type(screen.getByLabelText('Nume'), 'Ana');
+    await user.type(screen.getByLabelText('Email'), 'ana@ex.ro');
+    await user.type(screen.getByLabelText('Parolă'), 'ilovemyfamily');
+    await user.type(screen.getByLabelText('Confirmă parola'), 'ilovemyfamily');
+    await user.click(screen.getByRole('button', { name: 'Creează cont' }));
+
+    const parola = screen.getByLabelText('Parolă');
+    await waitFor(() => expect(parola).toHaveAttribute('aria-invalid', 'true'));
+    expect(parola).toHaveAccessibleDescription('Parola e prea des folosită. Alege alta.');
+    expect(parola).toHaveFocus();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
   test('cont nou pe email existent: mesaj clar cu drum spre autentificare si parola uitata', async () => {
     vi.mocked(api.inregistrare).mockRejectedValue(
       new ApiError(409, 'Email folosit', 'Există deja un cont cu acest email.', { cod: 'email-existent' }),
@@ -247,14 +266,14 @@ describe('AutentificareModal', () => {
 
   test('confirmare cu parola gresita: ramane pe formular cu mesaj', async () => {
     vi.mocked(api.confirmareEmail).mockRejectedValue(
-      new ApiError(400, 'Parolă greșită', 'Parola curentă e greșită.', { cod: 'parola-gresita' }),
+      new ApiError(400, 'Parolă greșită', 'Parola e greșită.', { cod: 'parola-gresita' }),
     );
     const user = await randeaza('confirmare', { tip: 'confirmare', token: 'TOK' });
 
     await user.type(screen.getByLabelText('Parolă'), 'gresita');
     await user.click(screen.getByRole('button', { name: 'Confirmă emailul' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Parola curentă e greșită.');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Parola e greșită.');
     expect(screen.getByRole('button', { name: 'Confirmă emailul' })).toBeInTheDocument();
   });
 

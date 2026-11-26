@@ -64,6 +64,19 @@ export function Modal({ deschis, onInchide, titlu, children, cheieContinut }: Mo
     (panou.current?.querySelector<HTMLElement>('input, select, textarea') ?? panou.current)?.focus();
   }, [deschis, cheieContinut]);
 
+  // cand un pas al formularului inlocuieste elementul cu focus (ex. ecranul de succes), focusul ramane in fereastra
+  useEffect(() => {
+    const p = panou.current;
+    if (!deschis || !p) return;
+    const observator = new MutationObserver(() => {
+      if (!p.contains(document.activeElement)) {
+        (p.querySelector<HTMLElement>('input, select, textarea') ?? p).focus();
+      }
+    });
+    observator.observe(p, { childList: true, subtree: true });
+    return () => observator.disconnect();
+  }, [deschis]);
+
   if (!deschis) return null;
 
   // se inchide doar daca si apasarea a inceput pe fundal (nu la selectarea textului dintr-un camp)

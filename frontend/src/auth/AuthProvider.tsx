@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import * as api from '../api/auth';
 import type { Utilizator } from '../api/auth';
-import type { LinkEmail } from '../lib/linkEmail';
+import { citesteSiCurataLinkEmail, type LinkEmail } from '../lib/linkEmail';
 
 export type ModAutentificare =
   | 'autentificare'
@@ -51,6 +51,16 @@ export function AuthProvider({ children, linkEmail = null }: { children: ReactNo
       activ = false;
     };
   }, [seteazaUtilizator]);
+
+  // link din email lipit intr-un tab deja deschis: se schimba doar fragmentul, pagina nu se reincarca
+  useEffect(() => {
+    const laSchimbareFragment = () => {
+      const link = citesteSiCurataLinkEmail();
+      if (link) setModal({ mod: link.tip, token: link.token });
+    };
+    window.addEventListener('hashchange', laSchimbareFragment);
+    return () => window.removeEventListener('hashchange', laSchimbareFragment);
+  }, []);
 
   const reincarca = useCallback(async () => {
     seteazaUtilizator(await api.getEu().catch(() => null));

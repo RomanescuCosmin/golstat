@@ -96,6 +96,25 @@ describe('Modal', () => {
     expect(onInchide).toHaveBeenCalledOnce();
   });
 
+  test('cand continutul inlocuieste elementul cu focus, focusul ramane in fereastra', async () => {
+    function CuPasi() {
+      const [gata, setGata] = useState(false);
+      return (
+        <Modal deschis titlu="Pași" onInchide={() => {}}>
+          {gata ? <p>Gata</p> : <button onClick={() => setGata(true)}>Trimite</button>}
+        </Modal>
+      );
+    }
+    render(<CuPasi />, { container: document.getElementById('root')! });
+    const trimite = screen.getByText('Trimite');
+    trimite.focus();
+
+    fireEvent.click(trimite);
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(screen.getByRole('dialog').contains(document.activeElement)).toBe(true);
+  });
+
   test('butonul Închide', () => {
     const onInchide = vi.fn();
     randeaza(onInchide);

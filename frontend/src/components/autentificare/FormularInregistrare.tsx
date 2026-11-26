@@ -47,7 +47,9 @@ export function FormularInregistrare() {
       setTrimis(true);
     } catch (err) {
       setEmailExistent(err instanceof ApiError && err.cod === 'email-existent');
-      setErori(eroriCampuri(err));
+      setErori(
+        err instanceof ApiError && err.cod === 'parola-slaba' ? { parola: mesajEroare(err) } : eroriCampuri(err),
+      );
       setEroare(mesajEroare(err));
     } finally {
       setSeTrimite(false);

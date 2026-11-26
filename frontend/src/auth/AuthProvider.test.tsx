@@ -88,6 +88,22 @@ describe('AuthProvider', () => {
     expect(screen.getByTestId('stare')).toHaveTextContent('|-');
   });
 
+  test('link din email lipit intr-un tab deja deschis (hashchange): deschide modala si curata URL-ul', async () => {
+    vi.mocked(api.getEu).mockResolvedValue(null);
+    render(<AuthProvider><Sonda /></AuthProvider>);
+    await waitFor(() => expect(screen.getByTestId('stare')).toHaveTextContent('anonim'));
+    const token = 'AbCdEfGhIjKlMnOpQrStUvWxYz0123456789_-abcde';
+
+    act(() => {
+      window.history.replaceState(null, '', `/piete#resetare=${token}`);
+      window.dispatchEvent(new HashChangeEvent('hashchange'));
+    });
+
+    expect(screen.getByTestId('stare')).toHaveTextContent(`resetare:${token}`);
+    expect(window.location.hash).toBe('');
+    expect(window.location.pathname).toBe('/piete');
+  });
+
   test('useAuth in afara providerului arunca', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     expect(() => render(<Sonda />)).toThrow(/AuthProvider/);
