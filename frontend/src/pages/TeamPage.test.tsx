@@ -45,7 +45,8 @@ describe('TeamPage', () => {
     randeaza();
     await screen.findAllByText('Manchester United');
 
-    await user.selectOptions(screen.getByRole('combobox'), '2024');
+    await user.click(screen.getByRole('combobox', { name: 'Sezon' }));
+    await user.click(screen.getByRole('option', { name: '2024/25' }));
     await waitFor(() => expect(mockGetEchipa).toHaveBeenLastCalledWith(33, undefined, 2024));
   });
 
@@ -75,7 +76,8 @@ describe('TeamPage', () => {
     await screen.findAllByText('Echipa 33');
 
     // selecteaza un sezon vechi la echipa 33
-    await user.selectOptions(screen.getByRole('combobox'), '2024');
+    await user.click(screen.getByRole('combobox', { name: 'Sezon' }));
+    await user.click(screen.getByRole('option', { name: '2024/25' }));
     await waitFor(() => expect(mockGetEchipa).toHaveBeenLastCalledWith(33, undefined, 2024));
 
     // la echipa 40 sezonul selectat nu se propaga (se cere sezonul implicit)

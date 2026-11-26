@@ -52,7 +52,14 @@ function Iconita({ r }: { r: RezultatCautare }) {
 }
 
 /** Search global din navbar: echipe + campionate + jucatori. Debounce, anulare cereri stale, navigare tastatura. */
-export function Cautare() {
+interface CautareProps {
+  /** Varianta din overlay-ul mobil: latime plina, focus automat. */
+  plin?: boolean;
+  /** Apelat dupa navigarea la un rezultat (overlay-ul mobil se inchide). */
+  onAles?: () => void;
+}
+
+export function Cautare({ plin = false, onAles }: CautareProps = {}) {
   const navigate = useNavigate();
   const [q, setQ] = useState('');
   const [rezultate, setRezultate] = useState<RezultatCautare[]>([]);
@@ -105,6 +112,7 @@ export function Cautare() {
     setQ('');
     setRezultate([]);
     navigate(ruta(r));
+    onAles?.();
   }
 
   function onKeyDown(e: React.KeyboardEvent) {
@@ -130,7 +138,7 @@ export function Cautare() {
   const arataDropdown = deschis && termen.length >= MIN_CARACTERE;
 
   return (
-    <div ref={containerRef} className="relative hidden lg:block">
+    <div ref={containerRef} className={plin ? 'relative w-full' : 'relative'}>
       <IconSearch className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink2" width={16} height={16} />
       <input
         type="search"
@@ -146,14 +154,15 @@ export function Cautare() {
         }}
         onFocus={() => setDeschis(true)}
         onKeyDown={onKeyDown}
-        className="h-9 w-64 rounded-full border border-line bg-bg pl-9 pr-3 text-sm text-ink placeholder:text-ink2 focus:outline-none focus:ring-2 focus:ring-primary/40"
+        autoFocus={plin}
+        className={`${plin ? 'h-11 w-full text-base' : 'h-10 w-64 xl:w-80 text-sm'} rounded-full border border-line bg-bg pl-9 pr-3 text-ink placeholder:text-ink2 focus:outline-none focus:ring-2 focus:ring-primary/40`}
       />
 
       {arataDropdown && (
         <div
           id="cautare-lista"
           role="listbox"
-          className="absolute left-0 right-0 top-11 z-30 max-h-96 overflow-y-auto rounded-xl border border-line bg-card py-1 shadow-lg"
+          className="absolute left-0 right-0 top-12 z-30 max-h-[60vh] overflow-y-auto rounded-xl border border-line bg-card py-1 shadow-lg"
         >
           {rezultate.length === 0 ? (
             <p className="px-3 py-3 text-sm text-ink2">
@@ -175,7 +184,7 @@ export function Cautare() {
                     aria-selected={i === activ}
                     onMouseEnter={() => setActiv(i)}
                     onClick={() => selecteaza(r)}
-                    className={`flex w-full items-center gap-3 px-3 py-2 text-left text-sm transition ${
+                    className={`flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm transition ${
                       i === activ ? 'bg-primary/10' : 'hover:bg-bg'
                     }`}
                   >

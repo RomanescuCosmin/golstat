@@ -63,6 +63,9 @@ public class LiveApiPoller {
     private final Map<Long, String> scorVazut = new HashMap<>();
     /** Meciurile urmarite live la poll-ul anterior; ce iese din set = tocmai s-a terminat → il finalizam (FT). */
     private final Set<Long> liveAnterior = new HashSet<>();
+    /** Ies din live dar furnizorul inca nu le da terminate (intarzie cateva secunde): reincercam la fiecare poll. */
+    private final Map<Long, Instant> asteaptaFinal = new HashMap<>();
+    static final Duration ASTEPTARE_MAXIMA_FINAL = Duration.ofMinutes(30);
 
     public LiveApiPoller(DataProvider provider, IngestService ingest, LiveBroadcaster broadcaster,
                          FixtureRepository fixtures, LiveProperties props, Clock clock,
@@ -127,12 +130,19 @@ public class LiveApiPoller {
             // meciurile care erau live si acum nu mai sunt = tocmai s-au terminat: le luam starea finala
             // (FT + scor final) o data, altfel ar ramane inghetate in DB la ultimul snapshot „live".
             Set<Long> tocmaiTerminate = new HashSet<>(liveAnterior);
+            tocmaiTerminate.addAll(asteaptaFinal.keySet());
             tocmaiTerminate.removeAll(liveTracked);
+            asteaptaFinal.keySet().removeIf(liveTracked::contains);
             if (!tocmaiTerminate.isEmpty()) {
                 Set<List<Object>> clasamente = new HashSet<>();
                 for (FixtureDto f : provider.fixturesByIds(tocmaiTerminate)) {
                     if (f != null && f.id() != null) {
                         ingest.ingestFixture(f);
+                        if (GolstatConstants.FixtureStatus.IN_PLAY.contains(f.statusShort())) {
+                            asteaptaFinal.putIfAbsent(f.id(), now);
+                            continue;
+                        }
+                        asteaptaFinal.remove(f.id());
                         finalizare.finalizeaza(f);
                         if (f.leagueId() != null && f.seasonYear() != null) {
                             clasamente.add(List.of(f.leagueId(), f.seasonYear()));
@@ -144,6 +154,7 @@ public class LiveApiPoller {
                     reimprospateazaClasament((Long) c.get(0), (Integer) c.get(1));
                 }
             }
+            asteaptaFinal.values().removeIf(dela -> dela.plus(ASTEPTARE_MAXIMA_FINAL).isBefore(now));
             liveAnterior.clear();
             liveAnterior.addAll(liveTracked);
             ultimulFetchStats.keySet().removeIf(id -> !liveTracked.contains(id));

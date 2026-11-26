@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ApiError, getCompetitie } from '../api/client';
 import type { JucatorTop, PaginaCompetitie } from '../api/types';
 import { PageLayout } from '../components/layout/PageLayout';
+import { AntetPagina } from '../components/layout/AntetPagina';
 import { SelectorLiga } from '../components/meciuri/SelectorLiga';
 import { Card } from '../components/ui/Card';
 import { EmptyState } from '../components/ui/EmptyState';
@@ -93,25 +94,15 @@ export function JucatoriPage() {
 
   return (
     <PageLayout>
-      <div className="mb-5 flex flex-wrap items-center gap-4">
-        <div className="flex min-w-0 flex-1 items-start gap-3">
-          <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-card bg-primary/10 text-primary">
-            <IconUser width={20} height={20} />
-          </span>
-          <div>
-            <h1 className="text-2xl font-extrabold text-ink">Jucători</h1>
-            <p className="text-sm text-ink2">Topurile jucătorilor din {numeLiga(leagueId)}.</p>
-          </div>
-        </div>
-        <SelectorLiga
-          leagueId={leagueId}
-          optiuni={optiuniLigi}
-          onChange={(v) => setLeagueId(v ?? 39)}
-        />
-      </div>
+      <AntetPagina
+        titlu="Jucători"
+        subtitlu={<>Topurile jucătorilor din {numeLiga(leagueId)}.</>}
+        icon={<IconUser width={22} height={22} />}
+        actiuni={<SelectorLiga leagueId={leagueId} optiuni={optiuniLigi} onChange={(v) => setLeagueId(v ?? 39)} />}
+      />
 
       {loading && (
-        <div className="grid items-start gap-5 lg:grid-cols-2">
+        <div className="grid grid-cols-1 items-start gap-4 sm:gap-5 [&>*]:min-w-0 lg:grid-cols-2">
           <SkeletonCard randuri={6} />
           <SkeletonCard randuri={6} />
         </div>
@@ -128,7 +119,7 @@ export function JucatoriPage() {
       )}
 
       {!loading && !eroare && date && (
-        <div className="animate-fade-in grid items-start gap-5 lg:grid-cols-2">
+        <div className="animate-fade-in grid grid-cols-1 items-start gap-4 sm:gap-5 [&>*]:min-w-0 lg:grid-cols-2">
           <CardTopJucatori titlu="Golgheteri" jucatori={date.golgheteri} />
           <CardTopJucatori titlu="Pase decisive" jucatori={date.pasatori} />
         </div>

@@ -47,21 +47,21 @@ export function RandMeciPremium({
       : '–';
 
   return (
-    <div className="group relative rounded-2xl px-3 py-2.5 transition hover:bg-bg">
-      <div className="flex items-center gap-3">
+    <div className="group relative px-2 py-3 transition hover:bg-bg sm:rounded-2xl sm:px-3 sm:py-2.5">
+      <div className="flex items-center gap-2 sm:gap-3">
         <button
           type="button"
           onClick={comutaMeci}
           aria-label={meciFavorit ? 'Scoate meciul din favorite' : 'Adaugă meciul la favorite'}
           aria-pressed={meciFavorit}
           title={meciFavorit ? 'Scoate din favorite' : 'Adaugă la favorite (sunet la gol)'}
-          className={`-ml-1 shrink-0 transition ${meciFavorit ? 'text-accent' : 'text-ink2/40 hover:text-accent'}`}
+          className={`-m-1.5 shrink-0 p-1.5 transition sm:-ml-1 sm:p-0 sm:m-0 ${meciFavorit ? 'text-accent' : 'text-ink2/40 hover:text-accent'}`}
         >
           <IconStar width={17} height={17} fill={meciFavorit ? 'currentColor' : 'none'} />
         </button>
 
         {/* coloana temporala */}
-        <div className="flex w-14 shrink-0 flex-col items-center gap-1">
+        <div className="flex w-12 shrink-0 flex-col items-center gap-1 sm:w-14">
           {meci.inDesfasurare ? (
             <Badge variant="live">{minutText(meci)}</Badge>
           ) : meci.terminat ? (
@@ -72,30 +72,30 @@ export function RandMeciPremium({
         </div>
 
         {/* echipe + scor */}
-        <div className="grid min-w-0 flex-1 grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-3">
-          <div className="flex min-w-0 items-center justify-end gap-2">
+        <div className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] grid-rows-2 items-center gap-x-2 gap-y-1.5 border-l border-line/70 pl-3 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:grid-rows-1 sm:gap-3 sm:border-0 sm:pl-0">
+          <div className="col-start-1 row-start-1 flex min-w-0 flex-row-reverse items-center justify-end gap-2 sm:flex-row">
             <SteaFavorit echipa={meci.gazde} este={fav.este(meci.gazde.id)} onComuta={() => fav.comuta(meci.gazde)} />
             <NumeEchipa echipa={meci.gazde} aliniere="dreapta" onOpen={() => navigate(`/echipa/${meci.gazde.id}`)} />
-            <TeamLogo nume={meci.gazde.nume} logo={meci.gazde.logo} size={26} />
+            <TeamLogo nume={meci.gazde.nume} logo={meci.gazde.logo} size={22} />
           </div>
 
           <span
-            className={`px-2 text-[15px] font-bold tabular-nums ${
+            className={`col-start-2 row-span-2 row-start-1 rounded-lg bg-bg/70 px-2 py-1 text-center text-[15px] font-bold tabular-nums sm:row-span-1 sm:bg-transparent sm:py-0 ${
               meci.inDesfasurare ? 'text-accent' : meci.terminat ? 'text-ink' : 'text-ink2'
             }`}
           >
             {scor}
           </span>
 
-          <div className="flex min-w-0 items-center gap-2">
-            <TeamLogo nume={meci.oaspeti.nume} logo={meci.oaspeti.logo} size={26} />
+          <div className="col-start-1 row-start-2 flex min-w-0 items-center gap-2 sm:col-start-3 sm:row-start-1">
+            <TeamLogo nume={meci.oaspeti.nume} logo={meci.oaspeti.logo} size={22} />
             <NumeEchipa echipa={meci.oaspeti} aliniere="stanga" onOpen={() => navigate(`/echipa/${meci.oaspeti.id}`)} />
             <SteaFavorit echipa={meci.oaspeti} este={fav.este(meci.oaspeti.id)} onComuta={() => fav.comuta(meci.oaspeti)} />
           </div>
         </div>
 
         {/* actiuni */}
-        <div className="flex shrink-0 items-center gap-1">
+        <div className="flex shrink-0 flex-col items-center sm:flex-row sm:gap-1">
           <BtnActiune
             titlu="Statistici"
             onClick={() => navigate(`/meci/${meci.fixtureId}/centru`)}
@@ -110,7 +110,7 @@ export function RandMeciPremium({
       </div>
 
       {meci.predictie && (
-        <div className="mt-2 pl-20 pr-1">
+        <div className="mt-2.5 px-1 sm:mt-2 sm:pl-20">
           <BaraProbabilitate predictie={meci.predictie} />
         </div>
       )}
@@ -131,8 +131,8 @@ function NumeEchipa({
     <button
       type="button"
       onClick={onOpen}
-      className={`truncate text-sm font-semibold text-ink transition hover:text-primary ${
-        aliniere === 'dreapta' ? 'text-right' : 'text-left'
+      className={`min-w-0 truncate text-left text-sm font-semibold text-ink transition hover:text-primary ${
+        aliniere === 'dreapta' ? 'sm:text-right' : ''
       }`}
     >
       {numeEchipa(echipa)}
@@ -148,7 +148,7 @@ function SteaFavorit({ echipa, este, onComuta }: { echipa: EchipaDto; este: bool
       aria-label={este ? `Scoate ${numeEchipa(echipa)} din favorite` : `Adaugă ${numeEchipa(echipa)} la favorite`}
       aria-pressed={este}
       className={`shrink-0 transition ${
-        este ? 'text-primary' : 'text-ink2/30 opacity-0 group-hover:opacity-100 focus:opacity-100'
+        este ? 'text-primary' : 'hidden text-ink2/30 opacity-0 group-hover:opacity-100 focus:opacity-100 sm:inline'
       }`}
     >
       <IconStar width={15} height={15} fill={este ? 'currentColor' : 'none'} />
@@ -163,7 +163,7 @@ function BtnActiune({ titlu, onClick, icon }: { titlu: string; onClick: () => vo
       onClick={onClick}
       title={titlu}
       aria-label={titlu}
-      className="flex h-8 w-8 items-center justify-center rounded-full text-ink2 transition hover:bg-primary/10 hover:text-primary"
+      className="flex h-9 w-9 items-center justify-center rounded-full text-ink2 transition hover:bg-primary/10 hover:text-primary active:scale-95 sm:h-8 sm:w-8"
     >
       {icon}
     </button>

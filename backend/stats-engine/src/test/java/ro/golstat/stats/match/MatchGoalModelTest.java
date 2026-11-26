@@ -29,6 +29,24 @@ class MatchGoalModelTest {
     }
 
     @Test
+    void distributiaTotalului_suma1_siIntervalulEgalCuDiferentaLiniilor() {
+        MatchPrediction p = MatchGoalModel.predict(new MatchContext(form(7, 2.0, 0.9), form(7, 1.4, 1.8), 1.5, 1.1));
+        double[] d = MatchGoalModel.distributieTotal(p, 6);
+
+        assertEquals(8, d.length, "0..6 goluri + „7 sau mai multe”");
+        double suma = 0;
+        for (double x : d) {
+            assertTrue(x >= 0);
+            suma += x;
+        }
+        assertEquals(1.0, suma, EPS);
+        // P(intre 1 si 3 goluri) = P(peste 0.5) − P(peste 3.5), exact
+        assertEquals(p.linie(0.5).overRate() - p.linie(3.5).overRate(), d[1] + d[2] + d[3], EPS);
+        // matricea e taiata la 10 goluri / echipa: coada (~1e-5) intra la „7+”, nu la „0 goluri”
+        assertEquals(1 - p.linie(0.5).overRate(), d[0], 1e-4);
+    }
+
+    @Test
     void procentele_dinGrilaDixonColes() {
         MatchPrediction p = MatchGoalModel.predict(new MatchContext(form(7, 2.0, 0.9), form(7, 1.4, 1.8), 1.5, 1.1));
         ScoreGrid grid = ScoreGrid.dixonColes(1.957, 1.1845, MatchGoalModel.RHO, MatchGoalModel.MAX_GOALS);

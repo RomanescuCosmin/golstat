@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { ApiError, getCompetitie } from '../api/client';
 import { paginaCompetitie, randClasament } from '../test/factories';
 import { EchipePage } from './EchipePage';
+import { numeLiga } from '../lib/ligi';
 
 vi.mock('../api/client', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../api/client')>()),
@@ -69,7 +70,8 @@ describe('EchipePage', () => {
     randeaza();
     await screen.findByRole('link', { name: /Manchester United/ });
 
-    await user.selectOptions(screen.getByRole('combobox'), '140');
+    await user.click(screen.getByRole('combobox', { name: 'Competiție' }));
+    await user.click(screen.getByRole('option', { name: numeLiga(140) }));
     expect(mockGetCompetitie).toHaveBeenLastCalledWith(140);
   });
 });

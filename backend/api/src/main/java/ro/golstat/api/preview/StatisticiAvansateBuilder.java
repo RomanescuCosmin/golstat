@@ -3,6 +3,7 @@ package ro.golstat.api.preview;
 import ro.golstat.api.preview.StatisticiAvansateDto.EgaluriDto;
 import ro.golstat.api.preview.StatisticiAvansateDto.FrecventaDto;
 import ro.golstat.api.preview.StatisticiAvansateDto.GgDto;
+import ro.golstat.api.preview.StatisticiAvansateDto.IntervalGoluriDto;
 import ro.golstat.api.preview.StatisticiAvansateDto.CornereReprizeDto;
 import ro.golstat.api.preview.StatisticiAvansateDto.LinieDto;
 import ro.golstat.api.preview.StatisticiAvansateDto.LinieEchipaDto;
@@ -23,6 +24,7 @@ import ro.golstat.stats.form.MatchWindow;
 import ro.golstat.stats.form.WindowCounts;
 import ro.golstat.stats.goals.HalfMarkets;
 import ro.golstat.stats.market.EventLineStats;
+import ro.golstat.stats.match.MatchGoalModel;
 import ro.golstat.stats.match.MatchPrediction;
 import ro.golstat.stats.math.NegativeBinomial;
 import ro.golstat.stats.math.Poisson;
@@ -55,6 +57,8 @@ public final class StatisticiAvansateBuilder {
     public static final double[] LINII_ECHIPA_GOLURI = {0.5, 1.5, 2.5};
     public static final double[] LINII_REPRIZA_CORNERE = {2.5, 3.5, 4.5, 5.5, 6.5};
     public static final double[] LINII_REPRIZA_ECHIPA_CORNERE = {1.5, 2.5};
+    /** Intervalele de goluri merg pana la 6; ultima pozitie a distributiei = „7 sau mai multe”. */
+    public static final int MAXIM_INTERVAL_GOLURI = 6;
     /** Dispersiile Negative Binomial: faulturi 30, cartonase 8 — valorile cu care a rulat backtest-ul. */
     static final double DISPERSIE_FAULTURI = 30;
     static final double DISPERSIE_CARTONASE = 8;
@@ -183,7 +187,22 @@ public final class StatisticiAvansateBuilder {
                                 gazde.goluriLocatie(), gazde.goluriGeneral(),
                                 oaspeti.goluriLocatie(), oaspeti.goluriGeneral(),
                                 MatchSample::goalsFor, MatchSample::goalsAgainst)),
-                cornereReprize(gazde, oaspeti, mediiCounturi));
+                cornereReprize(gazde, oaspeti, mediiCounturi),
+                intervalGoluri(gazde, oaspeti, modelGoluri));
+    }
+
+    /** Totalul de goluri 0..{@value #MAXIM_INTERVAL_GOLURI} + „mai multe”, si totalurile reale din ferestre. */
+    private static IntervalGoluriDto intervalGoluri(FerestreEchipa gazde, FerestreEchipa oaspeti,
+                                                    MatchPrediction model) {
+        double[] d = MatchGoalModel.distributieTotal(model, MAXIM_INTERVAL_GOLURI);
+        return new IntervalGoluriDto(
+                Arrays.stream(d).map(StatisticiAvansateBuilder::rotunjit4).boxed().toList(),
+                gazde.goluriLocatie().stream().map(m -> m.goalsFor() + m.goalsAgainst()).toList(),
+                oaspeti.goluriLocatie().stream().map(m -> m.goalsFor() + m.goalsAgainst()).toList());
+    }
+
+    private static double rotunjit4(double x) {
+        return Math.round(x * 10_000.0) / 10_000.0;
     }
 
     /** λ pe repriza: aceeasi formula atac × aparare, pe cornerele din repriza respectiva. */

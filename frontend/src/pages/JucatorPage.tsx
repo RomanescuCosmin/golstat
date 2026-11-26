@@ -112,8 +112,8 @@ export function JucatorPage() {
 
       {loading && (
         <div className="space-y-5">
-          <Card className="p-6">
-            <div className="flex flex-wrap items-center gap-5">
+          <Card className="p-4 sm:p-6">
+            <div className="flex flex-wrap items-center gap-4 sm:gap-5">
               <Skeleton className="h-24 w-24 shrink-0 rounded-full" />
               <div className="min-w-0 flex-1 space-y-2.5">
                 <Skeleton className="h-8 w-52 max-w-full" />
@@ -213,9 +213,9 @@ export function JucatorPage() {
                   />
                 </div>
 
-                <div className="mt-4 overflow-x-auto">
-                  <table className="w-full min-w-[760px] text-sm">
-                    <thead>
+                <div className="mt-4 md:overflow-x-auto">
+                  <table className="block w-full text-sm md:table md:min-w-[760px]">
+                    <thead className="hidden md:table-header-group">
                       <tr className="border-b border-line text-left text-xs font-semibold uppercase tracking-wide text-ink2">
                         <th className="py-2.5 pr-3 font-semibold">Sezon</th>
                         <th className="py-2.5 pr-3 font-semibold">Competiție</th>
@@ -229,36 +229,39 @@ export function JucatorPage() {
                         <th className="py-2.5 text-right font-semibold">Rating</th>
                       </tr>
                     </thead>
-                    <tbody className="tabular-nums">
+                    <tbody className="block space-y-2 tabular-nums md:table-row-group md:space-y-0">
                       {date.sezoane.map((s, i) => (
-                        <tr key={`${s.leagueId}-${s.sezon}-${s.echipa?.id}-${i}`} className="border-b border-line/60 last:border-0">
-                          <td className="whitespace-nowrap py-2.5 pr-3 font-semibold text-ink">{formatSezon(s.sezon)}</td>
-                          <td className="py-2.5 pr-3">
-                            <span className="flex items-center gap-2 text-ink">
+                        <tr
+                          key={`${s.leagueId}-${s.sezon}-${s.echipa?.id}-${i}`}
+                          className="grid grid-cols-4 gap-x-2 gap-y-2 rounded-2xl border border-line bg-bg/40 p-3 md:table-row md:rounded-none md:border-0 md:border-b md:border-line/60 md:bg-transparent md:p-0 md:last:border-0"
+                        >
+                          <td className="col-span-4 block whitespace-nowrap font-semibold text-ink md:table-cell md:py-2.5 md:pr-3">{formatSezon(s.sezon)}</td>
+                          <td className="col-span-2 block min-w-0 md:table-cell md:py-2.5 md:pr-3">
+                            <span className="flex min-w-0 items-center gap-2 text-ink">
                               <LigaLogo id={s.leagueId} logo={s.ligaLogo} nume={s.liga} size={18} />
-                              <span className="whitespace-nowrap">{s.liga ?? '—'}</span>
+                              <span className="truncate md:whitespace-nowrap">{s.liga ?? '—'}</span>
                             </span>
                           </td>
-                          <td className="py-2.5 pr-3">
+                          <td className="col-span-2 block min-w-0 md:table-cell md:py-2.5 md:pr-3">
                             {s.echipa ? (
                               <Link
                                 to={`/echipa/${s.echipa.id}`}
-                                className="flex items-center gap-2 font-medium text-ink hover:text-primary"
+                                className="flex min-w-0 items-center gap-2 font-medium text-ink hover:text-primary"
                               >
                                 <TeamLogo nume={s.echipa.nume} logo={s.echipa.logo} size={18} />
-                                <span className="whitespace-nowrap">{s.echipa.nume}</span>
+                                <span className="truncate md:whitespace-nowrap">{s.echipa.nume}</span>
                               </Link>
                             ) : (
                               <span className="text-ink2">—</span>
                             )}
                           </td>
-                          <td className="py-2.5 pr-3 text-right text-ink">{s.aparitii ?? '—'}</td>
-                          <td className="py-2.5 pr-3 text-right text-ink">{s.minute ?? '—'}</td>
-                          <td className="py-2.5 pr-3 text-right font-semibold text-ink">{s.goluri ?? '—'}</td>
-                          <td className="py-2.5 pr-3 text-right text-ink">{s.pase ?? '—'}</td>
-                          <td className="py-2.5 pr-3 text-right text-ink">{s.galbene ?? '—'}</td>
-                          <td className="py-2.5 pr-3 text-right text-ink">{s.rosii ?? '—'}</td>
-                          <td className="py-2.5 text-right">
+                          <td data-eticheta="Apariții" className="block before:mb-0.5 before:block before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-ink2 before:content-[attr(data-eticheta)] md:before:hidden md:table-cell text-ink md:py-2.5 md:pr-3 md:text-right">{s.aparitii ?? '—'}</td>
+                          <td data-eticheta="Minute" className="block before:mb-0.5 before:block before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-ink2 before:content-[attr(data-eticheta)] md:before:hidden md:table-cell text-ink md:py-2.5 md:pr-3 md:text-right">{s.minute ?? '—'}</td>
+                          <td data-eticheta="Goluri" className="block before:mb-0.5 before:block before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-ink2 before:content-[attr(data-eticheta)] md:before:hidden md:table-cell font-semibold text-ink md:py-2.5 md:pr-3 md:text-right">{s.goluri ?? '—'}</td>
+                          <td data-eticheta="Pase" className="block before:mb-0.5 before:block before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-ink2 before:content-[attr(data-eticheta)] md:before:hidden md:table-cell text-ink md:py-2.5 md:pr-3 md:text-right">{s.pase ?? '—'}</td>
+                          <td data-eticheta="Galbene" className="block before:mb-0.5 before:block before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-ink2 before:content-[attr(data-eticheta)] md:before:hidden md:table-cell text-ink md:py-2.5 md:pr-3 md:text-right">{s.galbene ?? '—'}</td>
+                          <td data-eticheta="Roșii" className="block before:mb-0.5 before:block before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-ink2 before:content-[attr(data-eticheta)] md:before:hidden md:table-cell text-ink md:py-2.5 md:pr-3 md:text-right">{s.rosii ?? '—'}</td>
+                          <td data-eticheta="Rating" className="block before:mb-0.5 before:block before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-ink2 before:content-[attr(data-eticheta)] md:before:hidden md:table-cell md:py-2.5 md:text-right">
                             {s.rating != null ? (
                               <span className={`font-bold ${clasaRating(s.rating)}`}>{s.rating.toFixed(1)}</span>
                             ) : (

@@ -3,12 +3,15 @@ import { useStareSesiune } from '../hooks/useStareSesiune';
 import { ApiError, getPieteZile, type FiltruCompetitie, type FiltruLocatie, type Perioada } from '../api/client';
 import { ComutatorCompetitie } from '../components/ui/ComutatorCompetitie';
 import { ComutatorLocatie } from '../components/ui/ComutatorLocatie';
+import { ComutatorOre } from '../components/ui/ComutatorOre';
 import { CalendarPerioada } from '../components/ui/CalendarPerioada';
 import { citesteFiltruCompetitie, citesteFiltruLocatie, salveazaFiltruCompetitie, salveazaFiltruLocatie } from '../lib/filtruCompetitie';
 import type { CodPiata, PieteZile } from '../api/types';
 import { FiltrePiete } from '../components/piete/FiltrePiete';
 import { SectiuneZiPiete } from '../components/piete/SectiuneZiPiete';
 import { PageLayout } from '../components/layout/PageLayout';
+import { IconDiamond } from '../components/ui/icons';
+import { AntetPagina } from '../components/layout/AntetPagina';
 import { Card } from '../components/ui/Card';
 import { EmptyState } from '../components/ui/EmptyState';
 import { ErrorState } from '../components/ui/ErrorState';
@@ -18,6 +21,7 @@ import {
   codValid,
   etichetaPiata,
   filtreaza,
+  inFereastra,
   intervalValid,
   ligiDisponibile,
   ligiValide,
@@ -31,6 +35,18 @@ function dataIso(zile = 0): string {
   d.setDate(d.getDate() + zile);
   const z = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`;
+}
+
+/** Ora curentă, reîmprospătată la minut cât timp e activ filtrul pe ore (meciurile ies din fereastră când încep). */
+function useAcum(activ: boolean): number {
+  const [acum, setAcum] = useState(() => Date.now());
+  useEffect(() => {
+    if (!activ) return;
+    setAcum(Date.now());
+    const t = setInterval(() => setAcum(Date.now()), 60_000);
+    return () => clearInterval(t);
+  }, [activ]);
+  return acum;
 }
 
 /** Perioada maximă acceptată de server (zile). */
@@ -61,6 +77,9 @@ export function PietePage() {
   /** Gol = toate campionatele. */
   const [ligiSelectate, setLigiSelectate] = useStareSesiune<number[]>('piete.ligi', []);
   const { favorite, comuta } = useFavoritePiete();
+  /** „In urmatoarele N ore"; null = oricand. */
+  const [ore, setOre] = useStareSesiune<number | null>('piete.ore', null);
+  const acum = useAcum(ore != null);
 
   useEffect(() => {
     let anulat = false;
@@ -95,15 +114,16 @@ export function PietePage() {
   }
 
   const sus = intervalValid(grup, linie, linieSus)?.[1] ?? null;
+  const zileFereastra = useMemo(() => inFereastra(date?.zile ?? [], ore, acum), [date, ore, acum]);
   const ligi = useMemo(
-    () => ligiDisponibile(date?.zile ?? [], cod, linie, prag, sus),
-    [date, cod, linie, prag, sus],
+    () => ligiDisponibile(zileFereastra, cod, linie, prag, sus),
+    [zileFereastra, cod, linie, prag, sus],
   );
   // datele reincarcate pot pierde un campionat selectat — nu-l lasam sa filtreze pe nimic
   const selectate = useMemo(() => ligiValide(ligiSelectate, ligi), [ligiSelectate, ligi]);
   const zile = useMemo(
-    () => filtreaza(date?.zile ?? [], cod, linie, prag, selectate, sus),
-    [date, cod, linie, prag, selectate, sus],
+    () => filtreaza(zileFereastra, cod, linie, prag, selectate, sus),
+    [zileFereastra, cod, linie, prag, selectate, sus],
   );
   const total = numaraRanduri(zile);
   const etichetaAleasa = etichetaPiata(grup, cod, linie, sus);
@@ -132,16 +152,16 @@ export function PietePage() {
 
   return (
     <PageLayout>
-      <div className="mb-5">
-        <h1 className="text-2xl font-extrabold text-ink">Piețe</h1>
-        <p className="mt-1 text-sm text-ink2">
-          Cele mai bune șanse din perioada aleasă (maxim {MAX_ZILE} zile).
-        </p>
-        <div className="mt-3 flex flex-wrap items-center gap-3">
-          <CalendarPerioada valoare={perioada} onSchimba={setPerioada} maxZile={MAX_ZILE} />
-          <ComutatorCompetitie valoare={competitie} onSchimba={schimbaCompetitie} />
-          <ComutatorLocatie valoare={locatie} onSchimba={schimbaLocatie} />
-        </div>
+      <AntetPagina
+        titlu="Piețe"
+        subtitlu={<>Cele mai bune șanse din perioada aleasă (maxim {MAX_ZILE} zile).</>}
+        icon={<IconDiamond width={22} height={22} />}
+      />
+      <div className="mb-4 flex flex-wrap items-center gap-2 sm:gap-3">
+        <CalendarPerioada valoare={perioada} onSchimba={setPerioada} maxZile={MAX_ZILE} />
+        <ComutatorCompetitie valoare={competitie} onSchimba={schimbaCompetitie} />
+        <ComutatorLocatie valoare={locatie} onSchimba={schimbaLocatie} />
+        <ComutatorOre valoare={ore} onSchimba={setOre} />
       </div>
 
       <Card className="mb-6 p-4 sm:p-5">
@@ -188,7 +208,9 @@ export function PietePage() {
           <EmptyState
             titlu="Niciun meci peste prag"
             mesaj={
-              selectate.length > 0
+              ore != null
+                ? `Niciun meci care începe în următoarele ${ore} ore nu atinge ${prag}% pe piața aleasă. Alege un interval mai lung sau „Oricând".`
+                : selectate.length > 0
                 ? `Niciun meci din campionatele alese nu atinge ${prag}% pe piața selectată. Coboară pragul sau adaugă campionate.`
                 : `Nicio partidă din perioada aleasă nu atinge ${prag}% pe piața aleasă. Coboară pragul sau schimbă piața.`
             }

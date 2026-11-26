@@ -14,6 +14,9 @@ import { PietePage } from './pages/PietePage';
 import { JucatorPage } from './pages/JucatorPage';
 import { EchipePage } from './pages/EchipePage';
 import { JucatoriPage } from './pages/JucatoriPage';
+import { StiriPage } from './pages/StiriPage';
+import { SetariPage } from './pages/SetariPage';
+import { ProfilPage } from './pages/ProfilPage';
 
 export function App() {
   return (
@@ -34,6 +37,9 @@ export function App() {
             <Route path="/program" element={<ProgramPage />} />
             <Route path="/live" element={<LivePage />} />
             <Route path="/favorite" element={<FavoritePage />} />
+            <Route path="/stiri" element={<StiriPage />} />
+            <Route path="/setari" element={<SetariPage />} />
+            <Route path="/profil" element={<ProfilPage />} />
           </Route>
         </Routes>
       </BrowserRouter>

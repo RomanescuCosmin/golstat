@@ -80,7 +80,7 @@ export function TeamPage() {
             </div>
             <Skeleton className="h-9 w-28 rounded-btn" />
           </Card>
-          <div className="grid items-start gap-5 lg:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-1 items-start gap-4 sm:gap-5 lg:grid-cols-2 xl:grid-cols-3 [&>*]:min-w-0">
             {Array.from({ length: 6 }, (_, i) => (
               <Card key={i} className="space-y-3 p-5">
                 <Skeleton className="h-4 w-32" />
@@ -121,7 +121,7 @@ export function TeamPage() {
 
           <TabsEchipa />
 
-          <div className="grid items-start gap-5 lg:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-1 items-start gap-4 sm:gap-5 lg:grid-cols-2 xl:grid-cols-3 [&>*]:min-w-0">
             {date.urmatorulMeci ? (
               <UrmatorulMeci meci={date.urmatorulMeci} echipa={{ nume: date.antet.nume, logo: date.antet.logo }} />
             ) : (

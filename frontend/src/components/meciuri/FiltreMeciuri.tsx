@@ -26,13 +26,13 @@ export function FiltreMeciuri({ dataISO, onData, liga, onLiga, filtre, onFiltre 
   const active = filtre.live || filtre.favorite || filtre.curand;
 
   return (
-    <div className="mb-5 space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
+    <div className="mb-4 space-y-3 sm:mb-5">
+      <div className="-mx-3 flex items-center gap-2 overflow-x-auto px-3 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden">
         <button
           type="button"
           onClick={() => onFiltre({ live: false, favorite: false, curand: false })}
           disabled={!active}
-          className={`inline-flex h-10 items-center gap-1.5 rounded-full border px-3.5 text-sm font-semibold transition ${
+          className={`inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-sm font-semibold transition ${
             active
               ? 'border-line text-ink hover:bg-bg'
               : 'cursor-default border-line text-ink2/60'
@@ -94,8 +94,8 @@ function Toggle({
       type="button"
       onClick={onClick}
       aria-pressed={activ}
-      className={`inline-flex h-10 items-center gap-1.5 rounded-full border px-3.5 text-sm font-semibold transition ${
-        activ ? activClasa : 'border-line text-ink2 hover:bg-bg hover:text-ink'
+      className={`inline-flex h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3.5 text-sm font-semibold transition ${
+        activ ? activClasa : 'border-line bg-card text-ink2 hover:bg-bg hover:text-ink'
       }`}
     >
       {icon}

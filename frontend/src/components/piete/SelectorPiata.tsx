@@ -1,6 +1,13 @@
 import type { CodPiata } from '../../api/types';
-import { optiuneDupaValoare, optiuniPiata, piataDupaGrup, valoareOptiune } from '../../lib/piete';
-import { ChipMeniu } from '../ui/ChipMeniu';
+import {
+  delaDinLinie,
+  optiuneDupaValoare,
+  optiuniPiata,
+  panaLaDinLinie,
+  piataDupaGrup,
+  valoareOptiune,
+} from '../../lib/piete';
+import { ChipSelect } from '../ui/ChipSelect';
 
 interface Props {
   grup: string;
@@ -19,36 +26,45 @@ interface Props {
  */
 export function SelectorPiata({ grup, cod, linie, onSchimba, linieSus = null, onInterval }: Props) {
   const optiuni = optiuniPiata(grup);
-  const { linii, interval } = piataDupaGrup(grup);
+  const { linii, interval, intervalIntreg } = piataDupaGrup(grup);
   const cuInterval = interval === true && onInterval != null && linie != null && linieSus != null;
+  // la intervalele întregi („de la 1 până la 3”) limitele se afișează ca numere întregi
+  const jos = intervalIntreg ? { titlu: 'De la', text: delaDinLinie } : { titlu: 'Peste', text: (l: number) => l };
+  const sus = intervalIntreg ? { titlu: 'Până la', text: panaLaDinLinie } : { titlu: 'Sub', text: (l: number) => l };
   return (
     <>
-      <ChipSelect
-        eticheta="Piața"
-        valoare={valoareOptiune(cod, cuInterval ? null : linie)}
-        onSchimba={(v) => {
-          const optiune = optiuneDupaValoare(grup, v);
-          onSchimba(optiune.cod, cuInterval ? linie : optiune.linie);
-        }}
-        optiuni={optiuni.map((o) => ({ valoare: o.valoare, eticheta: o.eticheta }))}
-      />
+      {!(intervalIntreg && optiuni.length === 1) && (
+        <ChipSelect
+          eticheta="Piața"
+          valoare={valoareOptiune(cod, cuInterval ? null : linie)}
+          onSchimba={(v) => {
+            const optiune = optiuneDupaValoare(grup, v);
+            onSchimba(optiune.cod, cuInterval ? linie : optiune.linie);
+          }}
+          optiuni={optiuni.map((o) => ({ valoare: o.valoare, eticheta: o.eticheta }))}
+        />
+      )}
       {cuInterval && (
         <>
           <ChipSelect
-            eticheta="Peste"
-            prefix="Peste"
+            eticheta={jos.titlu}
+            prefix={jos.titlu}
             latime="w-36"
             valoare={String(linie)}
             onSchimba={(v) => onInterval(Number(v), linieSus)}
-            optiuni={linii.filter((l) => l < linieSus).map((l) => ({ valoare: String(l), eticheta: String(l) }))}
+            optiuni={linii
+              .filter((l) => l < linieSus)
+              .map((l) => ({ valoare: String(l), eticheta: String(jos.text(l)) }))}
           />
           <ChipSelect
-            eticheta="Sub"
-            prefix="Sub"
+            eticheta={sus.titlu}
+            prefix={sus.titlu}
             latime="w-36"
             valoare={String(linieSus)}
             onSchimba={(v) => onInterval(linie, Number(v))}
-            optiuni={linii.filter((l) => l > linie).map((l) => ({ valoare: String(l), eticheta: String(l) }))}
+            optiuni={linii
+              .filter((l) => l > linie)
+              .map((l) => ({ valoare: String(l), eticheta: String(sus.text(l)) }))}
           />
         </>
       )}
@@ -56,59 +72,3 @@ export function SelectorPiata({ grup, cod, linie, onSchimba, linieSus = null, on
   );
 }
 
-function ChipSelect({
-  eticheta,
-  prefix,
-  valoare,
-  onSchimba,
-  optiuni,
-  latime = 'w-56',
-}: {
-  eticheta: string;
-  prefix?: string;
-  valoare: string;
-  onSchimba: (valoare: string) => void;
-  optiuni: { valoare: string; eticheta: string }[];
-  latime?: string;
-}) {
-  const curenta = optiuni.find((o) => o.valoare === valoare)?.eticheta ?? '';
-  return (
-    <ChipMeniu
-      titlu={eticheta}
-      eticheta={
-        <>
-          {prefix && <span className="text-ink2">{prefix} </span>}
-          {curenta}
-        </>
-      }
-      latime={latime}
-    >
-      {(inchide) => (
-        <div role="listbox" aria-label={eticheta} className="max-h-72 space-y-0.5 overflow-y-auto">
-          {optiuni.map((o) => {
-            const ales = o.valoare === valoare;
-            return (
-              <button
-                key={o.valoare}
-                type="button"
-                role="option"
-                aria-selected={ales}
-                data-valoare={o.valoare}
-                onClick={() => {
-                  onSchimba(o.valoare);
-                  inchide();
-                }}
-                className={`flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2 text-left text-sm font-semibold transition ${
-                  ales ? 'bg-piata/15 text-ink' : 'text-ink2 hover:bg-ink2/10 hover:text-ink'
-                }`}
-              >
-                <span className="truncate">{o.eticheta}</span>
-                {ales && <span aria-hidden="true" className="text-piata">✓</span>}
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </ChipMeniu>
-  );
-}

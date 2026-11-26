@@ -1,4 +1,6 @@
-import { IconChevronDown, IconGlobe } from '../ui/icons';
+import { Dropdown } from '../ui/Dropdown';
+import { LigaLogo } from '../ui/LigaLogo';
+import { IconGlobe } from '../ui/icons';
 
 /** O optiune de competitie in selector. */
 export interface OptiuneLiga {
@@ -14,33 +16,26 @@ interface SelectorLigaProps {
   optiuni: OptiuneLiga[];
 }
 
-/** Dropdown de competitii; optiunile vin dinamic din ligile zilei, deci reflecta exact ce e afisat. */
+/** Valoarea interna pentru „Toate competițiile" (niciun leagueId real nu e negativ). */
+const TOATE = -1;
+
+/** Dropdown de competitii, cu logo-ul fiecarei ligi; optiunile vin dinamic, deci reflecta exact ce e afisat. */
 export function SelectorLiga({ leagueId, onChange, optiuni }: SelectorLigaProps) {
   return (
-    <label className="relative flex items-center">
-      <span className="sr-only">Competiție</span>
-      <IconGlobe
-        width={16}
-        height={16}
-        className="pointer-events-none absolute left-3 text-ink2"
-      />
-      <select
-        value={leagueId ?? ''}
-        onChange={(e) => onChange(e.target.value === '' ? null : Number(e.target.value))}
-        className="h-11 w-full appearance-none rounded-xl border border-line bg-card pl-9 pr-9 text-sm font-medium text-ink shadow-card focus:outline-none focus:ring-2 focus:ring-primary/40 dark:shadow-none"
-      >
-        <option value="">Toate competițiile</option>
-        {optiuni.map((liga) => (
-          <option key={liga.id} value={liga.id}>
-            {liga.nume}
-          </option>
-        ))}
-      </select>
-      <IconChevronDown
-        width={14}
-        height={14}
-        className="pointer-events-none absolute right-3 text-ink2"
-      />
-    </label>
+    <Dropdown
+      eticheta="Competiție"
+      varianta="camp"
+      dreapta
+      valoare={leagueId ?? TOATE}
+      onSchimba={(v) => onChange(v === TOATE ? null : v)}
+      optiuni={[
+        { valoare: TOATE, eticheta: 'Toate competițiile', icon: <IconGlobe width={16} height={16} /> },
+        ...optiuni.map((l) => ({
+          valoare: l.id,
+          eticheta: l.nume,
+          icon: <LigaLogo id={l.id} nume={l.nume} size={18} />,
+        })),
+      ]}
+    />
   );
 }

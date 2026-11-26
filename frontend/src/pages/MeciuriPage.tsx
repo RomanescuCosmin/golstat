@@ -80,6 +80,7 @@ export function MeciuriPage() {
   return (
     <div className="mx-auto grid max-w-[1640px] grid-cols-1 items-start gap-5 lg:gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
       <div className="min-w-0">
+        <h1 className="sr-only">Meciuri</h1>
         <FiltreMeciuri
           dataISO={dataISO}
           onData={setDataISO}
@@ -89,13 +90,13 @@ export function MeciuriPage() {
           onFiltre={setFiltre}
         />
 
-        <p className="mb-4 -mt-2 px-1 text-xs text-ink2">
+        <p className="mb-4 -mt-1 px-1 text-[11px] leading-snug text-ink2 sm:text-xs">
           Bara de sub fiecare meci arată șansa reală 1X2. La unele competiții API-ul nu trimite scor live —
           meciul apare cu ora de start, iar rezultatul final apare la încheiere.
         </p>
 
         {loading && (
-          <div className="space-y-[18px]">
+          <div className="space-y-3 sm:space-y-[18px]">
             <SkeletonCard randuri={5} />
             <SkeletonCard randuri={4} />
           </div>
@@ -120,7 +121,7 @@ export function MeciuriPage() {
         )}
 
         {!loading && !eroare && totalMeciuri > 0 && (
-          <div className="animate-fade-in space-y-[18px]">
+          <div className="animate-fade-in space-y-3 sm:space-y-[18px]">
             {ligiAfisate.map((liga, i) => (
               <Fragment key={liga.leagueId}>
                 <CardCompetitie liga={liga} />
@@ -133,7 +134,7 @@ export function MeciuriPage() {
 
       {/* Fiecare sectiune din rail isi plafoneaza lista si deruleaza intern (rotita mouse-ului),
           deci oricat continut ar avea rail-ul nu impinge pagina in jos. */}
-      <aside className="hidden min-w-0 space-y-5 xl:block">
+      <aside className="grid min-w-0 gap-5 md:grid-cols-2 xl:grid-cols-1">
         <PanouLiveAcum />
         <FavoriteSiCompetitii
           ligaSelectata={filtruLiga}

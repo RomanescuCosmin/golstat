@@ -73,6 +73,25 @@ public final class ScoreGrid {
         return over;
     }
 
+    /**
+     * Distributia totalului de goluri: {@code [k]} = P(total == k) pentru k = 0..max, iar ultima pozitie
+     * ({@code max + 1}) = P(total > max), inclusiv coada taiata de matrice — suma e exact 1.
+     */
+    public double[] totalDistribution(int max) {
+        double[] d = new double[max + 2];
+        double cunoscut = 0.0;
+        for (int x = 0; x < p.length; x++) {
+            for (int y = 0; y < p.length; y++) {
+                if (x + y <= max) {
+                    d[x + y] += p[x][y];
+                    cunoscut += p[x][y];
+                }
+            }
+        }
+        d[max + 1] = Math.max(0.0, 1.0 - cunoscut);
+        return d;
+    }
+
     /** P(ambele echipe marcheaza): suma celulelor cu {@code x >= 1 si y >= 1}. */
     public double btts() {
         double s = 0.0;

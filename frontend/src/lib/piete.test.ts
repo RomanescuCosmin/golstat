@@ -8,6 +8,7 @@ import {
   optiuniPiata,
   etichetaZi,
   filtreaza,
+  inFereastra,
   ligiDisponibile,
   ligiValide,
   linieValida,
@@ -313,5 +314,79 @@ describe('interval cornere pe repriza (peste X si sub Y)', () => {
     expect(etichetaPiata('intervalCornereReprize', 'CORNERE_REPRIZA2_INTERVAL', 3.5, 5.5)).toBe(
       'Repriza 2: peste 3.5 și sub 5.5 cornere',
     );
+  });
+});
+
+describe('interval goluri (de la a pana la b)', () => {
+  // P(peste x): 0.5 → 0.92, 1.5 → 0.75, 2.5 → 0.52, 3.5 → 0.30, 4.5 → 0.14, 5.5 → 0.05, 6.5 → 0.02
+  const linii: [number, number][] = [[0.5, 0.92], [1.5, 0.75], [2.5, 0.52], [3.5, 0.3], [4.5, 0.14], [5.5, 0.05], [6.5, 0.02]];
+  const meci = meciPiete({
+    piete: linii.map(([linie, probabilitate]) => cotaPiata({ piata: 'GOLURI_PESTE', linie, probabilitate })),
+  });
+
+  it('intre 1 si 3 = P(peste 0.5) − P(peste 3.5)', () => {
+    const c = cotaMeciului(meci, 'GOLURI_INTERVAL', 0.5, 3.5)!;
+    expect(c.probabilitate).toBeCloseTo(0.92 - 0.3, 10);
+    expect(c.piata).toBe('GOLURI_INTERVAL');
+  });
+
+  it('de la 0 goluri: limita de jos e sigura (P = 1)', () => {
+    expect(cotaMeciului(meci, 'GOLURI_INTERVAL', -0.5, 1.5)!.probabilitate).toBeCloseTo(1 - 0.75, 10);
+  });
+
+  it('exact 2 goluri si 3–6', () => {
+    expect(cotaMeciului(meci, 'GOLURI_INTERVAL', 1.5, 2.5)!.probabilitate).toBeCloseTo(0.75 - 0.52, 10);
+    expect(cotaMeciului(meci, 'GOLURI_INTERVAL', 2.5, 6.5)!.probabilitate).toBeCloseTo(0.52 - 0.02, 10);
+  });
+
+  it('implicit 1–3; pastreaza o alegere valida; „peste 2.5” ramas de la Goluri nu e o alegere de interval', () => {
+    expect(intervalValid('intervalGoluri', null, null)).toEqual([0.5, 3.5]);
+    expect(intervalValid('intervalGoluri', 2.5, null)).toEqual([0.5, 3.5]);
+    expect(intervalValid('intervalGoluri', 1.5, 4.5)).toEqual([1.5, 4.5]);
+    expect(intervalValid('intervalGoluri', 3.5, 3.5)).toEqual([0.5, 3.5]);
+  });
+
+  it('eticheta in numere intregi', () => {
+    expect(etichetaPiata('intervalGoluri', 'GOLURI_INTERVAL', 0.5, 3.5)).toBe('Între 1 și 3 goluri');
+    expect(etichetaPiata('intervalGoluri', 'GOLURI_INTERVAL', 1.5, 2.5)).toBe('Exact 2 goluri');
+    expect(etichetaPiata('intervalGoluri', 'GOLURI_INTERVAL', -0.5, 2.5)).toBe('Între 0 și 2 goluri');
+  });
+
+  it('filtrul pe prag si campionatele folosesc aceeasi sansa', () => {
+    const zile = [ziPiete({ meciuri: [meci] })];
+    expect(numaraRanduri(filtreaza(zile, 'GOLURI_INTERVAL', 0.5, 62, [], 3.5))).toBe(1);
+    expect(numaraRanduri(filtreaza(zile, 'GOLURI_INTERVAL', 0.5, 63, [], 3.5))).toBe(0);
+    expect(ligiDisponibile(zile, 'GOLURI_INTERVAL', 0.5, 60, 3.5)[0]!.numar).toBe(1);
+  });
+});
+
+describe('inFereastra', () => {
+  const acum = Date.parse('2026-07-21T12:00:00Z');
+  const zile = [
+    ziPiete({
+      data: '2026-07-21',
+      meciuri: [
+        meciPiete({ fixtureId: 1, kickoff: '2026-07-21T11:30:00Z' }), // deja inceput
+        meciPiete({ fixtureId: 2, kickoff: '2026-07-21T14:00:00Z' }), // +2h
+        meciPiete({ fixtureId: 3, kickoff: '2026-07-21T16:30:00Z' }), // +4h30
+        meciPiete({ fixtureId: 4, kickoff: '2026-07-21T19:30:00Z' }), // +7h30
+      ],
+    }),
+    ziPiete({ data: '2026-07-22', meciuri: [meciPiete({ fixtureId: 5, kickoff: '2026-07-22T10:00:00Z' })] }),
+  ];
+  const iduri = (r: ReturnType<typeof inFereastra>) => r.flatMap((z) => z.meciuri.map((m) => m.fixtureId));
+
+  it('fara fereastra: datele raman neschimbate', () => {
+    expect(inFereastra(zile, null, acum)).toBe(zile);
+  });
+
+  it('pastreaza doar meciurile care incep in urmatoarele N ore, fara cele incepute', () => {
+    expect(iduri(inFereastra(zile, 3, acum))).toEqual([2]);
+    expect(iduri(inFereastra(zile, 5, acum))).toEqual([2, 3]);
+    expect(iduri(inFereastra(zile, 8, acum))).toEqual([2, 3, 4]);
+  });
+
+  it('zilele ramase fara meciuri dispar', () => {
+    expect(inFereastra(zile, 8, acum).map((z) => z.data)).toEqual(['2026-07-21']);
   });
 });

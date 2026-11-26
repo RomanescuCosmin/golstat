@@ -599,4 +599,64 @@ describe('PietePage — bara compacta de filtre', () => {
     await userEvent.click(await liga(/La Liga/));
     expect(screen.getByRole('button', { name: 'Campionate' })).toHaveTextContent('2 campionate');
   });
+
+  it('interval goluri: implicit 1–3, alegi „de la” / „până la” în numere întregi', async () => {
+    const g = (linie: number, p: number) => cotaPiata({ piata: 'GOLURI_PESTE', linie, probabilitate: p });
+    mockGet.mockResolvedValue(pieteZile({ zile: [ziPiete({ data: '2026-07-21', meciuri: [meciPiete({
+      fixtureId: 1, gazde: { id: 1, nume: 'City', logo: null }, oaspeti: { id: 2, nume: 'Fulham', logo: null },
+      piete: [g(0.5, 0.92), g(1.5, 0.75), g(2.5, 0.52), g(3.5, 0.3), g(4.5, 0.14), g(5.5, 0.05), g(6.5, 0.02)],
+    })] })] }));
+    randeaza();
+    await alegeTip('Interval goluri');
+
+    expect(chip('De la')).toHaveTextContent('De la 1');
+    expect(chip('Până la')).toHaveTextContent('Până la 3');
+    expect(screen.getByText('62%')).toBeInTheDocument();
+    expect(screen.getByText('Între 1 și 3 goluri')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Piața' })).toBeNull();
+
+    await alegeOptiune('De la', '2.5');
+    await alegeOptiune('Până la', '6.5');
+    // 3–6 goluri = 0.52 − 0.02
+    expect(screen.getByText('50%')).toBeInTheDocument();
+    expect(screen.getByText('Între 3 și 6 goluri')).toBeInTheDocument();
+  });
+});
+
+describe('PietePage — interval orar', () => {
+  it('„În 3 ore" păstrează doar meciurile care încep în următoarele 3 ore; „Oricând" le readuce', async () => {
+    const user = userEvent.setup();
+    const peste = (ore: number) => new Date(Date.now() + ore * 60 * 60 * 1000).toISOString();
+    const meci = (id: number, nume: string, ore: number) =>
+      meciPiete({
+        fixtureId: id,
+        kickoff: peste(ore),
+        gazde: { id: id * 10, nume, logo: null },
+        oaspeti: { id: id * 10 + 1, nume: `Adversar ${id}`, logo: null },
+        piete: [cotaPiata({ piata: 'GOLURI_PESTE', linie: 2.5, probabilitate: 0.8 })],
+      });
+    sessionStorage.clear();
+    mockGet.mockResolvedValue(
+      pieteZile({ zile: [ziPiete({ meciuri: [meci(1, 'Curand', 1), meci(2, 'Peste4', 4), meci(3, 'Peste7', 7)] })] }),
+    );
+    randeaza();
+    await screen.findByText('Curand');
+
+    const grup = screen.getByRole('group', { name: 'Interval orar' });
+    await user.click(within(grup).getByRole('button', { name: 'În 3 ore' }));
+    expect(screen.getByText('Curand')).toBeInTheDocument();
+    expect(screen.queryByText('Peste4')).toBeNull();
+    expect(screen.queryByText('Peste7')).toBeNull();
+
+    await user.click(within(grup).getByRole('button', { name: 'În 5 ore' }));
+    expect(screen.getByText('Peste4')).toBeInTheDocument();
+    expect(screen.queryByText('Peste7')).toBeNull();
+
+    await user.click(within(grup).getByRole('button', { name: 'În 8 ore' }));
+    expect(screen.getByText('Peste7')).toBeInTheDocument();
+
+    await user.click(within(grup).getByRole('button', { name: 'Oricând' }));
+    expect(within(grup).getByRole('button', { name: 'Oricând' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText('Peste7')).toBeInTheDocument();
+  });
 });
