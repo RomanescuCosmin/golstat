@@ -16,6 +16,7 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import ro.golstat.api.auth.AutentificareEsuataException;
+import ro.golstat.api.auth.EmailExistentException;
 import ro.golstat.api.auth.EmailNeconfirmatException;
 import ro.golstat.api.auth.ParolaCurentaGresitaException;
 import ro.golstat.api.auth.ParolaSlabaException;
@@ -85,6 +86,11 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(AutentificareEsuataException.class)
     public ProblemDetail handleAutentificareEsuata(AutentificareEsuataException ex) {
         return problem(HttpStatus.UNAUTHORIZED, "Autentificare eșuată", ex.getMessage());
+    }
+
+    @ExceptionHandler(EmailExistentException.class)
+    public ProblemDetail handleEmailExistent(EmailExistentException ex) {
+        return cuCod(problem(HttpStatus.CONFLICT, "Email folosit", ex.getMessage()), "email-existent");
     }
 
     @ExceptionHandler(EmailNeconfirmatException.class)

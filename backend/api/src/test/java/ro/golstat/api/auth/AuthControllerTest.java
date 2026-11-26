@@ -290,13 +290,26 @@ class AuthControllerTest {
     }
 
     @Test
-    void inregistrare_concurentaPeAcelasiEmail_tot202() throws Exception {
+    void inregistrare_emailExistent_409CuCod() throws Exception {
+        doThrow(new EmailExistentException()).when(cont).inregistreaza(anyString(), anyString(), anyString());
+
+        mvc.perform(post("/api/v1/auth/inregistrare").with(XsrfTestSuport.xsrf()).with(dinIp())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"ana@ex.ro\",\"parola\":\"" + PAROLA + "\",\"nume\":\"Ana\"}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.cod").value("email-existent"))
+                .andExpect(jsonPath("$.detail").value("Există deja un cont cu acest email."));
+    }
+
+    @Test
+    void inregistrare_concurentaPeAcelasiEmail_tot409() throws Exception {
         doThrow(new DataIntegrityViolationException("dublura")).when(cont).inregistreaza(anyString(), anyString(), anyString());
 
         mvc.perform(post("/api/v1/auth/inregistrare").with(XsrfTestSuport.xsrf()).with(dinIp())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"email\":\"ana@ex.ro\",\"parola\":\"" + PAROLA + "\",\"nume\":\"Ana\"}"))
-                .andExpect(status().isAccepted());
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.cod").value("email-existent"));
     }
 
     @Test

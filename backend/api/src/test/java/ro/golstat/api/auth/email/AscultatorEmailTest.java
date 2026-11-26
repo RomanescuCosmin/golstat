@@ -41,10 +41,10 @@ class AscultatorEmailTest {
     }
 
     @Test
-    void resetareSiContExistent_linkDeResetare() {
-        ascultator.la(new EmailDeTrimis("ana@ex.ro", TipEmail.CONT_EXISTENT, "TOK"));
+    void resetare_linkDeResetare_valabil30Minute() {
+        ascultator.la(new EmailDeTrimis("ana@ex.ro", TipEmail.RESETARE, "TOK"));
 
-        assertThat(corpTrimis("ana@ex.ro")).contains("https://golstat.ro/#resetare=TOK").contains("are deja un cont");
+        assertThat(corpTrimis("ana@ex.ro")).contains("https://golstat.ro/#resetare=TOK").contains("30 de minute");
     }
 
     @Test

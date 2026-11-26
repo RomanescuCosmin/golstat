@@ -9,7 +9,7 @@ import org.springframework.lang.Nullable;
  */
 public record EmailDeTrimis(String catre, TipEmail tip, @Nullable String tokenBrut) {
 
-    public enum TipEmail { CONFIRMARE, RESETARE, CONT_EXISTENT, PAROLA_SCHIMBATA }
+    public enum TipEmail { CONFIRMARE, RESETARE, PAROLA_SCHIMBATA }
 
     @Override
     public String toString() {

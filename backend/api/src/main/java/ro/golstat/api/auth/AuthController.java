@@ -24,8 +24,8 @@ import ro.golstat.api.auth.AuthDto.UtilizatorDto;
 import ro.golstat.api.repository.UtilizatorRepository;
 
 /**
- * Inregistrarea, parola uitata si retrimiterea raspund mereu 202 fara corp, indiferent daca emailul
- * are cont. Deconectarea ({@code POST /deconectare}) e tratata de filtrul de logout din SecurityConfig.
+ * Inregistrarea raspunde 409 pe un email deja folosit; parola uitata si retrimiterea raspund mereu 202,
+ * indiferent daca emailul are cont. Deconectarea e tratata de filtrul de logout din SecurityConfig.
  */
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -71,8 +71,9 @@ public class AuthController {
         try {
             cont.inregistreaza(cerere.email(), cerere.parola(), cerere.nume());
         } catch (DataIntegrityViolationException e) {
-            // doua inregistrari simultane pe acelasi email: raspunsul ramane identic (anti-enumerare)
+            // doua inregistrari simultane pe acelasi email: a doua pierde pe constrangerea unica
             log.warn("Inregistrare respinsa de constrangerile bazei: {}", e.getMostSpecificCause().getMessage());
+            throw new EmailExistentException();
         }
         return ResponseEntity.accepted().build();
     }

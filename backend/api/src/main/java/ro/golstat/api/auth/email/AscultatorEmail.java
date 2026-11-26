@@ -60,7 +60,7 @@ class AscultatorEmail {
     private String link(EmailDeTrimis email) {
         return switch (email.tip()) {
             case CONFIRMARE -> frontendUrl + "/#confirmare=" + email.tokenBrut();
-            case RESETARE, CONT_EXISTENT -> frontendUrl + "/#resetare=" + email.tokenBrut();
+            case RESETARE -> frontendUrl + "/#resetare=" + email.tokenBrut();
             case PAROLA_SCHIMBATA -> frontendUrl + "/";
         };
     }

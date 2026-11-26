@@ -160,9 +160,12 @@ identitatea pentru funcții viitoare pe utilizator.
   JDBC (`spring_session*`, merge pe Postgres și MySQL, fără Redis). Cookie `GOLSTAT_SID` HttpOnly,
   SameSite=Strict, Secure. CSRF double-submit (`XSRF-TOKEN` + header `X-XSRF-TOKEN`) pe toate POST-urile,
   inclusiv login. Parole Argon2id; politica NIST (12–128 caractere, nu din `parole-comune.txt`).
-- **Anti-enumerare**: înregistrare / parolă uitată / retrimitere → mereu 202; login greșit → același 401;
-  „email neconfirmat” (403) doar după parola corectă. Confirmarea emailului cere și parola (un cont
-  pre-înregistrat de altcineva cu adresa ta nu se poate activa doar din link).
+- **Email existent la „Cont nou”** → 409 `email-existent`, mesaj clar, fără email (decizia utilizatorului,
+  2026-11-26: UX mai clar în schimbul enumerării, limitată la 5 înregistrări/oră per IP).
+- **Anti-enumerare** rămâne la parolă uitată / retrimitere (mereu 202) și login (același 401; „email
+  neconfirmat” 403 doar după parola corectă). Confirmarea emailului cere și parola (un cont
+  pre-înregistrat de altcineva cu adresa ta nu se poate activa doar din link); toate linkurile de
+  confirmare trimise rămân valide până la expirare sau până la prima confirmare.
 - **Tokenuri din email**: în DB doar SHA-256, folosire unică, în fragmentul URL (`/#confirmare=`,
   `/#resetare=`), citite o dată în `main.tsx` și șterse din URL. Resetarea deconectează toate sesiunile.
 - **Limite** în memorie (`LimitariAuth`), 429 + `Retry-After`. IP-ul vine din `X-Forwarded-For` doar de la

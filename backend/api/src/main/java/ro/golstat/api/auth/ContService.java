@@ -19,9 +19,8 @@ import java.time.Duration;
 import java.time.Instant;
 
 /**
- * Ciclul de viata al contului. Regula de baza: din exterior nu se poate afla daca un email are cont
- * (inregistrarea, parola uitata si retrimiterea se comporta identic in ambele cazuri; diferenta e doar
- * emailul trimis la adresa respectiva, pe care doar proprietarul il vede).
+ * Ciclul de viata al contului. Inregistrarea spune explicit ca emailul e deja folosit (decizie de produs,
+ * limitata de rata per IP); parola uitata si retrimiterea raspund identic in ambele cazuri.
  */
 @Service
 public class ContService {
@@ -55,32 +54,22 @@ public class ContService {
         this.clock = clock;
     }
 
-    /**
-     * Pe un email existent nu suprascriem nimic (altfel un atacator ar putea pre-inregistra adresa
-     * victimei): proprietarul primeste un link de setare a parolei, care confirma si emailul.
-     */
+    /** Un email existent nu se suprascrie si nu primeste niciun email: {@link EmailExistentException}. */
     @Transactional
     public void inregistreaza(String email, String parola, String nume) {
         String e = NormalizatorEmail.normalizeaza(email);
         String n = nume.trim();
-        politica.verifica(parola, e, n);
-        String hash = encoder.encode(parola);
-
         var existent = utilizatori.findByEmail(e);
         if (existent.isPresent()) {
-            Utilizator u = existent.get();
-            audit.eveniment("inregistrare-email-existent", u.getId());
-            if (permiteEmail(u)) {
-                tokenuri.invalideazaActive(u.getId(), Tip.RESETARE_PAROLA, clock.instant());
-                trimiteCuToken(u, Tip.RESETARE_PAROLA, TipEmail.CONT_EXISTENT);
-            }
-            return;
+            audit.eveniment("inregistrare-email-existent", existent.get().getId());
+            throw new EmailExistentException();
         }
+        politica.verifica(parola, e, n);
 
         var u = new Utilizator();
         u.setEmail(e);
         u.setNume(n);
-        u.setParolaHash(hash);
+        u.setParolaHash(encoder.encode(parola));
         u.setCreatLa(clock.instant());
         utilizatori.saveAndFlush(u);
         audit.eveniment("inregistrare", u.getId());

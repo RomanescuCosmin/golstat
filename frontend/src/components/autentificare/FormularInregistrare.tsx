@@ -1,6 +1,18 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { inregistrare } from '../../api/auth';
-import { ButonTrimite, Camp, CampParola, MesajEroare, MesajSucces, PAROLA_MINIMA, eroriCampuri, mesajEroare } from './campuri';
+import { ApiError } from '../../api/client';
+import { useAuth } from '../../auth/AuthProvider';
+import {
+  ButonLink,
+  ButonTrimite,
+  Camp,
+  CampParola,
+  MesajEroare,
+  MesajSucces,
+  PAROLA_MINIMA,
+  eroriCampuri,
+  mesajEroare,
+} from './campuri';
 
 const CAMPURI = ['nume', 'email', 'parola', 'confirmare'];
 
@@ -13,6 +25,8 @@ export function FormularInregistrare() {
   const [eroare, setEroare] = useState<string | null>(null);
   const [erori, setErori] = useState<Record<string, string>>({});
   const [trimis, setTrimis] = useState(false);
+  const [emailExistent, setEmailExistent] = useState(false);
+  const { deschideModal } = useAuth();
   const formular = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
@@ -32,6 +46,7 @@ export function FormularInregistrare() {
       await inregistrare(email, parola, nume);
       setTrimis(true);
     } catch (err) {
+      setEmailExistent(err instanceof ApiError && err.cod === 'email-existent');
       setErori(eroriCampuri(err));
       setEroare(mesajEroare(err));
     } finally {
@@ -44,9 +59,22 @@ export function FormularInregistrare() {
       <div className="space-y-3">
         <MesajSucces>Verifică-ți emailul.</MesajSucces>
         <p className="text-sm text-ink2">
-          Dacă adresa <span className="font-semibold text-ink">{email}</span> nu are deja un cont, ți-am trimis un link
-          de confirmare (valabil 24 de ore). Dacă are, ți-am trimis instrucțiuni pentru acces.
+          Ți-am trimis un link de confirmare la <span className="font-semibold text-ink">{email}</span>. Linkul e
+          valabil 24 de ore; la confirmare îți vom cere parola aleasă acum.
         </p>
+      </div>
+    );
+  }
+
+  if (emailExistent) {
+    return (
+      <div className="space-y-4">
+        <MesajEroare>Există deja un cont cu adresa {email}.</MesajEroare>
+        <div className="flex flex-col items-center gap-2">
+          <ButonLink onClick={() => deschideModal('autentificare')}>Intră în cont</ButonLink>
+          <ButonLink onClick={() => deschideModal('parola-uitata')}>Ai uitat parola?</ButonLink>
+          <ButonLink onClick={() => setEmailExistent(false)}>Folosește altă adresă</ButonLink>
+        </div>
       </div>
     );
   }

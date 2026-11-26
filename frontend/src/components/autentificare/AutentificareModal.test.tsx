@@ -118,7 +118,42 @@ describe('AutentificareModal', () => {
     expect(api.inregistrare).not.toHaveBeenCalled();
   });
 
-  test('cont nou reusit: ecranul „verifica emailul” fara sa spuna daca adresa avea cont', async () => {
+  test('cont nou pe email existent: mesaj clar cu drum spre autentificare si parola uitata', async () => {
+    vi.mocked(api.inregistrare).mockRejectedValue(
+      new ApiError(409, 'Email folosit', 'Există deja un cont cu acest email.', { cod: 'email-existent' }),
+    );
+    const user = await randeaza('inregistrare');
+
+    await user.type(screen.getByLabelText('Nume'), 'Ana');
+    await user.type(screen.getByLabelText('Email'), 'ana@ex.ro');
+    await user.type(screen.getByLabelText('Parolă'), PAROLA);
+    await user.type(screen.getByLabelText('Confirmă parola'), PAROLA);
+    await user.click(screen.getByRole('button', { name: 'Creează cont' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Există deja un cont cu adresa ana@ex.ro.');
+    expect(screen.getByRole('button', { name: 'Ai uitat parola?' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Intră în cont' }));
+    expect(screen.getByRole('dialog', { name: 'Intră în cont' })).toBeInTheDocument();
+  });
+
+  test('cont nou pe email existent: „Folosește altă adresă” revine la formular cu datele pastrate', async () => {
+    vi.mocked(api.inregistrare).mockRejectedValue(
+      new ApiError(409, 'Email folosit', 'Există deja un cont cu acest email.', { cod: 'email-existent' }),
+    );
+    const user = await randeaza('inregistrare');
+
+    await user.type(screen.getByLabelText('Nume'), 'Ana');
+    await user.type(screen.getByLabelText('Email'), 'ana@ex.ro');
+    await user.type(screen.getByLabelText('Parolă'), PAROLA);
+    await user.type(screen.getByLabelText('Confirmă parola'), PAROLA);
+    await user.click(screen.getByRole('button', { name: 'Creează cont' }));
+    await user.click(await screen.findByRole('button', { name: 'Folosește altă adresă' }));
+
+    expect(screen.getByLabelText('Email')).toHaveValue('ana@ex.ro');
+    expect(screen.getByLabelText('Nume')).toHaveValue('Ana');
+  });
+
+  test('cont nou reusit: ecranul „verifica emailul”', async () => {
     vi.mocked(api.inregistrare).mockResolvedValue(undefined);
     const user = await randeaza('inregistrare');
 
@@ -130,7 +165,7 @@ describe('AutentificareModal', () => {
 
     expect(api.inregistrare).toHaveBeenCalledWith('ana@ex.ro', PAROLA, 'Ana');
     expect(await screen.findByRole('status')).toHaveTextContent('Verifică-ți emailul.');
-    expect(screen.getByText(/nu are deja un cont/)).toBeInTheDocument();
+    expect(screen.getByText(/Ți-am trimis un link de confirmare/)).toBeInTheDocument();
   });
 
   test('cont nou: erorile de validare de la server apar sub campuri', async () => {

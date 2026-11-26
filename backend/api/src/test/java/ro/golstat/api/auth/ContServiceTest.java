@@ -91,48 +91,40 @@ class ContServiceTest {
     }
 
     @Test
-    void inregistreaza_emailExistent_nuSuprascrie_publicaContExistent() {
+    void inregistreaza_emailExistent_EmailExistent_nuSuprascrie_nuTrimiteEmail() {
         Utilizator existent = utilizator(true);
         String hashVechi = existent.getParolaHash();
         when(utilizatori.findByEmail("ana@ex.ro")).thenReturn(Optional.of(existent));
 
-        cont.inregistreaza("ana@ex.ro", PAROLA, "Atacator");
+        assertThatThrownBy(() -> cont.inregistreaza(" Ana@Ex.ro ", PAROLA, "Atacator"))
+                .isInstanceOf(EmailExistentException.class)
+                .hasMessage("Există deja un cont cu acest email.");
 
         verify(utilizatori, never()).saveAndFlush(any());
         assertThat(existent.getParolaHash()).isEqualTo(hashVechi);
         assertThat(existent.getNume()).isEqualTo("Ana");
-        assertThat(emailPublicat().tip()).isEqualTo(TipEmail.CONT_EXISTENT);
-        var token = ArgumentCaptor.forClass(TokenUtilizator.class);
-        verify(tokenuri).save(token.capture());
-        assertThat(token.getValue().getTip()).isEqualTo(Tip.RESETARE_PAROLA);
+        verifyNoInteractions(tokenuri, evenimente);
     }
 
     @Test
-    void inregistreaza_emailNeconfirmatExistent_nuAnuleazaLinkurileDeConfirmare() {
+    void inregistreaza_emailNeconfirmatExistent_totEmailExistent_linkurileRamanValide() {
         when(utilizatori.findByEmail("ana@ex.ro")).thenReturn(Optional.of(utilizator(false)));
 
-        cont.inregistreaza("ana@ex.ro", PAROLA, "Ana");
+        assertThatThrownBy(() -> cont.inregistreaza("ana@ex.ro", PAROLA, "Ana"))
+                .isInstanceOf(EmailExistentException.class);
 
-        verify(tokenuri, never()).invalideazaActive(7L, Tip.CONFIRMARE_EMAIL, ACUM);
+        verifyNoInteractions(tokenuri, evenimente);
     }
 
     @Test
     void inregistreaza_parolaSlaba_respinsaInainteDeOriceScriere() {
+        when(utilizatori.findByEmail("ana@ex.ro")).thenReturn(Optional.empty());
+
         assertThatThrownBy(() -> cont.inregistreaza("ana@ex.ro", "scurta", "Ana"))
                 .isInstanceOf(ParolaSlabaException.class);
 
-        verifyNoInteractions(utilizatori, tokenuri, evenimente);
-    }
-
-    @Test
-    void inregistreaza_pesteLimitaPeEmail_nuMaiTrimite() {
-        when(utilizatori.findByEmail("ana@ex.ro")).thenReturn(Optional.of(utilizator(true)));
-
-        for (int i = 0; i < 5; i++) {
-            cont.inregistreaza("ana@ex.ro", PAROLA, "Ana");
-        }
-
-        verify(evenimente, times(3)).publishEvent(any(EmailDeTrimis.class));
+        verify(utilizatori, never()).saveAndFlush(any());
+        verifyNoInteractions(tokenuri, evenimente);
     }
 
     @Test
@@ -156,15 +148,6 @@ class ContServiceTest {
 
         assertThat(u.isEmailConfirmat()).isFalse();
         verify(tokenuri, never()).consuma(anyString(), any(), any());
-    }
-
-    @Test
-    void inregistreaza_emailExistent_invalideazaSiResetarileVechi() {
-        when(utilizatori.findByEmail("ana@ex.ro")).thenReturn(Optional.of(utilizator(true)));
-
-        cont.inregistreaza("ana@ex.ro", PAROLA, "Ana");
-
-        verify(tokenuri).invalideazaActive(7L, Tip.RESETARE_PAROLA, ACUM);
     }
 
     @Test
