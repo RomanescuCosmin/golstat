@@ -43,6 +43,14 @@ public final class MatchGoalModel {
         return predict(ctx, STANDARD_LINES);
     }
 
+    /**
+     * Distributia totalului de goluri a unei predictii (aceeasi matrice Dixon-Coles, refacuta din λ):
+     * {@code [k]} = P(exact k goluri), ultima pozitie = P(peste {@code max}). Baza pietelor-interval.
+     */
+    public static double[] distributieTotal(MatchPrediction p, int max) {
+        return ScoreGrid.dixonColes(p.lambdaGazde(), p.lambdaOaspeti(), RHO, MAX_GOALS).totalDistribution(max);
+    }
+
     public static MatchPrediction predict(MatchContext ctx, double... lines) {
         GoalStats gazde = ctx.formaGazde();
         GoalStats oaspeti = ctx.formaOaspeti();

@@ -246,7 +246,7 @@ export function CompetitiePage() {
               <Skeleton className="h-9 w-36 rounded-btn" />
             </div>
           </Card>
-          <div className="grid items-start gap-5 lg:grid-cols-3">
+          <div className="grid grid-cols-1 items-start gap-4 sm:gap-5 [&>*]:min-w-0 lg:grid-cols-3">
             <Card className="min-w-0 lg:col-span-2">
               <div className="border-b border-line px-5 py-4">
                 <Skeleton className="h-4 w-28" />
@@ -334,7 +334,7 @@ export function CompetitiePage() {
             )}
 
             {sectiune === 'golgheteri' && (
-              <div className="grid items-start gap-5 lg:grid-cols-2">
+              <div className="grid grid-cols-1 items-start gap-4 sm:gap-5 [&>*]:min-w-0 lg:grid-cols-2">
                 <TopCompetitie titlu="Golgheteri" jucatori={date.golgheteri} />
                 <TopCompetitie titlu="Pase decisive" jucatori={date.pasatori} />
               </div>

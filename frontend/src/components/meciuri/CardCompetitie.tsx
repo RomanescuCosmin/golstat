@@ -1,9 +1,10 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import type { LigaZi } from '../../api/types';
 import { numeLiga } from '../../lib/ligi';
 import { Card } from '../ui/Card';
 import { LigaLogo } from '../ui/LigaLogo';
-import { IconChevronDown } from '../ui/icons';
+import { IconChevronDown, IconChevronRight } from '../ui/icons';
 import { RandMeciPremium } from './RandMeciPremium';
 
 /** Cate meciuri aratam inainte de "Vezi toate cele N meciuri". */
@@ -38,7 +39,8 @@ export function CardCompetitie({ liga }: { liga: LigaZi }) {
       <button
         type="button"
         onClick={() => setDeschis((d) => !d)}
-        className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition hover:bg-bg"
+        aria-expanded={deschis}
+        className="flex min-h-[60px] w-full items-center gap-3 px-3.5 py-3 text-left transition hover:bg-bg sm:px-4 sm:py-3.5"
       >
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 dark:bg-primary/20">
           <LigaLogo id={liga.leagueId} nume={nume} size={22} />
@@ -55,7 +57,7 @@ export function CardCompetitie({ liga }: { liga: LigaZi }) {
           </div>
           {subtitlu && <p className="truncate text-xs text-ink2">{subtitlu}</p>}
         </div>
-        <span className="shrink-0 text-xs font-semibold text-ink2">
+        <span className="shrink-0 rounded-full bg-ink2/10 px-2.5 py-1 text-[11px] font-bold tabular-nums text-ink2">
           {liga.meciuri.length} {liga.meciuri.length === 1 ? 'meci' : 'meciuri'}
         </span>
         <IconChevronDown
@@ -66,22 +68,33 @@ export function CardCompetitie({ liga }: { liga: LigaZi }) {
       </button>
 
       {deschis && (
-        <div className="border-t border-line p-2">
-          <div className="space-y-0.5">
+        <div className="border-t border-line p-1.5 sm:p-2">
+          <div className="divide-y divide-line/60 sm:space-y-0.5 sm:divide-y-0">
             {vizibile.map((meci) => (
               <RandMeciPremium key={meci.fixtureId} meci={meci} liga={{ leagueId: liga.leagueId, nume }} />
             ))}
           </div>
 
-          {liga.meciuri.length > PRAG_MECIURI && (
-            <button
-              type="button"
-              onClick={() => setToate((t) => !t)}
-              className="mt-1 w-full rounded-2xl py-2.5 text-center text-xs font-bold uppercase tracking-wide text-primary transition hover:bg-primary/5"
+          <div className="mt-1 flex items-center gap-1 border-t border-line/60 pt-1">
+            {liga.meciuri.length > PRAG_MECIURI && (
+              <button
+                type="button"
+                onClick={() => setToate((t) => !t)}
+                className="h-10 flex-1 rounded-btn text-center text-xs font-bold uppercase tracking-wide text-primary transition hover:bg-primary/10"
+              >
+                {toate ? 'Arată mai puține' : `Vezi toate cele ${liga.meciuri.length} meciuri`}
+              </button>
+            )}
+            <Link
+              to={`/competitie/${liga.leagueId}`}
+              className={`flex h-10 items-center justify-center gap-1 rounded-btn px-3 text-xs font-bold uppercase tracking-wide transition hover:bg-primary/10 ${
+                liga.meciuri.length > PRAG_MECIURI ? 'text-ink2 hover:text-primary' : 'flex-1 text-primary'
+              }`}
             >
-              {toate ? 'Arată mai puține' : `Vezi toate cele ${liga.meciuri.length} meciuri`}
-            </button>
-          )}
+              Vezi competiția
+              <IconChevronRight width={14} height={14} />
+            </Link>
+          </div>
         </div>
       )}
     </Card>

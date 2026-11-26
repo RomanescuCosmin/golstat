@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ApiError, getCompetitie } from '../api/client';
 import type { PaginaCompetitie } from '../api/types';
 import { PageLayout } from '../components/layout/PageLayout';
+import { AntetPagina } from '../components/layout/AntetPagina';
 import { SelectorLiga } from '../components/meciuri/SelectorLiga';
 import { Card } from '../components/ui/Card';
 import { EmptyState } from '../components/ui/EmptyState';
@@ -46,25 +47,15 @@ export function EchipePage() {
 
   return (
     <PageLayout>
-      <div className="mb-5 flex flex-wrap items-center gap-4">
-        <div className="flex min-w-0 flex-1 items-start gap-3">
-          <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-card bg-primary/10 text-primary">
-            <IconShield width={20} height={20} />
-          </span>
-          <div>
-            <h1 className="text-2xl font-extrabold text-ink">Echipe</h1>
-            <p className="text-sm text-ink2">Echipele din {numeLiga(leagueId)}.</p>
-          </div>
-        </div>
-        <SelectorLiga
-          leagueId={leagueId}
-          optiuni={optiuniLigi}
-          onChange={(v) => setLeagueId(v ?? 39)}
-        />
-      </div>
+      <AntetPagina
+        titlu="Echipe"
+        subtitlu={<>Echipele din {numeLiga(leagueId)}.</>}
+        icon={<IconShield width={22} height={22} />}
+        actiuni={<SelectorLiga leagueId={leagueId} optiuni={optiuniLigi} onChange={(v) => setLeagueId(v ?? 39)} />}
+      />
 
       {loading && (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
           {Array.from({ length: 8 }, (_, i) => (
             <Card key={i} className="flex items-center gap-3 p-4">
               <Skeleton className="h-9 w-9 shrink-0 rounded-full" />
@@ -97,7 +88,7 @@ export function EchipePage() {
       )}
 
       {!loading && !eroare && date && date.clasament.length > 0 && (
-        <div className="animate-fade-in grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="animate-fade-in grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
           {date.clasament.map((r) => (
             <Link key={r.teamId} to={`/echipa/${r.teamId}`} className="group block">
               <Card className="flex items-center gap-3 p-4 transition duration-200 hover:-translate-y-0.5 hover:shadow-cardHover">

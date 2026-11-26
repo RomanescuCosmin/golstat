@@ -17,6 +17,8 @@ import ro.golstat.common.GolstatConstants;
 import ro.golstat.common.dto.FixtureDto;
 import ro.golstat.common.dto.SeasonDto;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -61,6 +63,21 @@ public class ActualizareProgram {
 
     @Scheduled(cron = "${golstat.actualizare.cron:0 0 6 * * *}")
     public void actualizeaza() {
+        actualizeaza(null);
+    }
+
+    /**
+     * Dupa o pauza a procesului (sleep / hibernare): pe langa actualizarea obisnuita, meciurile terminate
+     * care au inceput dupa {@code dePeCand} - durata unui meci se re-finalizeaza chiar daca au deja statistici —
+     * cele prinse live inainte de pauza au doar un snapshot partial, iar bucla live nu le-a vazut terminandu-se.
+     */
+    public void recupereaza(Instant dePeCand) {
+        actualizeaza(dePeCand.minus(DURATA_MECI));
+    }
+
+    static final Duration DURATA_MECI = Duration.ofHours(3);
+
+    private void actualizeaza(Instant fortatDupa) {
         LocalDate azi = LocalDate.now(ZoneOffset.UTC);
         int meciuri = 0;
         int completate = 0;
@@ -90,7 +107,9 @@ public class ActualizareProgram {
                 Set<Long> auStatistici = teamStats.findByFixtureIdIn(terminate.stream().map(FixtureDto::id).toList())
                         .stream().map(FixtureTeamStats::getFixtureId).collect(Collectors.toSet());
                 for (FixtureDto f : terminate) {
-                    if (!auStatistici.contains(f.id())) {
+                    boolean fortat = fortatDupa != null && f.kickoff() != null
+                            && !f.kickoff().toInstant().isBefore(fortatDupa);
+                    if (fortat || !auStatistici.contains(f.id())) {
                         finalizare.finalizeaza(f);
                         completate++;
                     }

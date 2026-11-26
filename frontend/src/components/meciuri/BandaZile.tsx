@@ -64,12 +64,12 @@ export function BandaZile({ selectata, onSelect }: BandaZileProps) {
   };
 
   return (
-    <div className="flex items-center gap-1 rounded-xl border border-line bg-card p-1.5 shadow-card dark:shadow-none">
+    <div className="flex items-center gap-1 rounded-card border border-line bg-card p-1.5 shadow-card dark:shadow-none">
       <button
         type="button"
         aria-label="Zile anterioare"
         onClick={() => sare(-1)}
-        className="flex h-10 w-8 shrink-0 items-center justify-center rounded-lg text-ink2 transition hover:bg-bg hover:text-ink"
+        className="hidden h-10 w-8 shrink-0 items-center justify-center rounded-lg text-ink2 transition hover:bg-bg hover:text-ink sm:flex"
       >
         <IconChevronLeft width={16} height={16} />
       </button>
@@ -90,7 +90,7 @@ export function BandaZile({ selectata, onSelect }: BandaZileProps) {
               aria-pressed={activa}
               className={`flex w-[76px] shrink-0 flex-col items-center rounded-lg px-1 py-1.5 leading-tight transition ${
                 activa
-                  ? 'bg-gradient-to-br from-primary to-[#7C3AED] text-white shadow-[0_4px_14px_rgb(var(--gs-primary)/0.35)]'
+                  ? 'bg-primary text-white shadow-[0_4px_16px_rgb(var(--gs-primary)/0.45)]'
                   : 'text-ink2 hover:bg-bg hover:text-ink'
               }`}
             >
@@ -109,7 +109,7 @@ export function BandaZile({ selectata, onSelect }: BandaZileProps) {
         type="button"
         aria-label="Zile următoare"
         onClick={() => sare(1)}
-        className="flex h-10 w-8 shrink-0 items-center justify-center rounded-lg text-ink2 transition hover:bg-bg hover:text-ink"
+        className="hidden h-10 w-8 shrink-0 items-center justify-center rounded-lg text-ink2 transition hover:bg-bg hover:text-ink sm:flex"
       >
         <IconChevronRight width={16} height={16} />
       </button>

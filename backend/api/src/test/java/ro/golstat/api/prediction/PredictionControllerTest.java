@@ -10,6 +10,7 @@ import ro.golstat.api.prediction.PredictieMeciDto.EchipaDto;
 import ro.golstat.api.prediction.PredictieMeciDto.LinieGolDto;
 import ro.golstat.api.prediction.PredictieMeciDto.ProcentCota;
 import ro.golstat.api.web.CorsConfig;
+import ro.golstat.api.web.SecurityConfig;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -25,7 +26,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(PredictionController.class)
-@Import(CorsConfig.class)
+@Import({CorsConfig.class, SecurityConfig.class})
 class PredictionControllerTest {
 
     @Autowired MockMvc mvc;

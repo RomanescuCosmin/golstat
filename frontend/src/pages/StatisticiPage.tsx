@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { ApiError, getStatisticiLigi } from '../api/client';
 import type { StatisticiLiga } from '../api/types';
 import { PageLayout } from '../components/layout/PageLayout';
+import { AntetPagina } from '../components/layout/AntetPagina';
 import { Card } from '../components/ui/Card';
 import { EmptyState } from '../components/ui/EmptyState';
 import { ErrorState } from '../components/ui/ErrorState';
@@ -30,14 +31,24 @@ function etichetaSezon(sezon: number | null): string | null {
 }
 
 /** Celulă numerică cu bară proporțională față de maximul coloanei — comparație vizuală rapidă. */
-function CelulaMedie({ valoare, maxim, accent }: { valoare: number | null; maxim: number; accent: boolean }) {
+function CelulaMedie({
+  valoare,
+  maxim,
+  accent,
+  eticheta,
+}: {
+  valoare: number | null;
+  maxim: number;
+  accent: boolean;
+  eticheta: string;
+}) {
   // minimul de 4% face vizibile valorile mici, dar 0 ramane 0 — fara umplere falsa
   const procent =
     valoare != null && valoare > 0 && maxim > 0 ? Math.max(4, Math.round((valoare / maxim) * 100)) : 0;
   return (
-    <td className="px-4 py-3.5 text-center align-middle">
+    <td data-eticheta={eticheta} className="block text-center align-middle before:mb-1 before:block before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-ink2 before:content-[attr(data-eticheta)] md:before:hidden md:table-cell md:px-4 md:py-3.5">
       <span className="text-sm font-semibold tabular-nums text-ink">{formatMedie(valoare)}</span>
-      <span className={`mx-auto mt-1.5 block h-1 w-16 overflow-hidden rounded-full ${accent ? 'bg-accent/15' : 'bg-primary/15'}`}>
+      <span className={`mx-auto mt-1.5 block h-1 w-12 overflow-hidden md:w-16 rounded-full ${accent ? 'bg-accent/15' : 'bg-primary/15'}`}>
         {valoare != null && (
           <span className={`block h-full rounded-full ${accent ? 'bg-accent' : 'bg-primary'}`} style={{ width: `${procent}%` }} />
         )}
@@ -87,15 +98,7 @@ export function StatisticiPage() {
 
   return (
     <PageLayout>
-      <div className="mb-5 flex items-start gap-3">
-        <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-card bg-primary/10 text-primary">
-          <IconChart width={20} height={20} />
-        </span>
-        <div>
-          <h1 className="text-2xl font-extrabold text-ink">Statistici</h1>
-          <p className="text-sm text-ink2">Tendințe pe ligă — medii pe meci.</p>
-        </div>
-      </div>
+      <AntetPagina titlu="Statistici" subtitlu="Tendințe pe ligă — medii pe meci." icon={<IconChart width={22} height={22} />} />
 
       {loading && (
         <Card>
@@ -132,9 +135,9 @@ export function StatisticiPage() {
 
       {!loading && !eroare && randuri.length > 0 && (
         <Card className="animate-fade-in">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] border-collapse text-left">
-              <thead>
+          <div className="md:overflow-x-auto">
+            <table className="block w-full border-collapse text-left md:table md:min-w-[720px]">
+              <thead className="hidden md:table-header-group">
                 <tr className="border-b border-line text-[11px] font-semibold uppercase tracking-wide text-ink2">
                   <th className="px-5 py-3.5 font-semibold">Competiție</th>
                   {COLOANE.map((col) => (
@@ -145,18 +148,18 @@ export function StatisticiPage() {
                   <th className="w-10 px-3 py-3.5" aria-hidden />
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="block md:table-row-group">
                 {randuri.map((liga, index) => {
                   const sezon = etichetaSezon(liga.sezon);
                   return (
                     <tr
                       key={liga.leagueId}
                       onClick={() => navigate(`/competitie/${liga.leagueId}`)}
-                      className={`cursor-pointer border-b border-line/60 transition-colors last:border-b-0 hover:bg-bg ${
+                      className={`grid cursor-pointer grid-cols-4 gap-x-1 gap-y-3 border-b border-line/60 px-4 py-4 transition-colors last:border-b-0 hover:bg-bg md:table-row md:p-0 ${
                         index === 0 ? 'bg-primary/5' : ''
                       }`}
                     >
-                      <td className="px-5 py-3.5 align-middle">
+                      <td className="col-span-4 block align-middle md:table-cell md:px-5 md:py-3.5">
                         <div className="flex items-center gap-3">
                           <LigaLogo id={liga.leagueId} logo={liga.logo} nume={liga.nume} size={22} />
                           <div className="min-w-0">
@@ -175,9 +178,15 @@ export function StatisticiPage() {
                         </div>
                       </td>
                       {COLOANE.map((col) => (
-                        <CelulaMedie key={col.cheie} valoare={liga[col.cheie]} maxim={maxime[col.cheie]} accent={col.accent} />
+                        <CelulaMedie
+                          key={col.cheie}
+                          valoare={liga[col.cheie]}
+                          maxim={maxime[col.cheie]}
+                          accent={col.accent}
+                          eticheta={col.eticheta.replace('/meci', '')}
+                        />
                       ))}
-                      <td className="px-3 py-3.5 text-right align-middle">
+                      <td className="hidden px-3 py-3.5 text-right align-middle md:table-cell">
                         <IconChevronRight width={16} height={16} className="ml-auto text-ink2" />
                       </td>
                     </tr>

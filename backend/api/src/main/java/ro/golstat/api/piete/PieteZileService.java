@@ -43,6 +43,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -206,6 +207,7 @@ public class PieteZileService {
 
         adaugaLinii(out, statistici.goluri(), CodPiata.GOLURI_PESTE, esantionGoluri, false);
         adaugaLinii(out, statistici.goluri(), CodPiata.GOLURI_SUB, esantionGoluri, true);
+        adaugaLiniiInterval(out, statistici, esantionGoluri);
         if (statistici.gg() != null && esantionGoluri > 0) {
             adauga(out, CodPiata.GG, null, statistici.gg().probabilitate(), esantionGoluri);
             adauga(out, CodPiata.NG, null, 1 - statistici.gg().probabilitate(), esantionGoluri);
@@ -245,6 +247,31 @@ public class PieteZileService {
         }
         return List.copyOf(out);
     }
+
+    /**
+     * Intervalul de goluri („intre 1 si 3”) se calculeaza in pagina din liniile „peste” 0.5 … 6.5:
+     * P(intre a si b) = P(peste a−0.5) − P(peste b+0.5). Trimitem liniile care lipsesc din cele standard,
+     * din aceeasi distributie a modelului. Probabilitatea 0 n-are cota, dar e nevoie de ea ca margine:
+     * o pastram cat de mica e, ca sa nu lipseasca linia.
+     */
+    private static void adaugaLiniiInterval(List<CotaPiataDto> out, StatisticiAvansateDto statistici, int esantion) {
+        if (statistici.intervalGoluri() == null || esantion == 0) {
+            return;
+        }
+        Set<Double> existente = new HashSet<>();
+        statistici.goluri().linii().forEach(l -> existente.add(l.linie()));
+        List<Double> d = statistici.intervalGoluri().distributie();
+        double peste = 1.0;
+        for (int k = 0; k < d.size() - 1; k++) {
+            peste -= d.get(k);
+            double linie = k + 0.5;
+            if (!existente.contains(linie)) {
+                adauga(out, CodPiata.GOLURI_PESTE, linie, Math.max(peste, PROBABILITATE_MINIMA), esantion);
+            }
+        }
+    }
+
+    private static final double PROBABILITATE_MINIMA = 0.0001;
 
     private static int esantion(FerestreMeci fer, Function<FerestreEchipa, List<EventCountSample>> piata) {
         return piata.apply(fer.gazde()).size() + piata.apply(fer.oaspeti()).size();

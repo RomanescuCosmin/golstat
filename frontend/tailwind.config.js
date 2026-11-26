@@ -40,10 +40,16 @@ export default {
           from: { opacity: '0', transform: 'translateY(6px)' },
           to: { opacity: '1', transform: 'translateY(0)' },
         },
+        // Foaia de jos de pe mobil urca din marginea ecranului.
+        urcare: {
+          from: { transform: 'translateY(100%)' },
+          to: { transform: 'translateY(0)' },
+        },
       },
       animation: {
         floaty: 'floaty 3s ease-in-out infinite',
         'fade-in': 'fadeIn 0.25s ease-out',
+        urcare: 'urcare 0.28s cubic-bezier(0.32, 0.72, 0, 1)',
       },
     },
   },

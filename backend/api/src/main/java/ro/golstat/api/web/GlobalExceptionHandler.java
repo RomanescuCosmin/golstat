@@ -13,6 +13,15 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import ro.golstat.api.auth.AutentificareEsuataException;
+import ro.golstat.api.auth.EmailExistentException;
+import ro.golstat.api.auth.EmailNeconfirmatException;
+import ro.golstat.api.auth.ParolaCurentaGresitaException;
+import ro.golstat.api.auth.ParolaSlabaException;
+import ro.golstat.api.auth.PreaMulteIncercariException;
+import ro.golstat.api.auth.TokenInvalidException;
 import ro.golstat.api.competitie.CompetitieNotFoundException;
 import ro.golstat.api.jucator.JucatorNotFoundException;
 import ro.golstat.api.matchcenter.MeciNotFoundException;
@@ -20,6 +29,8 @@ import ro.golstat.api.prediction.PredictionNotFoundException;
 import ro.golstat.api.team.EchipaNotFoundException;
 
 import java.time.Instant;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /**
  * Handler global de erori pentru API. Toate raspunsurile de eroare sunt {@link ProblemDetail}
@@ -72,6 +83,63 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return problem(HttpStatus.BAD_REQUEST, "Parametri invalizi", ex.getMessage());
     }
 
+    @ExceptionHandler(AutentificareEsuataException.class)
+    public ProblemDetail handleAutentificareEsuata(AutentificareEsuataException ex) {
+        return problem(HttpStatus.UNAUTHORIZED, "Autentificare eșuată", ex.getMessage());
+    }
+
+    @ExceptionHandler(EmailExistentException.class)
+    public ProblemDetail handleEmailExistent(EmailExistentException ex) {
+        return cuCod(problem(HttpStatus.CONFLICT, "Email folosit", ex.getMessage()), "email-existent");
+    }
+
+    @ExceptionHandler(EmailNeconfirmatException.class)
+    public ProblemDetail handleEmailNeconfirmat(EmailNeconfirmatException ex) {
+        return cuCod(problem(HttpStatus.FORBIDDEN, "Email neconfirmat", ex.getMessage()), "email-neconfirmat");
+    }
+
+    @ExceptionHandler(TokenInvalidException.class)
+    public ProblemDetail handleTokenInvalid(TokenInvalidException ex) {
+        return cuCod(problem(HttpStatus.BAD_REQUEST, "Link invalid", ex.getMessage()), "token-invalid");
+    }
+
+    @ExceptionHandler(ParolaSlabaException.class)
+    public ProblemDetail handleParolaSlaba(ParolaSlabaException ex) {
+        return cuCod(problem(HttpStatus.BAD_REQUEST, "Parolă prea slabă", ex.getMessage()), "parola-slaba");
+    }
+
+    @ExceptionHandler(ParolaCurentaGresitaException.class)
+    public ProblemDetail handleParolaCurentaGresita(ParolaCurentaGresitaException ex) {
+        return cuCod(problem(HttpStatus.BAD_REQUEST, "Parolă greșită", ex.getMessage()), "parola-gresita");
+    }
+
+    /** Doua modificari simultane ale aceluiasi cont (ex. schimbare + resetare parola). */
+    @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
+    public ProblemDetail handleConflict(ObjectOptimisticLockingFailureException ex) {
+        return problem(HttpStatus.CONFLICT, "Conflict", "Contul a fost modificat între timp. Reîncearcă.");
+    }
+
+    @ExceptionHandler(PreaMulteIncercariException.class)
+    public ResponseEntity<ProblemDetail> handlePreaMulteIncercari(PreaMulteIncercariException ex) {
+        ProblemDetail pd = problem(HttpStatus.TOO_MANY_REQUESTS, "Prea multe încercări", ex.getMessage());
+        pd.setProperty("retryAfter", ex.getRetryAfterSecunde());
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(ex.getRetryAfterSecunde()))
+                .body(pd);
+    }
+
+    /** Validare {@code @Valid}: {@code erori: {camp: mesaj}}; valorile respinse (ex. parole) nu se intorc. */
+    @Override
+    protected ResponseEntity<Object> handleMethodArgumentNotValid(MethodArgumentNotValidException ex, HttpHeaders headers,
+                                                                  HttpStatusCode status, WebRequest request) {
+        Map<String, String> erori = new LinkedHashMap<>();
+        ex.getBindingResult().getFieldErrors()
+                .forEach(e -> erori.putIfAbsent(e.getField(), e.getDefaultMessage()));
+        ProblemDetail pd = problem(HttpStatus.BAD_REQUEST, "Date invalide", "Verifică câmpurile marcate.");
+        pd.setProperty("erori", erori);
+        return handleExceptionInternal(ex, pd, headers, HttpStatus.BAD_REQUEST, request);
+    }
+
     /** Plasa de siguranta: orice altceva neprevazut → 500 generic, dar logam cauza reala. */
     @ExceptionHandler(Exception.class)
     public ProblemDetail handleUnexpected(Exception ex) {
@@ -89,6 +157,11 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             pd.setProperty("timestamp", Instant.now());
         }
         return super.handleExceptionInternal(ex, body, headers, statusCode, request);
+    }
+
+    private static ProblemDetail cuCod(ProblemDetail pd, String cod) {
+        pd.setProperty("cod", cod);
+        return pd;
     }
 
     private static ProblemDetail problem(HttpStatus status, String title, String detail) {

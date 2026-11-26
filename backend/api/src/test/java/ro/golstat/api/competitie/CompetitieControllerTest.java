@@ -3,8 +3,10 @@ package ro.golstat.api.competitie;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import ro.golstat.api.web.SecurityConfig;
 import ro.golstat.api.competitie.ClasamentDetaliatDto.Grupa;
 import ro.golstat.api.competitie.ClasamentDetaliatDto.MeciForma;
 import ro.golstat.api.competitie.ClasamentDetaliatDto.Rand;
@@ -19,6 +21,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(CompetitieController.class)
+@Import(SecurityConfig.class)
 class CompetitieControllerTest {
 
     @Autowired MockMvc mvc;

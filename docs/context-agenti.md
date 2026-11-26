@@ -150,6 +150,41 @@ trimit (`PieteZileService.adaugaLinii`).
   (`fixture_team_half_stats`) și arbitri; importul one-shot e în `application-import.yml`
   (moduri `doar-reprize`, `doar-incidente`).
 
+## 6c. Autentificare (2026-11-26)
+
+Conturile se deschid dintr-o **fereastră modală** (`AutentificareModal`, din `ContUtilizator` în header),
+nu dintr-o pagină. Login-ul NU protejează încă nimic: toate GET-urile rămân publice; stabilește doar
+identitatea pentru funcții viitoare pe utilizator.
+
+- **Backend** (`ro.golstat.api.auth`, `web/SecurityConfig`): Spring Security 6.5 + sesiune pe server în
+  JDBC (`spring_session*`, merge pe Postgres și MySQL, fără Redis). Cookie `GOLSTAT_SID` HttpOnly,
+  SameSite=Strict, Secure. CSRF double-submit (`XSRF-TOKEN` + header `X-XSRF-TOKEN`) pe toate POST-urile,
+  inclusiv login. Parole Argon2id; politica NIST (12–128 caractere, nu din `parole-comune.txt`).
+- **Email existent la „Cont nou”** → 409 `email-existent`, mesaj clar, fără email (decizia utilizatorului,
+  2026-11-26: UX mai clar în schimbul enumerării, limitată la 5 înregistrări/oră per IP).
+- **Anti-enumerare** rămâne la parolă uitată / retrimitere (mereu 202) și login (același 401; „email
+  neconfirmat” 403 doar după parola corectă). Confirmarea emailului cere și parola (un cont
+  pre-înregistrat de altcineva cu adresa ta nu se poate activa doar din link); toate linkurile de
+  confirmare trimise rămân valide până la expirare sau până la prima confirmare.
+- **Tokenuri din email**: în DB doar SHA-256, folosire unică, în fragmentul URL (`/#confirmare=`,
+  `/#resetare=`), citite o dată în `main.tsx` și șterse din URL. Resetarea deconectează toate sesiunile.
+- **Limite** în memorie (`LimitariAuth`), 429 + `Retry-After`. IP-ul vine din `X-Forwarded-For` doar de la
+  proxy-ul local (Vite cu `xfwd`, `server.tomcat.remoteip.internal-proxies` = loopback).
+
+Variabile de mediu (NICIODATĂ în fișiere commit-uite):
+
+| Variabilă | Implicit | Rol |
+|---|---|---|
+| `GOLSTAT_MAIL_MOD` | `smtp` | `log` = linkurile apar în log (doar dezvoltare locală) |
+| `GOLSTAT_MAIL_USERNAME` | — | contul Gmail (și expeditorul) |
+| `GOLSTAT_MAIL_PASSWORD` | — | parola de aplicație Gmail (myaccount.google.com/apppasswords) |
+| `GOLSTAT_FRONTEND_URL` | `http://localhost:5173` | baza linkurilor din email |
+| `GOLSTAT_COOKIE_SECURE` | `true` | `false` doar pentru teste cu curl/PowerShell pe http |
+
+Fără credențiale SMTP aplicația pornește, dar emailurile de cont nu pleacă (eroare în log, tokenul nu
+apare niciodată în log). În producție variabilele se setează la nivel de utilizator Windows ca să le
+moștenească și task-ul programat; după schimbări de cod rebuild `gradlew.bat :api:bootJar`.
+
 ## 7. Cum rulezi și verifici
 
 ```powershell

@@ -12,6 +12,7 @@ import ro.golstat.common.dto.FixtureDto;
 import ro.golstat.common.dto.SeasonDto;
 import ro.golstat.common.dto.StandingDto;
 
+import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
@@ -83,6 +84,29 @@ class ActualizareProgramTest {
 
         verify(finalizare, never()).finalizeaza(any());
         verify(ingest).ingestStanding(rand);
+    }
+
+    @Test
+    void recuperareDupaSleep_reFinalizeazaMeciulJucatInPauza_chiarDacaAreStatisticiPartiale() {
+        FixtureTeamStats are = new FixtureTeamStats();
+        are.setFixtureId(500L);
+        when(teamStats.findByFixtureIdIn(any())).thenReturn(List.of(are));
+
+        // pauza a inceput la 16:00, meciul a inceput la 15:00 → putea fi live cand s-a oprit procesul
+        actualizare.recupereaza(Instant.parse("2026-11-15T16:00:00Z"));
+
+        verify(finalizare).finalizeaza(terminat(500));
+    }
+
+    @Test
+    void recuperareDupaSleep_meciulVechiCuStatistici_nuSeReFinalizeaza() {
+        FixtureTeamStats are = new FixtureTeamStats();
+        are.setFixtureId(500L);
+        when(teamStats.findByFixtureIdIn(any())).thenReturn(List.of(are));
+
+        actualizare.recupereaza(Instant.parse("2026-11-15T19:00:00Z"));
+
+        verify(finalizare, never()).finalizeaza(any());
     }
 
     @Test

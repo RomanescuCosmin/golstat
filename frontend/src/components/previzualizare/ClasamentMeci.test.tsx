@@ -125,11 +125,12 @@ describe('ClasamentMeci', () => {
     randeaza(33, 99);
 
     const select = await screen.findByRole('combobox', { name: 'Grupa' });
-    expect(select).toHaveDisplayValue('League B, Group 1');
+    expect(select).toHaveTextContent('League B, Group 1');
     expect(screen.getByText('Romania')).toBeInTheDocument();
     expect(screen.queryByText('Spania')).toBeNull();
 
-    await user.selectOptions(select, 'League A, Group 1');
+    await user.click(select);
+    await user.click(screen.getByRole('option', { name: 'League A, Group 1' }));
     expect(screen.getByText('Spania')).toBeInTheDocument();
     expect(screen.queryByText('Romania')).toBeNull();
   });
@@ -142,7 +143,7 @@ describe('ClasamentMeci', () => {
       ],
     });
     randeaza(500, 501);
-    expect(await screen.findByRole('combobox', { name: 'Grupa' })).toHaveDisplayValue('Grupa A');
+    expect(await screen.findByRole('combobox', { name: 'Grupa' })).toHaveTextContent('Grupa A');
   });
 
   test('fara clasament publicat: mesaj „Fără clasament"', async () => {

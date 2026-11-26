@@ -3,8 +3,10 @@ package ro.golstat.api.preview;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import ro.golstat.api.web.SecurityConfig;
 import ro.golstat.api.prediction.PredictieMeciDto;
 import ro.golstat.api.prediction.PredictieMeciDto.EchipaDto;
 import ro.golstat.api.prediction.PredictieMeciDto.ProcentCota;
@@ -29,6 +31,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(MatchPreviewController.class)
+@Import(SecurityConfig.class)
 class MatchPreviewControllerTest {
 
     @Autowired MockMvc mvc;
@@ -82,7 +85,7 @@ class MatchPreviewControllerTest {
                 new ReprizeDto(0.72, 0.81,
                         new FrecventaDto(5, 7), new FrecventaDto(4, 7),
                         new FrecventaDto(6, 7), new FrecventaDto(5, 7), 0.31, 0.42),
-                null, null, null);
+                null, null, null, null);
         StatisticiCheieDto statisticiCheie = new StatisticiCheieDto(
                 new StatisticiEchipaDto(55.0, 12.4, 5.1, 6.2, 2.1),
                 new StatisticiEchipaDto(null, null, null, null, null));

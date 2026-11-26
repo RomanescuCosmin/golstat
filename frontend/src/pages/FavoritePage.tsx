@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { getLive, getMatchCenter } from '../api/client';
 import type { MeciCentral, MeciLive } from '../api/types';
 import { PageLayout } from '../components/layout/PageLayout';
+import { AntetPagina } from '../components/layout/AntetPagina';
 import { Badge } from '../components/ui/Badge';
 import { Card } from '../components/ui/Card';
 import { EmptyState } from '../components/ui/EmptyState';
@@ -95,15 +96,14 @@ export function FavoritePage() {
 
   return (
     <PageLayout>
-      <div className="space-y-5">
-        <div>
-          <h1 className="text-2xl font-extrabold text-ink">Favorite</h1>
-          <p className="mt-1 text-sm text-ink2">
-            La fiecare gol într-un meci favorit primești notificare cu sunet, pe orice pagină.
-          </p>
-        </div>
+      <AntetPagina
+        titlu="Favorite"
+        subtitlu="La fiecare gol într-un meci favorit primești notificare cu sunet, pe orice pagină."
+        icon={<IconStar width={22} height={22} />}
+      />
+      <div className="grid items-start gap-4 md:gap-5 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
 
-        <Card className="p-5">
+        <Card className="p-4 sm:p-5">
           <h2 className="text-base font-bold text-ink">Meciuri favorite</h2>
           {favMeciuri.meciuri.length === 0 ? (
             <EmptyState
@@ -124,15 +124,15 @@ export function FavoritePage() {
           )}
         </Card>
 
-        <Card className="p-5">
+        <Card className="p-4 sm:p-5">
           <h2 className="text-base font-bold text-ink">Echipe favorite</h2>
           <p className="mt-1 text-xs text-ink2">Primești notificare la golurile din orice meci al acestor echipe.</p>
           {favEchipe.echipe.length === 0 ? (
             <EmptyState titlu="Nicio echipă favorită" mesaj="Apasă ⭐ lângă numele unei echipe." />
           ) : (
-            <ul className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            <ul className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
               {favEchipe.echipe.map((e) => (
-                <li key={e.id} className="flex items-center gap-2 rounded-xl border border-line px-3 py-2">
+                <li key={e.id} className="flex min-h-[48px] items-center gap-2 rounded-xl border border-line bg-bg/40 px-3 py-2">
                   <Link to={`/echipa/${e.id}`} className="flex min-w-0 flex-1 items-center gap-2 hover:text-primary">
                     <TeamLogo nume={e.nume} logo={e.logo} size={22} />
                     <span className="truncate text-sm font-semibold text-ink">{numeEchipa(e)}</span>
@@ -167,12 +167,12 @@ function RandFavorit({ meci, stare, onScoate }: { meci: MeciFavorit; stare?: Sta
         type="button"
         onClick={onScoate}
         aria-label="Scoate meciul din favorite"
-        className="shrink-0 text-accent transition hover:opacity-70"
+        className="-m-2 shrink-0 p-2 text-accent transition hover:opacity-70"
       >
         <IconStar width={17} height={17} fill="currentColor" />
       </button>
 
-      <div className="flex w-16 shrink-0 flex-col items-center text-center">
+      <div className="flex w-12 shrink-0 flex-col items-center text-center sm:w-16">
         {stare?.inDesfasurare ? (
           <Badge variant="live">{stare.status === 'HT' ? 'Pauză' : stare.minut != null ? `${stare.minut}'` : 'LIVE'}</Badge>
         ) : stare?.terminat ? (
@@ -187,7 +187,7 @@ function RandFavorit({ meci, stare, onScoate }: { meci: MeciFavorit; stare?: Sta
 
       <Link
         to={`/meci/${meci.fixtureId}/centru`}
-        className="grid min-w-0 flex-1 grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-xl px-2 py-1 transition hover:bg-bg"
+        className="grid min-w-0 flex-1 grid-cols-[1fr_auto_1fr] items-center gap-1.5 rounded-xl px-1 py-1 transition hover:bg-bg sm:gap-2 sm:px-2"
       >
         <span className="flex min-w-0 items-center justify-end gap-2">
           <span className="truncate text-right text-sm font-semibold text-ink">{numeEchipa(meci.gazde)}</span>

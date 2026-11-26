@@ -3,11 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { getLive } from '../api/client';
 import type { MeciLive } from '../api/types';
 import { PageLayout } from '../components/layout/PageLayout';
+import { AntetPagina } from '../components/layout/AntetPagina';
 import { Badge } from '../components/ui/Badge';
 import { Card } from '../components/ui/Card';
 import { EmptyState } from '../components/ui/EmptyState';
 import { LigaLogo } from '../components/ui/LigaLogo';
 import { TeamLogo } from '../components/ui/TeamLogo';
+import { IconLive } from '../components/ui/icons';
 import { useScoreFlash } from '../hooks/useAnimatii';
 import { esteInPlay, useLiveScores } from '../hooks/useLiveScore';
 import { numeEchipa } from '../lib/echipa';
@@ -81,18 +83,17 @@ export function LivePage() {
 
   return (
     <PageLayout>
-      <div className="mb-4 flex items-center gap-2">
-        <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-accent" />
-        <h1 className="text-lg font-bold">Live</h1>
-        {afisate.length > 0 && (
-          <span className="rounded-full bg-accent/10 px-2 py-0.5 text-xs font-bold text-accent">{afisate.length}</span>
-        )}
-      </div>
-
-      <p className="mb-4 text-xs text-ink2">
-        Apar doar meciurile pentru care API-ul trimite scor live. La competițiile fără acoperire live, rezultatul
-        apare pe prima pagină la încheierea meciului.
-      </p>
+      <AntetPagina
+        titlu="Live"
+        icon={<IconLive width={22} height={22} />}
+        insigna={
+          <span className="flex items-center gap-1.5 rounded-full bg-accent/15 px-2.5 py-1 text-xs font-bold text-accent">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-accent" />
+            {afisate.length > 0 ? afisate.length : 'Acum'}
+          </span>
+        }
+        subtitlu="Apar doar meciurile pentru care API-ul trimite scor live. La competițiile fără acoperire live, rezultatul apare pe prima pagină la încheierea meciului."
+      />
 
       {loading && (
         <div className="space-y-5">
@@ -149,7 +150,7 @@ interface SectiuneLiveProps {
 function SectiuneLive({ leagueId, nume, meciuri, onOpen }: SectiuneLiveProps) {
   return (
     <Card>
-      <div className="flex items-center gap-3 border-b border-line px-5 py-3">
+      <div className="flex items-center gap-3 border-b border-line px-4 py-3 sm:px-5">
         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 dark:bg-primary/20">
           <LigaLogo id={leagueId ?? undefined} nume={nume} size={20} />
         </span>
@@ -178,14 +179,14 @@ function RandMeciLive({ meci: m, onOpen }: { meci: MeciLive; onOpen: () => void 
           onOpen();
         }
       }}
-      className="grid cursor-pointer grid-cols-[1fr_auto_1fr] items-center gap-3 px-5 py-3 transition hover:bg-bg focus:bg-bg focus:outline-none"
+      className="grid min-h-[64px] cursor-pointer grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 px-3 py-3 sm:gap-3 sm:px-5 transition hover:bg-bg focus:bg-bg focus:outline-none"
     >
       <div className="flex min-w-0 items-center justify-end gap-2.5">
         <span className="truncate text-right text-sm font-semibold text-ink">{numeEchipa(m.gazde)}</span>
         <TeamLogo nume={m.gazde.nume} logo={m.gazde.logo} size={28} />
       </div>
 
-      <div className="flex flex-col items-center gap-0.5 px-3">
+      <div className="flex flex-col items-center gap-0.5 px-1 sm:px-3">
         <span
           className={`text-base font-bold text-accent transition-transform duration-300 motion-reduce:transition-none ${
             flash ? 'scale-125 animate-pulse' : ''

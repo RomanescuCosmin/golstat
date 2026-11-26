@@ -22,8 +22,18 @@ public record StatisticiAvansateDto(
         ReprizeDto reprize,
         RezultatDto rezultat,
         PieteEchipeDto echipe,
-        CornereReprizeDto cornereReprize
+        CornereReprizeDto cornereReprize,
+        IntervalGoluriDto intervalGoluri
 ) {
+
+    /**
+     * Interval de goluri: {@code distributie[k]} = P(meciul are exact k goluri), ultima pozitie = „mai
+     * multe”; suma = 1, deci P(intre a si b) = suma pozitiilor a..b. {@code totaluri*} = golurile totale din
+     * meciurile ferestrei de locatie a fiecarei echipe (cel mai recent primul), pentru „a din b meciuri”.
+     */
+    public record IntervalGoluriDto(List<Double> distributie, List<Integer> totaluriGazde,
+                                    List<Integer> totaluriOaspeti) {
+    }
 
     /** Pietele PER ECHIPA (cate face fiecare echipa, nu totalul meciului). */
     public record PieteEchipeDto(PiataEchipaDto cornere, PiataEchipaDto cartonase, PiataEchipaDto goluri) {

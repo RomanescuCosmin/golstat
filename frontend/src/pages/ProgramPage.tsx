@@ -2,12 +2,14 @@ import { useEffect, useState } from 'react';
 import { ApiError, getProgram } from '../api/client';
 import type { Program } from '../api/types';
 import { PageLayout } from '../components/layout/PageLayout';
+import { AntetPagina } from '../components/layout/AntetPagina';
 import { BandaZileProgram } from '../components/program/BandaZileProgram';
 import { SectiuneProgram } from '../components/program/SectiuneProgram';
 import { Card } from '../components/ui/Card';
 import { EmptyState } from '../components/ui/EmptyState';
 import { ErrorState } from '../components/ui/ErrorState';
 import { Skeleton, SkeletonRand } from '../components/ui/Skeleton';
+import { IconCalendar } from '../components/ui/icons';
 
 export function ProgramPage() {
   const [program, setProgram] = useState<Program | null>(null);
@@ -47,12 +49,11 @@ export function ProgramPage() {
 
   return (
     <PageLayout>
-      <div className="mb-5">
-        <h1 className="text-2xl font-extrabold text-ink">Program</h1>
-        <p className="text-sm text-ink2">
-          Meciuri viitoare din toate competițiile urmărite, pe următoarele 7 zile. Alege o zi din bandă.
-        </p>
-      </div>
+      <AntetPagina
+        titlu="Program"
+        subtitlu="Meciuri viitoare din toate competițiile urmărite, pe următoarele 7 zile. Alege o zi din bandă."
+        icon={<IconCalendar width={22} height={22} />}
+      />
 
       {!loading && !eroare && zile.length > 0 && (
         <div className="mb-5">

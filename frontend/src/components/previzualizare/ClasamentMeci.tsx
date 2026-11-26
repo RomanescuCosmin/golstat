@@ -6,6 +6,7 @@ import { formatDataScurta } from '../../lib/format';
 import { Card } from '../ui/Card';
 import { EmptyState } from '../ui/EmptyState';
 import { Spinner } from '../ui/Spinner';
+import { Dropdown } from '../ui/Dropdown';
 import { TeamLogo } from '../ui/TeamLogo';
 
 /** Culori pentru zonele de clasament, în ordinea apariției; retrogradarea e mereu roșie. */
@@ -101,18 +102,12 @@ export function ClasamentMeci({ leagueId, sezon, gazdeId, oaspetiId }: Clasament
     <Card className="p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         {date.grupe.length > 1 ? (
-          <select
-            aria-label="Grupa"
-            value={indexGrupa}
-            onChange={(e) => setIndexGrupa(Number(e.target.value))}
-            className="rounded-lg border border-line bg-card px-2 py-1.5 text-sm font-semibold text-ink"
-          >
-            {date.grupe.map((g, i) => (
-              <option key={g.nume ?? i} value={i}>
-                {g.nume}
-              </option>
-            ))}
-          </select>
+          <Dropdown
+            eticheta="Grupa"
+            valoare={indexGrupa}
+            onSchimba={setIndexGrupa}
+            optiuni={date.grupe.map((g, i) => ({ valoare: i, eticheta: g.nume ?? `Grupa ${i + 1}` }))}
+          />
         ) : (
           <h2 className="text-base font-bold text-ink">Clasament</h2>
         )}
@@ -122,7 +117,7 @@ export function ClasamentMeci({ leagueId, sezon, gazdeId, oaspetiId }: Clasament
       </div>
 
       <div className="mt-3 overflow-x-auto">
-        <table className="w-full min-w-[22rem] text-sm">
+        <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-line text-[11px] font-semibold uppercase tracking-wide text-ink2">
               <th className="w-8 py-2 text-left">#</th>

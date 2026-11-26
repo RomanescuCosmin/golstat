@@ -165,6 +165,28 @@ class PieteZileServiceTest {
         assertTrue(areP(meci, CodPiata.CORNERE_PESTE), "cornerele pe meci raman");
     }
 
+    @Test
+    void intervalGoluri_liniile0_5pana6_5_dinDistributiaPaginiiDeMeci() {
+        MeciPieteDto meci = primulMeci(piete.piete(3));
+        StatisticiAvansateDto s = preview.previzualizare(meci.fixtureId()).statistici();
+        List<Double> d = s.intervalGoluri().distributie();
+        assertEquals(8, d.size(), "0..6 goluri + „7+”");
+        assertEquals(1.0, d.stream().mapToDouble(Double::doubleValue).sum(), 1e-3);
+
+        for (double linie = 0.5; linie <= 6.5; linie++) {
+            assertTrue(areLinie(meci, CodPiata.GOLURI_PESTE, linie), "lipseste peste " + linie);
+        }
+        // P(intre 1 si 3) din piete = suma distributiei 1..3 de pe pagina meciului
+        double piete13 = cota(meci, CodPiata.GOLURI_PESTE, 0.5).probabilitate()
+                - cota(meci, CodPiata.GOLURI_PESTE, 3.5).probabilitate();
+        assertEquals(d.get(1) + d.get(2) + d.get(3), piete13, 1e-3);
+        assertEquals(7, s.intervalGoluri().totaluriGazde().size(), "fereastra de 7 meciuri acasa");
+    }
+
+    private static boolean areLinie(MeciPieteDto meci, CodPiata cod, double linie) {
+        return meci.piete().stream().anyMatch(c -> c.piata() == cod && c.linie() != null && c.linie() == linie);
+    }
+
     /** Egalitate EXACTA pe double: orice divergenta de calcul intre cele doua cai pica aici. */
     private void verificaLinii(MeciPieteDto meci, CodPiata cod, PiataDto piata, boolean sub) {
         assertFalse(piata.linii().isEmpty(), "piata " + cod + " ar trebui sa aiba linii");

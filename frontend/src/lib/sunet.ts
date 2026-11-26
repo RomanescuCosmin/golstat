@@ -28,6 +28,7 @@ export function pregatesteSunet(): void {
 
 /** Doua impulsuri moi, joase-inalte, cu o mica coada. Ignora orice eroare. */
 export function sunetGol(): void {
+  if (!sunetActiv()) return;
   const c = context();
   if (!c) return;
   if (c.state === 'suspended') {
@@ -46,5 +47,24 @@ export function sunetGol(): void {
     osc.connect(gain).connect(c.destination);
     osc.start(t);
     osc.stop(t + 0.32);
+  }
+}
+
+const CHEIE_SUNET = 'golstat-sunet-gol';
+
+/** Preferinta din Setari: sunetul la gol e pornit implicit; doar „off" explicit il opreste. */
+export function sunetActiv(): boolean {
+  try {
+    return localStorage.getItem(CHEIE_SUNET) !== 'off';
+  } catch {
+    return true;
+  }
+}
+
+export function seteazaSunet(activ: boolean): void {
+  try {
+    localStorage.setItem(CHEIE_SUNET, activ ? 'on' : 'off');
+  } catch {
+    // stocare indisponibila (mod privat) — preferinta ramane doar pentru sesiunea curenta
   }
 }

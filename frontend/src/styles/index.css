@@ -17,17 +17,17 @@
 }
 
 .dark {
-  /* Paleta dark dupa mockup: fundal aproape negru cu tenta de albastru, carduri abia ridicate. */
-  --gs-bg: 7 10 18; /* #070A12 */
-  --gs-card: 16 21 32; /* #101520 */
-  --gs-ink: 232 236 245; /* #E8ECF5 */
-  --gs-ink2: 139 148 167; /* #8B94A7 */
-  --gs-line: 31 39 56; /* #1F2738 */
-  --gs-primary: 59 130 246; /* #3B82F6 */
+  /* Tema principala: navy foarte inchis, carduri navy ridicate, albastru electric pe activ. */
+  --gs-bg: 6 10 22; /* #060A16 */
+  --gs-card: 13 20 38; /* #0D1426 */
+  --gs-ink: 236 240 248; /* #ECF0F8 */
+  --gs-ink2: 138 150 176; /* #8A96B0 */
+  --gs-line: 30 41 66; /* #1E2942 */
+  --gs-primary: 45 125 255; /* #2D7DFF — albastru electric */
   --gs-piata: 167 139 250; /* #A78BFA — violetul se deschide pe fundal inchis, ca sa ramana lizibil */
-  --gs-accent: 248 113 113; /* #F87171 */
+  --gs-accent: 255 77 94; /* #FF4D5E */
   --gs-win: 58 168 112; /* #3AA870 */
-  --gs-draw: 110 120 137; /* #6E7889 */
+  --gs-draw: 104 116 140; /* #68748C */
 }
 
 @layer base {
@@ -46,6 +46,31 @@
 
   body {
     @apply bg-bg text-ink antialiased;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Mânuța pe tot ce e clicabil (preflight-ul Tailwind lasa butoanele pe cursorul implicit). */
+  a[href],
+  button,
+  summary,
+  label[for],
+  select,
+  input[type='checkbox'],
+  input[type='radio'],
+  input[type='range'],
+  [role='button'],
+  [role='option'],
+  [role='tab'],
+  [role='switch'],
+  [role='radio'],
+  [role='menuitem'],
+  [role='combobox']:not(input) {
+    cursor: pointer;
+  }
+  button:disabled,
+  [aria-disabled='true'],
+  [aria-disabled=''] {
+    cursor: not-allowed;
   }
 
   /* Bare de scroll subtiri, pe culorile temei — pe dark, bara gri-deschis implicita iesea in evidenta. */
@@ -82,6 +107,14 @@
 }
 
 @layer components {
+  /* Spatiul de sub continut pe mobil, ca bara de navigare fixa sa nu acopere ultimul card. */
+  .pb-bara-jos {
+    padding-bottom: calc(5.75rem + env(safe-area-inset-bottom));
+  }
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
   /* Tenta de culoare a cardurilor din caruselul live; fiecare card seteaza --tinta: "R G B". */
   .card-live-tinta {
     background-image: linear-gradient(150deg, rgb(var(--tinta) / 0.09) 0%, rgb(var(--tinta) / 0.03) 45%, transparent 70%);

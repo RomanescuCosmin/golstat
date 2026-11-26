@@ -35,7 +35,7 @@ export function CaruselCompetitii({ selectata, onAlege }: CaruselCompetitiiProps
     <div className="relative">
       <div
         ref={scrollRef}
-        className="relative flex gap-2 overflow-x-auto px-1 py-1 [mask-image:linear-gradient(90deg,transparent,black_36px,black_calc(100%-36px),transparent)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="relative -mx-3 flex gap-2 overflow-x-auto px-3 py-1 sm:mx-0 sm:px-1 [mask-image:linear-gradient(90deg,transparent,black_36px,black_calc(100%-36px),transparent)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         <Pastila activa={selectata == null} onClick={() => onAlege(null)} icon={<IconGlobe width={16} height={16} />}>
           Toate competițiile
@@ -58,7 +58,7 @@ export function CaruselCompetitii({ selectata, onAlege }: CaruselCompetitiiProps
         type="button"
         aria-label="Derulează stânga"
         onClick={() => sare(-1)}
-        className="absolute -left-1 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-line bg-card/90 text-ink2 shadow-card backdrop-blur transition hover:scale-105 hover:border-primary/40 hover:text-ink"
+        className="absolute -left-1 top-1/2 z-10 hidden h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-line bg-card/90 text-ink2 shadow-card backdrop-blur transition hover:scale-105 hover:border-primary/40 hover:text-ink sm:flex"
       >
         <IconChevronLeft width={15} height={15} />
       </button>
@@ -66,7 +66,7 @@ export function CaruselCompetitii({ selectata, onAlege }: CaruselCompetitiiProps
         type="button"
         aria-label="Derulează dreapta"
         onClick={() => sare(1)}
-        className="absolute -right-1 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-line bg-card/90 text-ink2 shadow-card backdrop-blur transition hover:scale-105 hover:border-primary/40 hover:text-ink"
+        className="absolute -right-1 top-1/2 z-10 hidden h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-line bg-card/90 text-ink2 shadow-card backdrop-blur transition hover:scale-105 hover:border-primary/40 hover:text-ink sm:flex"
       >
         <IconChevronRight width={15} height={15} />
       </button>

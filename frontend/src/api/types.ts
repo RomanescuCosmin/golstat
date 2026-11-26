@@ -337,6 +337,17 @@ export interface StatisticiAvansateDto {
   rezultat: RezultatStatisticiDto | null;
   echipe: PieteEchipeDto;
   cornereReprize: CornereReprizeDto;
+  intervalGoluri?: IntervalGoluriDto | null;
+}
+
+/**
+ * Oglinda `IntervalGoluriDto`: `distributie[k]` = P(meciul are exact k goluri), ultima poziție = „7+”;
+ * `totaluri*` = golurile totale din meciurile ferestrei fiecărei echipe (cel mai recent primul).
+ */
+export interface IntervalGoluriDto {
+  distributie: number[];
+  totaluriGazde: number[];
+  totaluriOaspeti: number[];
 }
 
 /** Oglinda `ro.golstat.api.preview.PrevizualizareMeciDto`. */
@@ -800,6 +811,7 @@ export type CodPiata =
   // calculate in interfata (lib/piete.ts), serverul nu le trimite
   | 'CORNERE_REPRIZA1_INTERVAL'
   | 'CORNERE_REPRIZA2_INTERVAL'
+  | 'GOLURI_INTERVAL'
   | 'EGAL_PAUZA'
   | 'EGAL_FINAL';
 

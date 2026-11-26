@@ -226,7 +226,7 @@ class LiveApiPollerTest {
         poller.poll();                          // 100 e live
 
         provider.live = List.of();              // 100 a disparut din live=all → tocmai s-a terminat
-        provider.byIds = List.of(fixture(100, 39));
+        provider.byIds = List.of(terminat(100, 39));
         poller.poll();
 
         assertTrue(provider.byIdsAskedFor.contains(100L), "meciul terminat e cerut o data pentru starea finala");
@@ -245,7 +245,7 @@ class LiveApiPollerTest {
         assertTrue(provider.standingsAskedFor.isEmpty(), "cat timp se joaca, clasamentul nu se cere");
 
         provider.live = List.of();
-        provider.byIds = List.of(fixture(100, 39), fixture(101, 39), fixture(102, 140));
+        provider.byIds = List.of(terminat(100, 39), terminat(101, 39), terminat(102, 140));
         poller.poll();
 
         assertEquals(List.of("140/2026", "39/2026"), provider.standingsAskedFor.stream().sorted().toList(),
@@ -265,11 +265,34 @@ class LiveApiPollerTest {
         provider.live = List.of(live(100, 39));
         poller.poll();
         provider.live = List.of();
-        provider.byIds = List.of(fixture(100, 39));
+        provider.byIds = List.of(terminat(100, 39));
         poller.poll();
         poller.poll();
 
         assertEquals(List.of(100L), provider.byIdsAskedFor, "meciul terminat se cere o singura data");
+        verify(finalizare, org.mockito.Mockito.times(1)).finalizeaza(any());
+    }
+
+    @Test
+    void iesitDinLiveDarInca2H_laFurnizor_reincercaPanaPrimesteFT() {
+        matchInWindow();
+        tracked(39L);
+        FinalizareMeci finalizare = mock(FinalizareMeci.class);
+        LiveApiPoller poller = new LiveApiPoller(provider, ingest, broadcaster, fixtures,
+                new LiveProperties(true, 15000, 140, 15, 120000, List.of(), 70), clock, finalizare);
+
+        provider.live = List.of(live(100, 39));
+        poller.poll();
+        provider.live = List.of();
+        provider.byIds = List.of(fixture(100, 39));     // furnizorul il da inca in desfasurare
+        poller.poll();
+        verify(finalizare, org.mockito.Mockito.never()).finalizeaza(any());
+
+        provider.byIds = List.of(terminat(100, 39));
+        poller.poll();
+        poller.poll();
+
+        assertEquals(List.of(100L, 100L), provider.byIdsAskedFor, "reincercat pana la FT, apoi nu se mai cere");
         verify(finalizare, org.mockito.Mockito.times(1)).finalizeaza(any());
     }
 
@@ -300,6 +323,12 @@ class LiveApiPollerTest {
         return new FixtureDto(id, null, "UTC", OffsetDateTime.ofInstant(NOW, ZoneOffset.UTC),
                 leagueId, 2026, "R", null, "long", GolstatConstants.FixtureStatus.FIRST_HALF, 30,
                 1L, 2L, gazde, oaspeti, 0, 0, null, null, null, null, null, null);
+    }
+
+    private static FixtureDto terminat(long id, long leagueId) {
+        FixtureDto f = fixture(id, leagueId);
+        return new FixtureDto(f.id(), null, "UTC", f.kickoff(), leagueId, 2026, "R", null, "long",
+                GolstatConstants.FixtureStatus.FINISHED, 90, 1L, 2L, 1, 0, 0, 0, null, null, null, null, null, null);
     }
 
     private static FixtureDto fixture(long id, long leagueId) {

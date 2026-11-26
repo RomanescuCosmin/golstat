@@ -20,6 +20,7 @@ import { ComutatorCompetitie } from '../ui/ComutatorCompetitie';
 import { ComutatorLocatie } from '../ui/ComutatorLocatie';
 import { Taburi, type Tab } from '../ui/Taburi';
 import { TeamLogo } from '../ui/TeamLogo';
+import { IntervalGoluri } from './IntervalGoluri';
 import { RandMeciForma } from './RandMeciForma';
 
 /**
@@ -580,6 +581,8 @@ export function SectiuneStatistici({
           <>
             {panouri(s.echipe?.goluri, 'goluri', real?.goluriGazde, real?.goluriOaspeti)}
             <TotalMeci titlu="Goluri în meci" piata={s.goluri} unitate="goluri" echipe={echipe}
+              totalReal={r?.totalGoluri} />
+            <IntervalGoluri interval={s.intervalGoluri} gazde={echipe.gazde} oaspeti={echipe.oaspeti}
               totalReal={r?.totalGoluri} />
             <ReprizeSiEgaluri s={s} echipe={echipe} />
           </>
