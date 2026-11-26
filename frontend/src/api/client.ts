@@ -7,13 +7,27 @@ export class ApiError extends Error {
   readonly status: number;
   readonly title: string;
   readonly detail: string | null;
+  /** Cod stabil pentru logica din UI (ex. `csrf`, `email-neconfirmat`, `parola-slaba`). */
+  readonly cod: string | null;
+  /** Erorile de validare pe campuri: `{ camp: mesaj }`. */
+  readonly erori: Record<string, string> | null;
+  /** Secunde pana la o noua incercare (429). */
+  readonly retryAfter: number | null;
 
-  constructor(status: number, title: string, detail: string | null) {
+  constructor(
+    status: number,
+    title: string,
+    detail: string | null,
+    extra: { cod?: string | null; erori?: Record<string, string> | null; retryAfter?: number | null } = {},
+  ) {
     super(detail ?? title);
     this.name = 'ApiError';
     this.status = status;
     this.title = title;
     this.detail = detail;
+    this.cod = extra.cod ?? null;
+    this.erori = extra.erori ?? null;
+    this.retryAfter = extra.retryAfter ?? null;
   }
 }
 
@@ -21,33 +35,112 @@ interface ProblemDetail {
   title?: string;
   detail?: string;
   status?: number;
+  cod?: string;
+  erori?: Record<string, string>;
+  retryAfter?: number;
 }
 
-async function request<T>(path: string, signal?: AbortSignal): Promise<T> {
-  let res: Response;
+export interface OptiuniCerere {
+  method?: 'GET' | 'POST';
+  body?: unknown;
+  signal?: AbortSignal;
+}
+
+const COOKIE_XSRF = 'XSRF-TOKEN';
+
+function citesteTokenXsrf(): string | null {
+  const gasit = document.cookie.split('; ').find((c) => c.startsWith(`${COOKIE_XSRF}=`));
+  if (!gasit) return null;
   try {
-    res = await fetch(`${BASE}${path}`, { headers: { Accept: 'application/json' }, signal });
+    return decodeURIComponent(gasit.slice(COOKIE_XSRF.length + 1)) || null;
+  } catch {
+    return null;
+  }
+}
+
+/** Orice GET primeste cookie-ul XSRF de la server; daca lipseste (prima vizita, dupa logout), il cerem. */
+async function asiguraTokenXsrf(): Promise<string | null> {
+  const existent = citesteTokenXsrf();
+  if (existent) return existent;
+  await fetch(`${BASE}/v1/auth/eu`, { credentials: 'same-origin', headers: { Accept: 'application/json' } }).catch(
+    () => undefined,
+  );
+  return citesteTokenXsrf();
+}
+
+async function trimite(path: string, { method = 'GET', body, signal }: OptiuniCerere): Promise<Response> {
+  const headers: Record<string, string> = { Accept: 'application/json' };
+  if (body !== undefined) headers['Content-Type'] = 'application/json';
+  if (method !== 'GET') {
+    const token = await asiguraTokenXsrf();
+    if (token) headers['X-XSRF-TOKEN'] = token;
+  }
+  try {
+    return await fetch(`${BASE}${path}`, {
+      method,
+      headers,
+      body: body === undefined ? undefined : JSON.stringify(body),
+      credentials: 'same-origin',
+      signal,
+    });
   } catch (e) {
     if (e instanceof DOMException && e.name === 'AbortError') throw e;
     throw new ApiError(0, 'Conexiune eșuată', 'Serverul nu a putut fi contactat.');
   }
+}
 
-  if (!res.ok) {
-    let status = res.status;
-    let title = `Eroare ${res.status}`;
-    let detail: string | null = null;
-    try {
-      const body = (await res.json()) as ProblemDetail;
-      if (typeof body.status === 'number') status = body.status;
-      if (body.title) title = body.title;
-      if (body.detail) detail = body.detail;
-    } catch {
-      // corp gol sau non-JSON — pastram mesajul generic
-    }
-    throw new ApiError(status, title, detail);
+async function eroareDin(res: Response): Promise<ApiError> {
+  let status = res.status;
+  let title = `Eroare ${res.status}`;
+  let detail: string | null = null;
+  let corp: ProblemDetail = {};
+  try {
+    corp = (await res.json()) as ProblemDetail;
+    if (typeof corp.status === 'number') status = corp.status;
+    if (corp.title) title = corp.title;
+    if (corp.detail) detail = corp.detail;
+  } catch {
+    // corp gol sau non-JSON — pastram mesajul generic
   }
+  const antetRetry = Number(res.headers.get('Retry-After'));
+  return new ApiError(status, title, detail, {
+    cod: corp.cod,
+    erori: corp.erori,
+    retryAfter: corp.retryAfter ?? (Number.isFinite(antetRetry) && antetRetry > 0 ? antetRetry : null),
+  });
+}
 
-  return (await res.json()) as T;
+/**
+ * Cerere catre API. Pe metodele care modifica trimite tokenul CSRF (double-submit) si, daca serverul
+ * il respinge (`cod: csrf`), reincearca o singura data cu un token proaspat. 202/204 → `undefined`.
+ */
+export async function cerere<T>(path: string, optiuni: OptiuniCerere = {}): Promise<T> {
+  let res = await trimite(path, optiuni);
+  if (!res.ok) {
+    let eroare = await eroareDin(res);
+    if (eroare.cod === 'csrf' && optiuni.method && optiuni.method !== 'GET') {
+      document.cookie = `${COOKIE_XSRF}=; Max-Age=0; Path=/`;
+      res = await trimite(path, optiuni);
+      if (res.ok) return corpDin<T>(res);
+      eroare = await eroareDin(res);
+    }
+    throw eroare;
+  }
+  return corpDin<T>(res);
+}
+
+async function corpDin<T>(res: Response): Promise<T> {
+  const text = await res.text();
+  if (!text) return undefined as T;
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new ApiError(res.status, 'Răspuns invalid', 'Serverul a trimis un răspuns neașteptat.');
+  }
+}
+
+function request<T>(path: string, signal?: AbortSignal): Promise<T> {
+  return cerere<T>(path, { signal });
 }
 
 /** Predictiile meciurilor viitoare ale unei ligi intr-o zi; `data` in format "YYYY-MM-DD". */

@@ -13,9 +13,10 @@ export default defineConfig({
   // sockjs-client se asteapta la `global` (Node); sub Vite il mapam pe `window`.
   define: { global: 'window' },
   server: {
+    // xfwd: trimite IP-ul real in X-Forwarded-For (limitele de rata ale autentificarii sunt per IP)
     proxy: {
-      '/api': API_TARGET,
-      '/ws': { target: API_TARGET, ws: true },
+      '/api': { target: API_TARGET, xfwd: true },
+      '/ws': { target: API_TARGET, ws: true, xfwd: true },
     },
   },
   test: {

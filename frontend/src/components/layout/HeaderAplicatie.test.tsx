@@ -1,9 +1,12 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
+import { AuthProvider } from '../../auth/AuthProvider';
 import { ThemeProvider } from '../../theme/ThemeProvider';
 import { HeaderAplicatie } from './HeaderAplicatie';
+
+vi.mock('../../api/auth', () => ({ getEu: vi.fn().mockResolvedValue(null) }));
 
 function Ruta() {
   return <p data-testid="ruta">{useLocation().pathname}</p>;
@@ -12,12 +15,14 @@ function Ruta() {
 function randeaza(ruta: string) {
   return render(
     <ThemeProvider>
-      <MemoryRouter initialEntries={[ruta]}>
-        <HeaderAplicatie />
-        <Routes>
-          <Route path="*" element={<Ruta />} />
-        </Routes>
-      </MemoryRouter>
+      <AuthProvider>
+        <MemoryRouter initialEntries={[ruta]}>
+          <HeaderAplicatie />
+          <Routes>
+            <Route path="*" element={<Ruta />} />
+          </Routes>
+        </MemoryRouter>
+      </AuthProvider>
     </ThemeProvider>,
   );
 }
@@ -34,9 +39,9 @@ describe('HeaderAplicatie', () => {
     expect(screen.getByTestId('ruta')).toHaveTextContent(/^\/$/);
   });
 
-  test('fara buton de notificari langa profil', () => {
+  test('fara buton de notificari langa cont; vizitatorul vede butonul de autentificare', async () => {
     randeaza('/');
     expect(screen.queryByRole('button', { name: 'Notificări' })).toBeNull();
-    expect(screen.getAllByRole('link', { name: 'Profil' }).length).toBeGreaterThan(0);
+    expect((await screen.findAllByRole('button', { name: 'Autentificare' })).length).toBeGreaterThan(0);
   });
 });

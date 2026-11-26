@@ -16,6 +16,22 @@ spring:
       hibernate:
         jdbc:
           time_zone: UTC
+  mail:                      # folosit doar cu golstat.auth.mail.mod=smtp; credentialele DOAR din variabile de mediu
+    host: smtp.gmail.com
+    port: 587
+    username: ${GOLSTAT_MAIL_USERNAME:}
+    password: ${GOLSTAT_MAIL_PASSWORD:}
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+      mail.smtp.starttls.required: true
+      mail.smtp.connectiontimeout: 10000
+      mail.smtp.timeout: 10000
+      mail.smtp.writetimeout: 10000
+  session:
+    timeout: 7d             # expirare dupa inactivitate
+    jdbc:
+      initialize-schema: always   # Hibernate nu creeaza tabelele spring_session*
   kafka:
     bootstrap-servers: localhost:9092
     consumer:
@@ -31,7 +47,28 @@ spring:
       host: localhost
       port: 6379
 
+server:
+  # X-Forwarded-For e crezut DOAR de la proxy-ul local (Vite); altfel IP-ul nu poate fi falsificat din retea
+  forward-headers-strategy: native
+  tomcat:
+    remoteip:
+      internal-proxies: 127\.0\.0\.1|0:0:0:0:0:0:0:1|::1
+  servlet:
+    session:
+      cookie:
+        name: GOLSTAT_SID
+        http-only: true
+        same-site: strict
+        secure: ${golstat.securitate.cookie-secure}
+
 golstat:
+  securitate:
+    cookie-secure: ${GOLSTAT_COOKIE_SECURE:true}   # false doar local, pentru clienti http care nu trimit cookie Secure
+  auth:
+    frontend-url: ${GOLSTAT_FRONTEND_URL:http://localhost:5173}
+    mail:
+      mod: ${GOLSTAT_MAIL_MOD:smtp}        # smtp = Gmail; log = linkurile apar in log (DOAR dezvoltare locala)
+      de-la: ${GOLSTAT_MAIL_USERNAME:}
   database:
     name: golstat
   cors:

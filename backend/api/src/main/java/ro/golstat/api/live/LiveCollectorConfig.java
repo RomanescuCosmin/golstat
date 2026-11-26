@@ -12,8 +12,6 @@ import ro.golstat.collector.provider.DataProvider;
 import ro.golstat.collector.provider.apifootball.ApiFootballProperties;
 import ro.golstat.collector.provider.bzzoiro.BzzoiroProperties;
 
-import java.time.Clock;
-
 /**
  * Aduce stratul de furnizor (API-Football) din data-collector in procesul API, ca bucla LIVE sa ruleze
  * intr-un serviciu MEREU pornit — colectorul batch ruleaza one-shot si iese, deci un {@code @Scheduled}
@@ -32,12 +30,6 @@ import java.time.Clock;
 @ComponentScan(basePackages = "ro.golstat.collector.provider")
 @EnableConfigurationProperties({ApiFootballProperties.class, BzzoiroProperties.class, LiveProperties.class})
 class LiveCollectorConfig {
-
-    /** {@code QuotaGuard} cere un {@link Clock}; colectorul il da prin {@code CollectorConfig}, care nu e scanat aici. */
-    @Bean
-    Clock liveClock() {
-        return Clock.systemUTC();
-    }
 
     @Bean
     FinalizareMeci finalizareMeci(DataProvider provider, IngestService ingest, ReprizeIngestListener reprize) {
